@@ -8,19 +8,13 @@ import 'react-native-url-polyfill/auto';
 // users. EXPO_PUBLIC_APP_ENV is stamped at build time by vercel.json; the live
 // site and native builds never set it to 'preview' and keep the main project.
 const isPreviewBuild = process.env.EXPO_PUBLIC_APP_ENV === 'preview';
-const stagingSupabaseUrl = process.env.EXPO_PUBLIC_STAGING_SUPABASE_URL;
-const stagingSupabaseAnonKey = process.env.EXPO_PUBLIC_STAGING_SUPABASE_ANON_KEY;
-
-if (isPreviewBuild && Boolean(stagingSupabaseUrl) !== Boolean(stagingSupabaseAnonKey)) {
-  throw new Error('Both staging Supabase environment variables must be set together.');
-}
-
-const supabaseUrl =
-  (isPreviewBuild && stagingSupabaseUrl) ||
-  process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey =
-  (isPreviewBuild && stagingSupabaseAnonKey) ||
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const stagingUrl = process.env.EXPO_PUBLIC_STAGING_SUPABASE_URL;
+const stagingAnonKey = process.env.EXPO_PUBLIC_STAGING_SUPABASE_ANON_KEY;
+// The URL and key must come from the same project, so the test database is
+// used only when both are set; otherwise the pair falls back together.
+const useStaging = isPreviewBuild && !!stagingUrl && !!stagingAnonKey;
+const supabaseUrl = useStaging ? stagingUrl : process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = useStaging ? stagingAnonKey : process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.');
