@@ -148,7 +148,7 @@ export function PinnedNote(): React.JSX.Element | null {
           <Text style={[styles.by, { color: c.noteInk }]} numberOfLines={1}>
             {by} · {ago}
           </Text>
-          <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={3}>
+          <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={2}>
             {current.text}
           </Text>
           {several && (

@@ -21,8 +21,8 @@ function greetingWord(t: (key: string) => string): string {
   return t(`dashboard.${timeKey}`);
 }
 
-// Avatar + house name + bell on one quiet line, then the greeting set large
-// on its own so it never has to truncate.
+// Avatar + house name + bell on one quiet line, then a short greeting with
+// the first name, kept to one line so the home screen stays compact.
 export function DashboardHeader(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
@@ -40,6 +40,7 @@ export function DashboardHeader(): React.JSX.Element {
   const [showActivity, setShowActivity] = useState(false);
   const [seenBefore, setSeenBefore] = useState('');
   const myName = profile?.name ?? 'there';
+  const firstName = myName.split(' ')[0];
   const myId = profile?.id ?? '';
   const initials = myName.charAt(0).toUpperCase();
   // Unread "news" clears when the bell is opened; action items (votes you owe,
@@ -113,7 +114,7 @@ export function DashboardHeader(): React.JSX.Element {
         style={[styles.greeting, headingFont, { color: c.textPrimary }]}
         accessibilityRole="header"
       >
-        {`${greetingWord(t)},\n${myName}`}
+        {`${greetingWord(t)}, ${firstName}`}
       </Text>
 
       <ActivityPopup visible={showActivity} seenBefore={seenBefore} onClose={closeActivity} />
@@ -155,10 +156,10 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: mf(10), ...font.bold, color: '#fff' },
   greeting: {
-    fontSize: mf(36),
-    lineHeight: mf(40),
-    letterSpacing: -1,
-    marginTop: ms(20),
+    fontSize: mf(30),
+    lineHeight: mf(36),
+    letterSpacing: -0.8,
+    marginTop: ms(16),
   },
   pressed: { opacity: 0.85 },
 });

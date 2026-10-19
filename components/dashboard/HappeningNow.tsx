@@ -67,23 +67,22 @@ interface TicketProps {
   /** Big line on the stub, e.g. "20:00". Omitted for all-day items. */
   time?: string;
   title: string;
-  detail?: string;
   live?: boolean;
   onPress: () => void;
   accessibilityLabel: string;
 }
 
-const PERFORATION = Array.from({ length: 7 });
+const PERFORATION = Array.from({ length: 5 });
 
 // ── One ticket ────────────────────────────────────────────────────────────────
-// Each plan is a ticket: when it happens sits on a torn-off stub, what it is
-// on the main part. Two notches cut from the page colour mark the tear line.
+// A slim ticket: when it happens on a torn-off stub, what it is beside it.
+// Several sit side by side in one row so plans never push the money card
+// and dashboard cards off the first screen.
 function Ticket({
   accent,
   day,
   time,
   title,
-  detail,
   live = false,
   onPress,
   accessibilityLabel,
@@ -111,32 +110,20 @@ function Ticket({
           </Text>
         </View>
         {!!time && (
-          <Text
-            style={[styles.time, headingFont, { color: c.textPrimary }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-          >
+          <Text style={[styles.time, headingFont, { color: c.textPrimary }]} numberOfLines={1}>
             {time}
           </Text>
         )}
       </View>
+      {/* Dashed tear line — drawn as dots since iOS can't dash a single border side. */}
       <View style={styles.tear} pointerEvents="none">
-        <View style={[styles.notch, styles.notchTop, { backgroundColor: c.background }]} />
         {PERFORATION.map((_, i) => (
           <View key={i} style={[styles.dash, { backgroundColor: c.border }]} />
         ))}
-        <View style={[styles.notch, styles.notchBottom, { backgroundColor: c.background }]} />
       </View>
-      <View style={styles.body}>
-        <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>
-          {title}
-        </Text>
-        {!!detail && (
-          <Text style={[styles.detail, { color: c.textSecondary }]} numberOfLines={1}>
-            {detail}
-          </Text>
-        )}
-      </View>
+      <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={1}>
+        {title}
+      </Text>
     </Pressable>
   );
 }
@@ -148,7 +135,6 @@ interface ComingEntry {
   date: string; // YYYY-MM-DD — resolved occurrence
   startTime?: string;
   title: string;
-  detail?: string;
   onPress: () => void;
 }
 
@@ -187,7 +173,6 @@ export function HappeningNow(): React.JSX.Element {
         date: e.date,
         startTime: e.startTime,
         title: e.title,
-        detail: e.notes,
         onPress: handleCalendarPress,
       })
     );
@@ -259,7 +244,6 @@ export function HappeningNow(): React.JSX.Element {
           day={dayLabel}
           time={item.startTime}
           title={item.title}
-          detail={item.detail}
           onPress={item.onPress}
           accessibilityLabel={`${when} — ${item.title}`}
         />
@@ -274,7 +258,7 @@ export function HappeningNow(): React.JSX.Element {
   const nowLabel = t('happening.now');
 
   return (
-    <View>
+    <View style={styles.wrap}>
       {/* ── Happening now (live) ── */}
       {activeRun && (
         <Ticket
@@ -291,12 +275,14 @@ export function HappeningNow(): React.JSX.Element {
       {/* Parking "now" is intentionally not surfaced here — the dashboard parking
           card already shows live parking status. Only the grocery run stays live. */}
 
-      {/* ── Upcoming: today's and tomorrow's plans, one ticket each ── */}
+      {/* ── Upcoming: today's and tomorrow's plans, side by side ── */}
       <FlatList
+        horizontal
         data={soon}
         keyExtractor={(item) => item.key}
-        scrollEnabled={false}
         renderItem={renderSoonItem}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
       />
     </View>
   );
@@ -306,48 +292,33 @@ const styles = StyleSheet.create({
   flex1: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 
+  wrap: { marginTop: ms(12), gap: ms(8) },
+  row: { gap: ms(8) },
   ticket: {
-    marginTop: ms(10),
     flexDirection: 'row',
-    alignItems: 'stretch',
-    borderRadius: ms(18),
-    minHeight: ms(72),
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: ms(14),
+    height: ms(50),
+    maxWidth: ms(260),
+    paddingEnd: ms(14),
   },
   stub: {
-    width: ms(84),
+    alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: ms(12),
-    paddingHorizontal: ms(6),
+    paddingHorizontal: ms(10),
   },
-  dayRow: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
-  day: { fontSize: mf(12.5), ...font.extrabold },
-  time: { fontSize: mf(24), lineHeight: mf(28), letterSpacing: -0.6, marginTop: ms(1) },
-  // The tear line: dashes between two half-circle notches.
   tear: {
-    width: ms(2),
-    alignItems: 'center',
+    alignSelf: 'stretch',
     justifyContent: 'space-between',
-    paddingVertical: ms(12),
+    paddingVertical: ms(7),
+    marginEnd: ms(10),
   },
-  dash: { width: ms(2), height: ms(4), borderRadius: ms(1) },
-  notch: {
-    position: 'absolute',
-    left: -ms(7),
-    width: ms(16),
-    height: ms(16),
-    borderRadius: ms(8),
-  },
-  notchTop: { top: -ms(8) },
-  notchBottom: { bottom: -ms(8) },
-  body: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: 'center',
-    paddingVertical: ms(13),
-    paddingHorizontal: ms(16),
-  },
-  title: { fontSize: mf(16), ...font.bold, lineHeight: mf(21) },
-  detail: { fontSize: mf(13.5), ...font.medium, marginTop: ms(2) },
+  dash: { width: 2, height: ms(4), borderRadius: 1 },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+  day: { fontSize: mf(11), ...font.extrabold },
+  time: { fontSize: mf(16), lineHeight: mf(19), letterSpacing: -0.3 },
+  title: { flexShrink: 1, fontSize: mf(14.5), ...font.bold },
   liveDot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
 });

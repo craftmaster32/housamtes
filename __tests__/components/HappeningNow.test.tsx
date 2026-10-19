@@ -63,7 +63,7 @@ describe('HappeningNow tickets', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('puts the day and time on the stub and the note under the title', () => {
+  it('puts the day and time on the stub, beside the title', () => {
     mockState.events = [
       { id: 'e1', title: 'Recycling pickup', date: ymd(1), startTime: '07:00', notes: 'Blue bins' },
     ];
@@ -71,7 +71,7 @@ describe('HappeningNow tickets', () => {
     expect(screen.getByText('common.tomorrow')).toBeTruthy();
     expect(screen.getByText('07:00')).toBeTruthy();
     expect(screen.getByText('Recycling pickup')).toBeTruthy();
-    expect(screen.getByText('Blue bins')).toBeTruthy();
+
     fireEvent.press(screen.getByRole('button'));
     expect(navigateToBase).toHaveBeenCalledWith('/(tabs)/calendar');
   });
