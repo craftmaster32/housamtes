@@ -459,7 +459,8 @@
     "pin_left": "Pin left",
     "pinned": "Pinned",
     "card_on": "On dashboard",
-    "card_off": "Hidden"
+    "card_off": "Hidden",
+    "more_notes": "+{{count}} more"
   },
   "happening": {
     "now": "Now",

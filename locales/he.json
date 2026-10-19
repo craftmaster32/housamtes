@@ -459,7 +459,8 @@
     "pin_left": "הצמד",
     "pinned": "מוצמד",
     "card_on": "בלוח",
-    "card_off": "מוסתר"
+    "card_off": "מוסתר",
+    "more_notes": "+{{count}} נוספות"
   },
   "happening": {
     "now": "עכשיו",

@@ -459,7 +459,8 @@
     "pin_left": "Fijar",
     "pinned": "Fijada",
     "card_on": "En el panel",
-    "card_off": "Oculta"
+    "card_off": "Oculta",
+    "more_notes": "+{{count}} más"
   },
   "happening": {
     "now": "Ahora",
