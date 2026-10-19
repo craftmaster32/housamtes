@@ -18,4 +18,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE events;
 ALTER PUBLICATION supabase_realtime ADD TABLE announcements;
 ALTER PUBLICATION supabase_realtime ADD TABLE condition_entries;
 ALTER PUBLICATION supabase_realtime ADD TABLE house_members;
-ALTER PUBLICATION supabase_realtime ADD TABLE photos;
+-- photos is created in the next migration, so it joins realtime there.
