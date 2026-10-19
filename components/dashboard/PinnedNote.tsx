@@ -133,8 +133,8 @@ export function PinnedNote(): React.JSX.Element | null {
           ],
         }}
       >
-        {/* The note itself is plain paper; the tap-to-flip area and "See all" sit
-            on it side by side, so VoiceOver can reach both. */}
+        {/* The note itself is plain paper; the tap-to-flip area and "See all" are
+            separate controls on it, so VoiceOver can reach both. */}
         <View style={[styles.note, { backgroundColor: c.note }]}>
           <View style={styles.tape} />
           <Pressable
@@ -150,7 +150,9 @@ export function PinnedNote(): React.JSX.Element | null {
             <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={2}>
               {current.text}
             </Text>
-            {several && (
+          </Pressable>
+          {several && (
+            <View style={styles.footer}>
               <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
                 {notes.map((n, i) => (
                   <View
@@ -163,20 +165,18 @@ export function PinnedNote(): React.JSX.Element | null {
                   />
                 ))}
               </View>
-            )}
-          </Pressable>
-          {several && (
-            <Pressable
-              onPress={OPEN_NOTES}
-              hitSlop={ms(12)}
-              accessibilityRole="link"
-              accessibilityLabel={t('dashboard.see_all')}
-              style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
-            >
-              <Text style={[styles.seeAllText, { color: c.noteInk }]}>
-                {t('dashboard.see_all')}
-              </Text>
-            </Pressable>
+              <Pressable
+                onPress={OPEN_NOTES}
+                hitSlop={ms(12)}
+                accessibilityRole="link"
+                accessibilityLabel={t('dashboard.see_all')}
+                style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
+              >
+                <Text style={[styles.seeAllText, { color: c.noteInk }]}>
+                  {t('dashboard.see_all')}
+                </Text>
+              </Pressable>
+            </View>
           )}
         </View>
       </Animated.View>
@@ -221,15 +221,22 @@ const styles = StyleSheet.create({
   by: { fontSize: mf(13), ...font.bold, opacity: 0.75 },
   text: { fontSize: mf(25), lineHeight: mf(30), marginTop: ms(4) },
   noteTap: { paddingHorizontal: ms(18), paddingTop: ms(20), paddingBottom: ms(14) },
-  dots: { flexDirection: 'row', alignItems: 'center', gap: ms(5), marginTop: ms(10) },
+  // Dots and "See all" get their own row under the text, so the link never
+  // covers the second line of a note.
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingStart: ms(18),
+    paddingEnd: ms(14),
+    marginTop: -ms(10),
+    marginBottom: ms(2),
+  },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
   dot: { height: ms(6), borderRadius: ms(3) },
   dotOn: { width: ms(16), opacity: 0.7 },
   dotOff: { width: ms(6), opacity: 0.25 },
-  // Sits over the bottom corner of the note, next to the dots.
   seeAll: {
-    position: 'absolute',
-    bottom: ms(2),
-    end: ms(14),
     minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: ms(4),
