@@ -174,6 +174,9 @@ export default function RootLayout(): React.JSX.Element | null {
     Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
+    // Caveat — handwriting for paper touches (sticky note). Latin only.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Caveat_700Bold: require('../assets/fonts/Caveat_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
