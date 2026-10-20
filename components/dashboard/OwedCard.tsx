@@ -56,6 +56,17 @@ export function OwedCard(): React.JSX.Element {
       style={({ pressed }) => [pressed && styles.pressed]}
       onPress={() => navigateToBase('/(tabs)/bills')}
       accessibilityRole="button"
+      accessibilityActions={[
+        { name: 'activate' },
+        { name: 'viewSpending', label: t('spending.view_spending') },
+      ]}
+      onAccessibilityAction={(e) => {
+        if (e.nativeEvent.actionName === 'viewSpending') {
+          router.push('/(tabs)/profile/spending');
+        } else {
+          navigateToBase('/(tabs)/bills');
+        }
+      }}
       accessibilityLabel={
         settled
           ? t('dashboard.balance_all_settled')
