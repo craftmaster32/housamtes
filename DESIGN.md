@@ -20,8 +20,12 @@ like a generic AI-generated app.
   get a yes, then build. Mockups live in the scratchpad (not the repo).
 - **One page at a time:** Home ✅ → Bills ✅ → Parking → Chores → Chat →
   More/Settings → the rest.
-- **One branch:** all redesign work goes on `feature/app-redesign` (draft PR
-  #252). It merges only when **all** pages are done.
+- **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
+  (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
+  work cost no reviews; each push still gets a Vercel preview and the free CI
+  checks. When every page is done: mark #252 "Ready for review" → one
+  CodeRabbit review → fix → the owner merges once, so the whole app changes
+  look together. Unrelated bug fixes go in their own small PRs.
 - **Previews never touch the live app.** Vercel previews use the separate
   staging Supabase with fake data. Never copy real data there.
 - **Never push without the owner saying "push" / "yes".**
