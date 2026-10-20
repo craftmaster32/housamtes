@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, StyleSheet, FlatList, Platform, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
@@ -20,6 +20,7 @@ import { getErrorMessage } from '@utils/errors';
 import { TaskRow } from '@components/tasks/TaskRow';
 import { AddTaskForm } from '@components/tasks/AddTaskForm';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
@@ -175,7 +176,14 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+    list: {
+      paddingHorizontal: ms(16),
+      paddingTop: ms(4),
+      // On web the tab bar floats over the page, so leave its full height free
+      // (as Bills does) — otherwise the last rows hide behind it.
+      paddingBottom:
+        Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
+    },
     sep: { height: ms(8) },
 
     heroCard: {

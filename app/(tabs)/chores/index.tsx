@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, type ListRenderItemInfo } from 'react-native';
+import { View, StyleSheet, FlatList, Platform, type ListRenderItemInfo } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { ChoresGlance } from '@components/chores/ChoresGlance';
 import { NewChoreForm } from '@components/chores/NewChoreForm';
 import { PadSlice } from '@components/chores/PadSlice';
 import { useThemedColors } from '@constants/colors';
+import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -246,7 +247,13 @@ function ChoresScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+  list: {
+    paddingHorizontal: ms(16),
+    paddingTop: ms(4),
+    // On web the tab bar floats over the page, so leave its full height free
+    // (as Bills does) — otherwise the last rows hide behind it.
+    paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
+  },
   pageTitle: {
     fontSize: mf(36),
     lineHeight: mf(40),

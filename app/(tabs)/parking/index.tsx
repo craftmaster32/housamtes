@@ -1,5 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, type ListRenderItemInfo } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Platform,
+  Pressable,
+  type ListRenderItemInfo,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +24,7 @@ import { ReservationLine } from '@components/parking/ReservationLine';
 import { ReserveSheet } from '@components/parking/ReserveSheet';
 import { SpotCard } from '@components/parking/SpotCard';
 import { useThemedColors } from '@constants/colors';
+import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useParkingActions } from '@hooks/useParkingActions';
@@ -247,7 +255,13 @@ function ParkingScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+  list: {
+    paddingHorizontal: ms(16),
+    paddingTop: ms(4),
+    // On web the tab bar floats over the page, so leave its full height free
+    // (as Bills does) — otherwise the last rows hide behind it.
+    paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
+  },
   pageTitle: {
     fontSize: mf(36),
     lineHeight: mf(40),
