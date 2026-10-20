@@ -1,752 +1,36 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { withFeatureGuard } from '@components/shared/withFeatureGuard';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Pressable,
-  TextInput,
-  Modal,
-  ScrollView,
-  Platform,
-  AppState,
-  type AppStateStatus,
-  type ListRenderItemInfo,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Pressable, type ListRenderItemInfo } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
+import { BackLink } from '@components/shared/BackLink';
+import { Mate } from '@components/shared/Mate';
+import { NotebookPaper } from '@components/shared/NotebookPaper';
+import { EmptyState } from '@components/ui';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
+import { DayTiles } from '@components/parking/DayTiles';
+import { DayScheduleSheet } from '@components/parking/DayScheduleSheet';
+import { PaperSlice } from '@components/parking/PaperSlice';
+import { ReservationLine } from '@components/parking/ReservationLine';
+import { ReserveSheet } from '@components/parking/ReserveSheet';
+import { SpotCard } from '@components/parking/SpotCard';
+import { useThemedColors } from '@constants/colors';
+import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useParkingActions } from '@hooks/useParkingActions';
+import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
 import {
   useParkingStore,
-  isDateConflict,
   findBlockedReservation,
-  isReservationPastDue,
-  isVoteChangeLocked,
-  type ConflictResult,
   type ParkingReservation,
-  type ParkingReservationStatus,
-  type ParkingSession,
-  type ParkingVote,
-  type ParkingVoteChoice,
 } from '@stores/parkingStore';
-import { useAuthStore } from '@stores/authStore';
-import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
-import { useCalendarSyncStore } from '@stores/calendarSyncStore';
-import { useLanguageStore } from '@stores/languageStore';
-import { Alert } from '@lib/alert';
-import { CalendarPicker } from '@components/shared/CalendarPicker';
-import { TimePicker } from '@components/shared/TimePicker';
-import { BackLink } from '@components/shared/BackLink';
-import { ParkingBlockedBanner } from '@components/parking/ParkingBlockedBanner';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { EmptyState } from '@components/ui';
-import { font } from '@constants/typography';
-import { getErrorMessage } from '@utils/errors';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-
+import { formatTime, todayString } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
-function formatTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-}
-
-function parseDateParts(
-  dateStr: string,
-  locale: string
-): {
-  dayNum: string;
-  monthAbbr: string;
-  weekdayFull: string;
-} {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  return {
-    dayNum: String(d),
-    monthAbbr: date.toLocaleString(locale, { month: 'short' }).toUpperCase(),
-    weekdayFull: date.toLocaleString(locale, { weekday: 'long' }),
-  };
-}
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// ── Component prop interfaces ──────────────────────────────────────────────────
-export interface VoteRowProps {
-  votes: ParkingVote[];
-  housemates: Housemate[];
-  requestedBy: string;
-  votingClosed?: boolean;
-}
-
-export interface ReservationCardProps {
-  item: ParkingReservation;
-  currentUserId: string;
-  isAdmin: boolean;
-  onCancel: (id: string) => void;
-  onVote: (id: string, vote: ParkingVoteChoice) => void;
-  onClear: (id: string) => void;
-  onDatePress: (date: string) => void;
-  isHistory: boolean;
-  now: Date;
-}
-
-export interface ReserveModalProps {
-  visible: boolean;
-  onClose: () => void;
-  myId: string;
-  myName: string;
-  houseId: string;
-  reservations: ParkingReservation[];
-  current: ParkingSession | null;
-}
-
-// ── Vote status row ────────────────────────────────────────────────────────────
-function VoteRow({
-  votes,
-  housemates,
-  requestedBy,
-  votingClosed = false,
-}: VoteRowProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const voters = housemates.filter((h) => h.id !== requestedBy);
-  if (voters.length === 0) return <View />;
-
-  const hasPendingVoters =
-    !votingClosed && voters.some((h) => !votes.find((v) => v.userId === h.id));
-
-  return (
-    <View style={styles.voteRowWrapper}>
-      <View style={styles.voteRow}>
-        {voters.map((h) => {
-          const v = votes.find((vote) => vote.userId === h.id);
-          const dotStyle =
-            v?.vote === 'approve'
-              ? styles.dotApprove
-              : v?.vote === 'reject'
-                ? styles.dotReject
-                : styles.dotPending;
-          const dotIcon =
-            v?.vote === 'approve' ? 'checkmark' : v?.vote === 'reject' ? 'close' : 'remove';
-          return (
-            <View key={h.id} style={styles.voteAvatarWrap}>
-              <View style={[styles.voteAvatarCircle, { backgroundColor: h.color + '30' }]}>
-                <Text style={[styles.voteAvatarInitial, { color: h.color }]}>
-                  {h.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={[styles.voteDot, dotStyle]}>
-                <Ionicons
-                  name={dotIcon as 'checkmark' | 'close' | 'remove'}
-                  size={7}
-                  color="#fff"
-                />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-      {hasPendingVoters && (
-        <View style={styles.voteAbstainNote} accessibilityRole="text">
-          <Ionicons name="information-circle-outline" size={10} color={C.textSecondary} />
-          <Text style={styles.voteAbstainText}>{t('parking.abstain_note')}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-// ── Day schedule sheet ────────────────────────────────────────────────────────
-interface DayScheduleSheetProps {
-  date: string | null;
-  onClose: () => void;
-  currentUserId: string;
-  now: Date;
-}
-
-function DayScheduleSheet({
-  date,
-  onClose,
-  currentUserId,
-  now,
-}: DayScheduleSheetProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
-  const language = useLanguageStore((s) => s.language);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const allReservations = useParkingStore((s) => s.reservations);
-
-  const dayReservations = useMemo(() => {
-    if (!date) return [];
-    return [...allReservations]
-      .filter((r) => r.date === date)
-      .sort((a, b) => {
-        if (!a.startTime && !b.startTime) return 0;
-        if (!a.startTime) return 1;
-        if (!b.startTime) return -1;
-        return a.startTime.localeCompare(b.startTime);
-      });
-  }, [allReservations, date]);
-
-  if (!date) return <View />;
-  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date, language);
-
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.daySheetBackdrop} onPress={onClose}>
-        <Pressable style={styles.daySheetPanel} onPress={() => {}}>
-          <View style={styles.modalHandle} />
-          <Text style={[styles.daySheetTitle, headingFont]}>
-            {weekdayFull}, {dayNum} {monthAbbr}
-          </Text>
-
-          {dayReservations.length === 0 ? (
-            <Text style={styles.daySheetEmpty}>{t('parking.no_reservations_day')}</Text>
-          ) : (
-            <View style={styles.daySheetList}>
-              {dayReservations.map((r) => {
-                const isOwn = r.requestedBy === currentUserId;
-                const dotColor =
-                  r.status === 'approved'
-                    ? C.positive
-                    : r.status === 'rejected'
-                      ? C.danger
-                      : C.warning;
-                const statusBg =
-                  r.status === 'approved'
-                    ? C.positive + '20'
-                    : r.status === 'rejected'
-                      ? C.danger + '15'
-                      : C.warning + '20';
-                const votingClosed =
-                  r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now);
-                const statusLabel =
-                  r.status === 'approved'
-                    ? t('parking.approved')
-                    : r.status === 'rejected'
-                      ? t('parking.rejected')
-                      : votingClosed
-                        ? t('parking.voting_closed')
-                        : t('parking.pending');
-                const timeLabel = r.startTime
-                  ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
-                  : t('parking.all_day');
-                return (
-                  <View key={r.id} style={styles.daySheetRow}>
-                    <View style={[styles.daySheetDot, { backgroundColor: dotColor }]} />
-                    <View style={styles.daySheetRowInfo}>
-                      <Text style={styles.daySheetTime}>{timeLabel}</Text>
-                      <Text style={styles.daySheetName}>
-                        {isOwn ? t('parking.you') : resolveName(r.requestedBy, housemates)}
-                        {r.note ? ` · ${r.note}` : ''}
-                      </Text>
-                    </View>
-                    <View style={[styles.daySheetStatusBadge, { backgroundColor: statusBg }]}>
-                      <Text style={[styles.daySheetStatusText, { color: dotColor }]}>
-                        {statusLabel}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          <Pressable
-            style={styles.daySheetCloseBtn}
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          >
-            <Text style={styles.daySheetCloseBtnText}>{t('common.close')}</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-// ── Reservation card ───────────────────────────────────────────────────────────
-function ReservationCard({
-  item,
-  currentUserId,
-  isAdmin,
-  onCancel,
-  onVote,
-  onClear,
-  onDatePress,
-  isHistory,
-  now,
-}: ReservationCardProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const language = useLanguageStore((s) => s.language);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const allReservations = useParkingStore((s) => s.reservations);
-  const sameDayDots = useMemo(
-    () =>
-      allReservations
-        .filter((r) => r.date === item.date)
-        .sort((a, b) => {
-          if (!a.startTime && !b.startTime) return 0;
-          if (!a.startTime) return 1;
-          if (!b.startTime) return -1;
-          return a.startTime.localeCompare(b.startTime);
-        })
-        .slice(0, 4),
-    [allReservations, item.date]
-  );
-  const isOwn = item.requestedBy === currentUserId;
-  const isPending = item.status === 'pending';
-  const approved = item.status === 'approved';
-  const rejected = item.status === 'rejected';
-  const votingClosed = isPending && isReservationPastDue(item.date, item.startTime, now);
-
-  const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
-  const statusBg = approved ? C.positive + '20' : rejected ? C.danger + '15' : C.warning + '20';
-  const statusLabel = approved
-    ? t('parking.approved')
-    : rejected
-      ? t('parking.rejected')
-      : votingClosed
-        ? t('parking.voting_closed')
-        : t('parking.pending');
-
-  const handleCancel = useCallback(() => onCancel(item.id), [onCancel, item.id]);
-  const handleClear = useCallback(() => onClear(item.id), [onClear, item.id]);
-  const handleApprove = useCallback(() => onVote(item.id, 'approve'), [onVote, item.id]);
-  const handleReject = useCallback(() => onVote(item.id, 'reject'), [onVote, item.id]);
-
-  const timeText = item.startTime
-    ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
-    : null;
-
-  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(item.date, language);
-  const handleDatePress = useCallback(() => onDatePress(item.date), [onDatePress, item.date]);
-
-  const myVote = item.votes.find((v) => v.userId === currentUserId);
-  // Within the lock window, voters can't change their mind but non-voters can still cast a vote
-  const voteChangeLocked =
-    isPending && !votingClosed && isVoteChangeLocked(item.date, item.startTime, now);
-  const canVote = !isOwn && isPending && !votingClosed && !(myVote && voteChangeLocked);
-  // Admin can cancel any upcoming (non-history) reservation they don't own
-  const canAdminCancel = isAdmin && !isOwn && !isHistory && (isPending || approved);
-  const showOwnCancel = isOwn && isPending;
-
-  return (
-    <View style={[styles.resCard, isHistory && styles.resCardDim]}>
-      <View style={styles.dateBadgeCol}>
-        <Pressable
-          style={[styles.dateBadge, { borderColor: statusColor + '50' }]}
-          onPress={handleDatePress}
-          hitSlop={{ top: ms(4), bottom: 0, left: ms(4), right: ms(4) }}
-          accessibilityRole="button"
-          accessibilityLabel={t('parking.tap_see_day_schedule', {
-            weekday: weekdayFull,
-            day: dayNum,
-            month: monthAbbr,
-          })}
-        >
-          <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
-            <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
-          </View>
-          <View style={styles.dateBadgeBottom}>
-            <Text style={[styles.dateBadgeDay, { color: C.textPrimary }]}>{dayNum}</Text>
-            {sameDayDots.length > 1 && (
-              <View style={styles.dayDots}>
-                {sameDayDots.map((r) => (
-                  <View
-                    key={r.id}
-                    style={[
-                      styles.dayDot,
-                      {
-                        backgroundColor:
-                          r.status === 'approved'
-                            ? C.positive
-                            : r.status === 'rejected'
-                              ? C.danger
-                              : C.warning,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </Pressable>
-        <Text style={[styles.dateBadgeWeekLabel, { color: C.textSecondary }]}>{weekdayFull}</Text>
-      </View>
-
-      <View style={styles.resInfo}>
-        {!!timeText && <Text style={styles.resDate}>{timeText}</Text>}
-        <Text style={styles.resBy}>
-          {isOwn ? t('parking.you') : resolveName(item.requestedBy, housemates)}
-          {item.note ? ` · ${item.note}` : ''}
-        </Text>
-
-        <VoteRow
-          votes={item.votes}
-          housemates={housemates}
-          requestedBy={item.requestedBy}
-          votingClosed={votingClosed}
-        />
-
-        <View style={[styles.badge, { backgroundColor: statusBg }]}>
-          <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
-        </View>
-      </View>
-
-      <View style={styles.resActions}>
-        {showOwnCancel && (
-          <Pressable
-            onPress={handleCancel}
-            style={styles.iconBtn}
-            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-            accessibilityRole="button"
-            accessibilityLabel={t('parking.cancel_reservation')}
-          >
-            <Ionicons name="close-circle-outline" size={20} color={C.danger} />
-          </Pressable>
-        )}
-
-        {canAdminCancel && (
-          <Pressable
-            onPress={handleCancel}
-            style={styles.iconBtn}
-            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-            accessibilityRole="button"
-            accessibilityLabel={t('parking.admin_cancel_reservation')}
-          >
-            <Ionicons name="shield-outline" size={20} color={C.warning} />
-          </Pressable>
-        )}
-
-        {isHistory && (
-          <Pressable
-            onPress={handleClear}
-            style={styles.iconBtn}
-            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-            accessibilityRole="button"
-            accessibilityLabel={t('parking.clear_from_history')}
-          >
-            <Ionicons name="trash-outline" size={18} color={C.textSecondary} />
-          </Pressable>
-        )}
-
-        {canVote && (
-          <View style={styles.voteBtns}>
-            <Pressable
-              onPress={handleApprove}
-              style={[styles.voteBtn, myVote?.vote === 'approve' && styles.voteBtnApproveActive]}
-              hitSlop={{ top: ms(6), bottom: ms(6), left: ms(6), right: ms(6) }}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('parking.approve_request')}
-              accessibilityState={{ selected: myVote?.vote === 'approve' }}
-            >
-              <Ionicons
-                name="checkmark"
-                size={15}
-                color={myVote?.vote === 'approve' ? '#fff' : C.positive}
-              />
-            </Pressable>
-            <Pressable
-              onPress={handleReject}
-              style={[styles.voteBtn, myVote?.vote === 'reject' && styles.voteBtnRejectActive]}
-              hitSlop={{ top: ms(6), bottom: ms(6), left: ms(6), right: ms(6) }}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('parking.reject_request')}
-              accessibilityState={{ selected: myVote?.vote === 'reject' }}
-            >
-              <Ionicons
-                name="close"
-                size={15}
-                color={myVote?.vote === 'reject' ? '#fff' : C.danger}
-              />
-            </Pressable>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-}
-
-// ── Week strip ────────────────────────────────────────────────────────────────
-interface WeekStripProps {
-  onDayPress: (date: string) => void;
-}
-
-function WeekStrip({ onDayPress }: WeekStripProps): React.JSX.Element {
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const language = useLanguageStore((s) => s.language);
-  const allReservations = useParkingStore((s) => s.reservations);
-
-  const days = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const dayAbbr = d.toLocaleString(language, { weekday: 'short' }).toUpperCase();
-      const dots = allReservations
-        .filter((r) => r.date === dateStr)
-        .sort((a, b) => {
-          if (!a.startTime && !b.startTime) return 0;
-          if (!a.startTime) return 1;
-          if (!b.startTime) return -1;
-          return a.startTime.localeCompare(b.startTime);
-        })
-        .slice(0, 3);
-      return { dateStr, dayAbbr, dayNum: d.getDate(), isToday: i === 0, dots };
-    });
-  }, [language, allReservations]);
-
-  return (
-    <View style={styles.weekStrip}>
-      {days.map(({ dateStr, dayAbbr, dayNum, isToday, dots }) => (
-        <Pressable
-          key={dateStr}
-          style={styles.weekDay}
-          onPress={() => onDayPress(dateStr)}
-          hitSlop={{ left: ms(4), right: ms(4) }}
-          accessibilityRole="button"
-          accessibilityLabel={`${dayAbbr} ${dayNum}`}
-        >
-          <Text style={[styles.weekDayAbbr, isToday && styles.weekDayAbbrToday]}>{dayAbbr}</Text>
-          <View style={[styles.weekDayNumWrap, isToday && styles.weekDayNumWrapToday]}>
-            <Text style={[styles.weekDayNum, isToday && styles.weekDayNumToday]}>{dayNum}</Text>
-          </View>
-          <View style={styles.weekDayDots}>
-            {dots.map((r) => (
-              <View
-                key={r.id}
-                style={[
-                  styles.weekDot,
-                  {
-                    backgroundColor:
-                      r.status === 'approved'
-                        ? C.positive
-                        : r.status === 'rejected'
-                          ? C.danger
-                          : C.warning,
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-// ── Reserve modal ──────────────────────────────────────────────────────────────
-function ReserveModal({
-  visible,
-  onClose,
-  myId,
-  myName,
-  houseId,
-  reservations,
-  current,
-}: ReserveModalProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
-  const addReservation = useParkingStore((s) => s.addReservation);
-  const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
-  const housemates = useHousematesStore((s) => s.housemates);
-
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  const [date, setDate] = useState(todayStr);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const activeConflict =
-    current && date === todayStr
-      ? current.occupant === myId
-        ? t('parking.currently_using_you')
-        : t('parking.currently_using_other', {
-            name: resolveName(current.occupant, housemates, t('common.unknown')),
-          })
-      : null;
-  const conflictResult: ConflictResult = isDateConflict(
-    date,
-    startTime || undefined,
-    endTime || undefined,
-    reservations,
-    (id: string): string => resolveName(id, housemates, t('common.unknown'))
-  );
-  const dateConflict = conflictResult.conflict;
-  const dateWarning = conflictResult.warning;
-
-  const reset = useCallback((): void => {
-    setDate(todayStr);
-    setStartTime('');
-    setEndTime('');
-    setNote('');
-    setError('');
-  }, [todayStr]);
-
-  const handleClose = useCallback((): void => {
-    reset();
-    onClose();
-  }, [reset, onClose]);
-
-  const handleSave = useCallback(async (): Promise<void> => {
-    if (saving) return; // guard against a double-tap creating two reservations
-    if (dateConflict) {
-      setError(dateConflict);
-      return;
-    }
-    if (!!startTime !== !!endTime) {
-      setError(t('parking.error_both_times'));
-      return;
-    }
-    if (startTime && endTime && endTime <= startTime) {
-      setError(t('parking.error_end_before_start'));
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      const reservationId = await addReservation(
-        {
-          requestedBy: myId,
-          date,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          note,
-        },
-        myName,
-        houseId
-      );
-      syncParkingPending({
-        id: reservationId,
-        requestedBy: myName,
-        date,
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
-      }).catch(() => {});
-      handleClose();
-    } catch (err) {
-      setError(t('parking.failed_reservation'));
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    dateConflict,
-    date,
-    startTime,
-    endTime,
-    note,
-    myId,
-    myName,
-    houseId,
-    addReservation,
-    handleClose,
-    syncParkingPending,
-    t,
-    saving,
-  ]);
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.modalBackdrop} onPress={handleClose}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalHandle} />
-          <Text style={[styles.modalTitle, headingFont]}>{t('parking.reserve_parking')}</Text>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-            <Text style={styles.fieldLabel}>{t('parking.date')}</Text>
-            <CalendarPicker
-              value={date}
-              onChange={(d) => {
-                setDate(d);
-                setError('');
-              }}
-            />
-
-            {!!dateConflict && (
-              <View style={styles.conflictBox}>
-                <Ionicons name="warning-outline" size={13} color={C.warning} />
-                <Text style={styles.conflictText}>{dateConflict}</Text>
-              </View>
-            )}
-            {!dateConflict && !!dateWarning && (
-              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
-                <Ionicons name="time-outline" size={13} color={C.warning} />
-                <Text style={[styles.conflictText, styles.conflictWarningText]}>{dateWarning}</Text>
-              </View>
-            )}
-            {!dateConflict && !!activeConflict && (
-              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
-                <Ionicons name="information-circle-outline" size={13} color={C.warning} />
-                <Text style={[styles.conflictText, styles.conflictWarningText]}>
-                  {activeConflict}
-                </Text>
-              </View>
-            )}
-
-            <Text style={[styles.fieldLabel, { marginTop: ms(14) }]}>
-              {t('parking.start_time')}
-            </Text>
-            <TimePicker value={startTime} onChange={setStartTime} />
-
-            <Text style={[styles.fieldLabel, { marginTop: ms(14) }]}>{t('parking.end_time')}</Text>
-            <TimePicker value={endTime} onChange={setEndTime} />
-
-            <Text style={[styles.fieldLabel, { marginTop: ms(14) }]}>
-              {t('parking.note_label')}
-            </Text>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              style={styles.fieldInput}
-              placeholder={t('parking.note_placeholder')}
-              placeholderTextColor={C.textSecondary}
-            />
-
-            {!!error && <Text style={styles.fieldError}>{error}</Text>}
-          </ScrollView>
-
-          <View style={styles.modalBtns}>
-            <Pressable
-              style={styles.modalBtnOutline}
-              onPress={handleClose}
-              accessibilityRole="button"
-            >
-              <Text style={styles.modalBtnOutlineText}>{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modalBtnPrimary, (saving || !!dateConflict) && { opacity: 0.5 }]}
-              onPress={handleSave}
-              disabled={saving || !!dateConflict}
-              accessibilityRole="button"
-            >
-              <Text style={styles.modalBtnPrimaryText}>{saving ? '…' : t('parking.request')}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
 
 // ── List item union type ───────────────────────────────────────────────────────
 type FlatItem =
@@ -756,40 +40,30 @@ type FlatItem =
 // ── Main screen ────────────────────────────────────────────────────────────────
 function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont();
+  const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
   const isLoading = useParkingStore((s) => s.isLoading);
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
-  const claim = useParkingStore((s) => s.claim);
-  const release = useParkingStore((s) => s.release);
-  const cancelReservation = useParkingStore((s) => s.cancelReservation);
-  const voteOnReservation = useParkingStore((s) => s.voteOnReservation);
-  const clearHistoryItem = useParkingStore((s) => s.clearHistoryItem);
-  const clearAllHistory = useParkingStore((s) => s.clearAllHistory);
-  const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
-
   const language = useLanguageStore((s) => s.language);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
   const housemates = useHousematesStore((s) => s.housemates);
-  const syncParkingApproved = useCalendarSyncStore((s) => s.syncParkingApproved);
-  const removeCalendarEvent = useCalendarSyncStore((s) => s.removeCalendarEvent);
+  const actions = useParkingActions();
+  const { now } = actions;
 
   const myId = profile?.id ?? '';
   const myName = profile?.name ?? '';
   const isMine = current?.occupant === myId;
-  const isFree = !current;
   const isAdmin = role === 'owner' || role === 'admin';
-
   const [showReserve, setShowReserve] = useState(false);
   const [daySheetDate, setDaySheetDate] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const [now, setNow] = useState(() => new Date());
-
   const handleDatePress = useCallback((date: string) => setDaySheetDate(date), []);
+  const openReserve = useCallback(() => setShowReserve(true), []);
+  const closeReserve = useCallback(() => setShowReserve(false), []);
+  const closeDaySheet = useCallback(() => setDaySheetDate(null), []);
+
   const blockedReservation = useMemo(
     () => findBlockedReservation(current, reservations, now),
     [current, reservations, now]
@@ -798,55 +72,20 @@ function ParkingScreen(): React.JSX.Element {
     (id: string): string => resolveName(id, housemates, t('common.unknown')),
     [housemates, t]
   );
+  const occupantName = nameOf(current?.occupant ?? '');
 
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  useEffect(() => {
-    if (!houseId) return;
-    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (appStateRef.current !== 'active' && nextState === 'active') {
-        checkReservationAutoApply(houseId);
-        setNow(new Date());
-      }
-      appStateRef.current = nextState;
-    });
-    const interval = setInterval(() => {
-      checkReservationAutoApply(houseId ?? '');
-      setNow(new Date());
-    }, 60_000);
-    return (): void => {
-      sub.remove();
-      clearInterval(interval);
-    };
-  }, [houseId, checkReservationAutoApply]);
-
-  // Sync the requester's own calendar entry when their request is resolved.
-  // Voters already call syncParkingApproved in handleVote; this effect handles
-  // the requester's device where the status change arrives via realtime.
-  const prevStatusMapRef = useRef<Map<string, ParkingReservationStatus>>(new Map());
-  useEffect(() => {
-    const prevMap = prevStatusMapRef.current;
-    for (const r of reservations) {
-      const prev = prevMap.get(r.id);
-      if (
-        (prev === undefined || prev === 'pending') &&
-        r.status !== 'pending' &&
-        r.requestedBy === myId
-      ) {
-        if (r.status === 'approved') {
-          syncParkingApproved({
-            id: r.id,
-            requestedBy: myName,
-            date: r.date,
-            startTime: r.startTime,
-            endTime: r.endTime,
-          }).catch(() => {});
-        } else {
-          removeCalendarEvent(`pk-${r.id}`).catch(() => {});
-        }
-      }
-      prevMap.set(r.id, r.status);
-    }
-  }, [reservations, myId, myName, syncParkingApproved, removeCalendarEvent]);
+  const statusLine = !current
+    ? t('parking.free_real_estate')
+    : isMine
+      ? current.startTime
+        ? t('parking.your_car_since', { time: formatTime(current.startTime, language) })
+        : t('parking.your_car_all_day')
+      : current.startTime
+        ? t('parking.took_spot_since', {
+            name: occupantName,
+            time: formatTime(current.startTime, language),
+          })
+        : t('parking.took_spot_all_day', { name: occupantName });
 
   // Split into upcoming (date >= today) and history (date < today)
   // Plain const so the value refreshes each render — same-day string equality
@@ -858,7 +97,6 @@ function ParkingScreen(): React.JSX.Element {
     [reservations, today]
   );
   const history = useMemo(() => reservations.filter((r) => r.date < today), [reservations, today]);
-
   const listData = useMemo(
     (): FlatItem[] => [
       ...upcoming.map((r) => ({ _k: 'res' as const, res: r, isHistory: false })),
@@ -868,338 +106,137 @@ function ParkingScreen(): React.JSX.Element {
     [upcoming, history]
   );
 
-  const claimingRef = useRef(false);
-  const handleClaim = useCallback(async (): Promise<void> => {
-    if (claimingRef.current) return; // guard against a double-tap claiming twice
-    claimingRef.current = true;
-    setError('');
-    try {
-      await claim(myId, myName, houseId ?? '');
-    } catch (err) {
-      setError(getErrorMessage(err, t('parking.failed_claim')));
-    } finally {
-      claimingRef.current = false;
-    }
-  }, [claim, myId, myName, houseId, t]);
-
-  const handleRelease = useCallback(async (): Promise<void> => {
-    setError('');
-    try {
-      await release(houseId ?? '', myName);
-    } catch (err) {
-      setError(getErrorMessage(err, t('parking.failed_release')));
-    }
-  }, [release, houseId, myName, t]);
-
-  const handleReleaseOther = useCallback((): void => {
-    const pinnedSessionId = current?.id ?? '';
-    const occupantName = resolveName(current?.occupant ?? '', housemates, t('common.unknown'));
-    const pinnedHouseId = houseId ?? '';
-
-    const doRelease = (): void => {
-      if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-        Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
-        return;
-      }
-      release(pinnedHouseId, myName).catch(() => {
-        Alert.alert(t('parking.could_not_free'), t('parking.failed_release'));
-      });
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) {
-        doRelease();
-      }
-    } else {
-      Alert.alert(t('parking.kick_out_title', { name: occupantName }), t('parking.kick_out_body'), [
-        { text: t('parking.leave_it'), style: 'cancel' },
-        { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
-      ]);
-    }
-  }, [current, housemates, myName, release, houseId, t]);
-
-  const handleCancel = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        await cancelReservation(id, houseId ?? '');
-        removeCalendarEvent(`pk-${id}`).catch(() => {});
-      } catch (err) {
-        setError(getErrorMessage(err, t('parking.failed_cancel')));
-      }
-    },
-    [cancelReservation, houseId, removeCalendarEvent, t]
-  );
-
-  const handleVote = useCallback(
-    async (id: string, vote: ParkingVoteChoice): Promise<void> => {
-      const reservation = reservations.find((r) => r.id === id);
-      if (!reservation) return;
-      try {
-        const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
-        if (resultStatus === 'approved') {
-          syncParkingApproved({
-            id: reservation.id,
-            requestedBy: resolveName(reservation.requestedBy, housemates),
-            date: reservation.date,
-            startTime: reservation.startTime,
-            endTime: reservation.endTime,
-          }).catch(() => {});
-        }
-      } catch (err) {
-        setError(getErrorMessage(err, t('parking.error_vote_failed')));
-      }
-    },
-    [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]
-  );
-
-  const handleClear = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        await clearHistoryItem(id);
-      } catch (err) {
-        setError(getErrorMessage(err, t('parking.error_clear_failed')));
-      }
-    },
-    [clearHistoryItem, t]
-  );
-
-  const handleClearAll = useCallback((): void => {
-    const doDelete = (): void => {
-      clearAllHistory(houseId ?? '').catch((err: unknown) => {
-        setError(getErrorMessage(err, t('parking.error_clear_all_failed')));
-      });
-    };
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('parking.clear_all_confirm_msg'))) doDelete();
-    } else {
-      Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('parking.clear_all'), style: 'destructive', onPress: doDelete },
-      ]);
-    }
-  }, [clearAllHistory, houseId, t]);
-
   const keyExtractor = useCallback(
     (item: FlatItem): string => (item._k === 'hist-header' ? 'history-header' : item.res.id),
     []
   );
 
+  // Every row is a slice of one notebook page: the first rounds the top, the
+  // last tears off, and reservations that follow another get a dashed rule.
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<FlatItem>): React.JSX.Element => {
+    ({ item, index }: ListRenderItemInfo<FlatItem>): React.JSX.Element => {
+      const isFirst = index === 0;
+      const isLast = index === listData.length - 1;
       if (item._k === 'hist-header') {
         return (
-          <View style={styles.historyHeaderRow}>
-            <Text style={styles.eyebrow}>{t('parking.history')}</Text>
-            <View style={styles.countPill}>
-              <Text style={styles.countPillText}>{item.count}</Text>
+          <PaperSlice isFirst={isFirst} isLast={isLast}>
+            <View style={styles.historyHeader}>
+              <Text style={[styles.historyTitle, headingFont, { color: c.paperInk }]}>
+                {`${t('parking.history')} · ${item.count}`}
+              </Text>
+              <Pressable
+                onPress={actions.handleClearAll}
+                style={({ pressed }) => [styles.clearAll, pressed && styles.pressed]}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('parking.clear_all_history')}
+              >
+                <Text style={styles.clearAllText}>{t('parking.clear_all')}</Text>
+              </Pressable>
             </View>
-            <View style={styles.historyHeaderSpacer} />
-            <Pressable
-              onPress={handleClearAll}
-              style={styles.clearAllBtn}
-              hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-              accessibilityRole="button"
-              accessibilityLabel={t('parking.clear_all_history')}
-            >
-              <Ionicons name="trash-outline" size={12} color={C.danger} />
-              <Text style={styles.clearAllBtnText}>{t('parking.clear_all')}</Text>
-            </Pressable>
-          </View>
+          </PaperSlice>
         );
       }
+      const prev = listData[index - 1];
       return (
-        <ReservationCard
-          item={item.res}
-          currentUserId={myId}
-          isAdmin={isAdmin}
-          onCancel={handleCancel}
-          onVote={handleVote}
-          onClear={handleClear}
-          onDatePress={handleDatePress}
-          isHistory={item.isHistory}
-          now={now}
-        />
+        <PaperSlice isFirst={isFirst} isLast={isLast} dashedTop={prev?._k === 'res'}>
+          <ReservationLine
+            item={item.res}
+            currentUserId={myId}
+            isAdmin={isAdmin}
+            onCancel={actions.handleCancel}
+            onVote={actions.handleVote}
+            onClear={actions.handleClear}
+            onDatePress={handleDatePress}
+            isHistory={item.isHistory}
+            now={now}
+          />
+        </PaperSlice>
       );
     },
-    [
-      myId,
-      isAdmin,
-      handleCancel,
-      handleVote,
-      handleClear,
-      handleDatePress,
-      handleClearAll,
-      now,
-      C,
-      t,
-      styles,
-    ]
+    [listData, myId, isAdmin, actions, handleDatePress, now, headingFont, c, t]
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <FlatList
         data={listData}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
         ListHeaderComponent={
           <View>
             <BackLink label={t('common.home')} />
-            {/* ── Hero card ── */}
-            <View style={styles.heroCard}>
-              <View style={styles.heroCopy}>
-                <Text style={[styles.titleHero, headingFont]}>{t('parking.title')}</Text>
-                <Text style={styles.textBase}>
-                  {isFree
-                    ? t('parking.free_real_estate')
-                    : isMine
-                      ? current!.startTime
-                        ? t('parking.your_car_since', {
-                            time: formatTime(current!.startTime, language),
-                          })
-                        : t('parking.your_car_all_day')
-                      : current!.startTime
-                        ? t('parking.took_spot_since', {
-                            name: resolveName(
-                              current?.occupant ?? '',
-                              housemates,
-                              t('common.unknown')
-                            ),
-                            time: formatTime(current!.startTime, language),
-                          })
-                        : t('parking.took_spot_all_day', {
-                            name: resolveName(
-                              current?.occupant ?? '',
-                              housemates,
-                              t('common.unknown')
-                            ),
-                          })}
-                </Text>
-              </View>
+            <Text
+              style={[styles.pageTitle, headingFont, { color: c.textPrimary }]}
+              numberOfLines={1}
+              accessibilityRole="header"
+            >
+              {t('parking.title')}
+            </Text>
 
-              {blockedReservation && current && (
-                <ParkingBlockedBanner
-                  reservation={blockedReservation}
-                  occupantId={current.occupant}
-                  myId={myId}
-                  resolveName={nameOf}
-                />
-              )}
+            <SpotCard
+              current={current}
+              isMine={isMine}
+              occupantName={occupantName}
+              statusLine={statusLine}
+              blockedReservation={blockedReservation}
+              myId={myId}
+              nameOf={nameOf}
+              onClaim={actions.handleClaim}
+              onRelease={actions.handleRelease}
+              onReleaseOther={actions.handleReleaseOther}
+            />
 
-              <LinearGradient
-                colors={isFree ? C.successGradient : C.dangerGradient}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
-                style={[
-                  styles.statusCircle,
-                  { shadowColor: isFree ? C.successGradient[1] : C.dangerGradient[1] },
-                ]}
-              >
-                <Ionicons name={isFree ? 'car-outline' : 'car'} size={38} color="#fff" />
-                <Text style={[styles.statusLabel, styles.statusLabelOnGradient]}>
-                  {isFree ? t('parking.free') : t('parking.taken')}
-                </Text>
-              </LinearGradient>
-
-              {isFree && (
-                <Pressable
-                  style={styles.btnPrimary}
-                  onPress={handleClaim}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="car" size={16} color="#fff" style={styles.btnIcon} />
-                  <Text style={styles.btnPrimaryText}>{t('parking.claim')}</Text>
-                </Pressable>
-              )}
-              {isMine && (
-                <Pressable
-                  style={styles.btnDanger}
-                  onPress={handleRelease}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="exit-outline" size={16} color={C.danger} style={styles.btnIcon} />
-                  <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
-                </Pressable>
-              )}
-              {!isFree && !isMine && (
-                <Pressable
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('parking.free_the_spot')}
-                  accessibilityState={{ disabled: false }}
-                  style={styles.btnAdminRelease}
-                  onPress={handleReleaseOther}
-                >
-                  <Ionicons
-                    name="exit-outline"
-                    size={15}
-                    color={C.warning}
-                    style={styles.btnIcon}
-                  />
-                  <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
-                </Pressable>
-              )}
-            </View>
-
-            {!!error && (
-              <View style={styles.errorBox}>
-                <Ionicons name="warning-outline" size={14} color={C.danger} />
-                <Text style={styles.errorText}>{error}</Text>
+            {!!actions.error && (
+              <View style={styles.errorRow} accessibilityRole="alert">
+                <Ionicons name="warning-outline" size={15} color={c.danger} />
+                <Text style={[styles.errorText, { color: c.danger }]}>{actions.error}</Text>
               </View>
             )}
 
-            <WeekStrip onDayPress={handleDatePress} />
+            <DayTiles onDayPress={handleDatePress} />
 
-            {/* ── Reservations section header ── */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.eyebrow}>{t('parking.reservations')}</Text>
-              <Pressable
-                onPress={() => setShowReserve(true)}
-                style={styles.addBtn}
-                hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
-                accessibilityRole="button"
+              <Text
+                style={[styles.sectionTitle, headingFont, { color: c.textPrimary }]}
+                accessibilityRole="header"
               >
-                <Ionicons name="add" size={14} color={C.primary} />
-                <Text style={styles.addBtnText}>{t('parking.reserve')}</Text>
-              </Pressable>
+                {t('parking.reservations')}
+              </Text>
+              <PaperTag label={t('parking.reserve')} onPress={openReserve} />
             </View>
-
-            {upcoming.length > 0 && (
-              <View style={styles.subHeaderRow}>
-                <Text style={styles.eyebrow}>{t('parking.upcoming')}</Text>
-                <View style={styles.countPill}>
-                  <Text style={styles.countPillText}>{upcoming.length}</Text>
-                </View>
-              </View>
-            )}
           </View>
         }
         ListEmptyComponent={
           isLoading ? (
             <EmptyState mode="loading" title={t('common.loading')} />
           ) : (
-            <EmptyState
-              icon="calendar-outline"
-              title={t('parking.no_reservations')}
-              message={t('parking.no_reservations_hint')}
-            />
+            // Mate keeps the empty page company — the one Mate on this screen.
+            <NotebookPaper contentStyle={styles.emptyPage}>
+              <Mate size={ms(80)} />
+              <Text style={[styles.emptyTitle, headingFont, { color: c.paperInk }]}>
+                {t('parking.no_reservations')}
+              </Text>
+              <Text style={[styles.emptyText, { color: c.paperMuted }]}>
+                {t('parking.no_reservations_hint')}
+              </Text>
+            </NotebookPaper>
           )
         }
       />
 
       <DayScheduleSheet
         date={daySheetDate}
-        onClose={() => setDaySheetDate(null)}
+        onClose={closeDaySheet}
         currentUserId={myId}
         now={now}
       />
 
-      <ReserveModal
+      <ReserveSheet
         visible={showReserve}
-        onClose={() => setShowReserve(false)}
+        onClose={closeReserve}
         myId={myId}
         myName={myName}
         houseId={houseId ?? ''}
@@ -1210,414 +247,49 @@ function ParkingScreen(): React.JSX.Element {
   );
 }
 
-const makeStyles = (C: ColorTokens) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.background },
-    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
-    sep: { height: ms(8) },
-
-    heroCard: {
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: ms(20),
-      gap: ms(16),
-      marginBottom: ms(24),
-      shadowColor: '#2C333D',
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.05,
-      shadowRadius: 24,
-      elevation: 3,
-    },
-    heroCopy: { gap: ms(6) },
-    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
-
-    statusCircle: {
-      alignSelf: 'center',
-      width: ms(96),
-      height: ms(96),
-      borderRadius: ms(48),
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: ms(4),
-      // No overflow:'hidden' — it would cancel the iOS shadow, and the gradient
-      // already clips to borderRadius on its own.
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.4,
-      shadowRadius: 14,
-      elevation: 6,
-    },
-    statusLabel: { fontSize: mf(12), ...font.bold, letterSpacing: 0.6 },
-    statusLabelOnGradient: { color: '#fff' },
-
-    btnPrimary: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: ms(48),
-      paddingHorizontal: ms(18),
-      borderRadius: ms(10),
-      backgroundColor: C.primary,
-      shadowColor: '#4F78B6',
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.18,
-      shadowRadius: 16,
-      elevation: 6,
-    },
-    btnDanger: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: ms(48),
-      paddingHorizontal: ms(18),
-      borderRadius: ms(10),
-      backgroundColor: C.danger + '15',
-      borderWidth: 1,
-      borderColor: C.danger + '30',
-    },
-    btnAdminRelease: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: ms(44),
-      paddingHorizontal: ms(16),
-      borderRadius: ms(10),
-      backgroundColor: C.warning + '15',
-      borderWidth: 1,
-      borderColor: C.warning + '40',
-    },
-    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
-    btnDangerText: { fontSize: mf(15), ...font.semibold, color: C.danger },
-    btnAdminReleaseText: { fontSize: mf(14), ...font.semibold, color: C.warning },
-    btnIcon: { marginEnd: ms(6) },
-
-    addBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      backgroundColor: C.primary + '15',
-      paddingVertical: ms(6),
-      paddingHorizontal: ms(10),
-      borderRadius: 9999,
-    },
-    addBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
-
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: ms(4),
-      marginBottom: ms(12),
-    },
-    subHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingHorizontal: ms(4),
-      marginBottom: ms(12),
-    },
-    eyebrow: {
-      fontSize: mf(12),
-      ...font.bold,
-      color: C.textSecondary,
-      letterSpacing: 0.72,
-      textTransform: 'uppercase',
-    },
-    countPill: {
-      minHeight: ms(22),
-      paddingHorizontal: ms(8),
-      borderRadius: 9999,
-      backgroundColor: C.secondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    countPillText: { fontSize: mf(11), ...font.bold, color: C.secondaryForeground },
-
-    historyHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingHorizontal: ms(4),
-      paddingTop: ms(16),
-      paddingBottom: ms(8),
-    },
-
-    resCard: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: ms(12),
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(14),
-      borderRadius: ms(14),
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.border,
-      shadowColor: '#2C333D',
-      shadowOffset: { width: 0, height: ms(4) },
-      shadowOpacity: 0.02,
-      shadowRadius: 16,
-      elevation: 1,
-    },
-    resCardDim: { opacity: 0.72 },
-    dateBadgeCol: { alignItems: 'center', alignSelf: 'flex-start', gap: ms(4) },
-    dateBadge: {
-      width: ms(52),
-      borderRadius: ms(10),
-      overflow: 'hidden',
-      borderWidth: 1,
-      flexShrink: 0,
-    },
-    dateBadgeTop: { paddingVertical: ms(4), alignItems: 'center' },
-    dateBadgeMonth: { fontSize: mf(9), ...font.bold, color: '#fff', letterSpacing: 0.6 },
-    dateBadgeBottom: {
-      backgroundColor: C.surfaceSecondary,
-      alignItems: 'center',
-      paddingTop: ms(5),
-      paddingBottom: ms(7),
-    },
-    dateBadgeDay: { fontSize: mf(22), ...font.extrabold, lineHeight: mf(26), letterSpacing: -0.5 },
-    dateBadgeWeekLabel: { fontSize: mf(10), ...font.medium, textAlign: 'center' },
-    dayDots: { flexDirection: 'row', gap: ms(3), justifyContent: 'center', marginTop: ms(4) },
-    dayDot: { width: ms(5), height: ms(5), borderRadius: ms(3) },
-    resInfo: { flex: 1, gap: ms(4) },
-    resDate: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    resBy: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
-
-    badge: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: ms(8),
-      paddingVertical: ms(2),
-      borderRadius: 9999,
-      marginTop: ms(2),
-    },
-    badgeText: { fontSize: mf(11), ...font.semibold },
-
-    resActions: { gap: ms(6), alignItems: 'center', paddingTop: ms(2) },
-    iconBtn: { padding: ms(4) },
-
-    voteRowWrapper: { marginTop: ms(2), gap: ms(3) },
-    voteRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
-    voteAbstainNote: { flexDirection: 'row', alignItems: 'center', gap: ms(3) },
-    voteAbstainText: { fontSize: mf(10), ...font.regular, color: C.textSecondary, flex: 1 },
-    voteAvatarWrap: { position: 'relative', width: ms(28), height: ms(28) },
-    voteAvatarCircle: {
-      width: ms(28),
-      height: ms(28),
-      borderRadius: ms(14),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    voteAvatarInitial: { fontSize: mf(11), ...font.bold },
-    voteDot: {
-      position: 'absolute',
-      bottom: ms(-1),
-      end: ms(-1),
-      width: ms(13),
-      height: ms(13),
-      borderRadius: ms(7),
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1.5,
-      borderColor: C.surface,
-    },
-    dotApprove: { backgroundColor: C.positive },
-    dotReject: { backgroundColor: C.danger },
-    dotPending: { backgroundColor: C.textSecondary + '80' },
-
-    voteBtns: { flexDirection: 'row', gap: ms(6) },
-    voteBtn: {
-      width: ms(32),
-      height: ms(32),
-      borderRadius: 9999,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1.5,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-    },
-    voteBtnApproveActive: { backgroundColor: C.positive, borderColor: C.positive },
-    voteBtnRejectActive: { backgroundColor: C.danger, borderColor: C.danger },
-
-    errorBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(6),
-      backgroundColor: C.danger + '15',
-      borderRadius: ms(10),
-      padding: ms(12),
-      marginBottom: ms(16),
-    },
-    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
-
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    modalSheet: {
-      backgroundColor: C.surface,
-      borderTopLeftRadius: ms(24),
-      borderTopRightRadius: ms(24),
-      padding: ms(24),
-      paddingBottom: ms(40),
-      gap: ms(12),
-      maxHeight: '90%',
-    },
-    modalScroll: { flexGrow: 0 },
-    modalHandle: {
-      width: ms(40),
-      height: ms(4),
-      borderRadius: ms(2),
-      backgroundColor: C.border,
-      alignSelf: 'center',
-      marginBottom: ms(4),
-    },
-    modalTitle: { fontSize: mf(20), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    fieldLabel: { fontSize: mf(13), ...font.semibold, color: C.textPrimary, marginBottom: ms(6) },
-    fieldInput: {
-      borderWidth: 1.5,
-      borderColor: C.border,
-      borderRadius: ms(12),
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(12),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-      backgroundColor: C.surfaceSecondary,
-    },
-    fieldError: { fontSize: mf(13), ...font.regular, color: C.negative },
-    conflictBox: { flexDirection: 'row', alignItems: 'center', gap: ms(6), marginTop: ms(6) },
-    conflictText: { fontSize: mf(13), ...font.medium, color: C.warning, flex: 1 },
-    conflictWarningBox: {
-      borderWidth: 1,
-      borderRadius: ms(8),
-      padding: ms(8),
-      borderColor: C.warning + '40',
-      backgroundColor: C.warning + '10',
-    },
-    conflictWarningText: { color: C.warning },
-    modalBtns: { flexDirection: 'row', gap: ms(10), marginTop: ms(8) },
-    modalBtnOutline: {
-      flex: 1,
-      paddingVertical: ms(14),
-      borderRadius: ms(12),
-      borderWidth: 1.5,
-      borderColor: C.border,
-      alignItems: 'center',
-    },
-    modalBtnOutlineText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
-    modalBtnPrimary: {
-      flex: 1,
-      paddingVertical: ms(14),
-      borderRadius: ms(12),
-      backgroundColor: C.primary,
-      alignItems: 'center',
-    },
-    modalBtnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
-
-    daySheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    daySheetPanel: {
-      backgroundColor: C.surface,
-      borderTopLeftRadius: ms(24),
-      borderTopRightRadius: ms(24),
-      padding: ms(24),
-      paddingBottom: ms(40),
-      gap: ms(16),
-    },
-    daySheetTitle: {
-      fontSize: mf(20),
-      ...font.extrabold,
-      color: C.textPrimary,
-      letterSpacing: -0.5,
-    },
-    daySheetEmpty: {
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      paddingVertical: ms(16),
-    },
-    daySheetList: { gap: ms(10) },
-    daySheetRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(10),
-      paddingVertical: ms(10),
-      paddingHorizontal: ms(12),
-      borderRadius: ms(12),
-      backgroundColor: C.surfaceSecondary,
-    },
-    daySheetDot: { width: ms(8), height: ms(8), borderRadius: ms(4), flexShrink: 0 },
-    daySheetRowInfo: { flex: 1, gap: ms(2) },
-    daySheetTime: { fontSize: mf(13), ...font.semibold, color: C.textPrimary },
-    daySheetName: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
-    daySheetStatusBadge: {
-      paddingHorizontal: ms(8),
-      paddingVertical: ms(2),
-      borderRadius: 9999,
-      flexShrink: 0,
-    },
-    daySheetStatusText: { fontSize: mf(11), ...font.semibold },
-    daySheetCloseBtn: {
-      paddingVertical: ms(14),
-      borderRadius: ms(12),
-      borderWidth: 1.5,
-      borderColor: C.border,
-      alignItems: 'center',
-    },
-    daySheetCloseBtnText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
-
-    weekStrip: {
-      flexDirection: 'row',
-      backgroundColor: C.surface,
-      borderRadius: ms(16),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingVertical: ms(12),
-      paddingHorizontal: ms(4),
-      marginBottom: ms(16),
-    },
-    weekDay: {
-      flex: 1,
-      alignItems: 'center',
-      gap: ms(5),
-      paddingVertical: ms(2),
-    },
-    weekDayAbbr: {
-      fontSize: mf(9),
-      ...font.bold,
-      color: C.textSecondary,
-      letterSpacing: 0.4,
-    },
-    weekDayAbbrToday: { color: C.primary },
-    weekDayNumWrap: {
-      width: ms(30),
-      height: ms(30),
-      borderRadius: ms(15),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    weekDayNumWrapToday: { backgroundColor: C.primary },
-    weekDayNum: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
-    weekDayNumToday: { color: '#fff' },
-    weekDayDots: {
-      flexDirection: 'row',
-      gap: ms(2),
-      height: ms(6),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    weekDot: { width: ms(5), height: ms(5), borderRadius: ms(3) },
-
-    historyHeaderSpacer: { flex: 1 },
-    clearAllBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      minHeight: ms(44),
-      paddingHorizontal: ms(10),
-      borderRadius: 9999,
-      backgroundColor: C.danger + '12',
-    },
-    clearAllBtnText: { fontSize: mf(11), ...font.semibold, color: C.danger },
-  });
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+  pageTitle: {
+    fontSize: mf(36),
+    lineHeight: mf(40),
+    letterSpacing: -1,
+    marginTop: ms(6),
+    marginBottom: ms(14),
+  },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), marginTop: ms(12) },
+  errorText: { flex: 1, fontSize: mf(14), ...font.medium },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: ms(12),
+    marginTop: ms(24),
+    marginBottom: ms(12),
+  },
+  sectionTitle: { fontSize: mf(22), letterSpacing: -0.4 },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: ms(14),
+    paddingBottom: ms(2),
+    paddingStart: ms(74),
+    paddingEnd: ms(12),
+  },
+  historyTitle: { fontSize: mf(18) },
+  clearAll: { minHeight: 44, justifyContent: 'center' },
+  clearAllText: { fontSize: mf(13.5), ...font.bold, color: '#B84540' },
+  pressed: { opacity: 0.7 },
+  emptyPage: {
+    alignItems: 'center',
+    paddingTop: ms(24),
+    paddingBottom: ms(30),
+    paddingHorizontal: ms(28),
+    gap: ms(6),
+  },
+  emptyTitle: { fontSize: mf(19), textAlign: 'center', marginTop: ms(8) },
+  emptyText: { fontSize: mf(14), ...font.medium, textAlign: 'center', lineHeight: mf(20) },
+});
 
 export default withFeatureGuard('parking', ParkingScreen);
