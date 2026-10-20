@@ -66,7 +66,7 @@ export function BillSlip({
   splitLabel,
 }: BillSlipProps): React.JSX.Element {
   const c = useThemedColors();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const headingFont = useHeadingFont('semibold');
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
@@ -91,7 +91,9 @@ export function BillSlip({
         <Stamp big color={c.success} style={[styles.stamp, { backgroundColor: c.receipt }]}>
           {`✓ ${t('bills.settled_by_on', {
             name: bill.settledBy ? memberName(bill.settledBy) : '',
-            date: bill.settledAt ? new Date(bill.settledAt).toLocaleDateString() : '',
+            date: bill.settledAt
+              ? new Date(bill.settledAt).toLocaleDateString(i18n.language || undefined)
+              : '',
           })}`}
         </Stamp>
       )}
