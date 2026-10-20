@@ -184,9 +184,7 @@ function ParkingScreen(): React.JSX.Element {
               blockedReservation={blockedReservation}
               myId={myId}
               nameOf={nameOf}
-              onClaim={actions.handleClaim}
-              onRelease={actions.handleRelease}
-              onReleaseOther={actions.handleReleaseOther}
+              onPress={actions.handleSpotPress}
             />
 
             {!!actions.error && (

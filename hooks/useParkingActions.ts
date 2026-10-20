@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Platform, AppState, type AppStateStatus } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { Alert } from '@lib/alert';
 import { useAuthStore } from '@stores/authStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
@@ -16,8 +17,8 @@ import { resolveName } from '@utils/housemates';
 export interface ParkingActions {
   error: string;
   now: Date;
-  handleClaim: () => Promise<void>;
-  handleRelease: () => Promise<void>;
+  /** Tap on the spot: claim it, release mine, or (after confirming) free a housemate's. */
+  handleSpotPress: () => void;
   handleReleaseOther: () => void;
   handleCancel: (id: string) => Promise<void>;
   handleVote: (id: string, vote: ParkingVoteChoice) => Promise<void>;
@@ -100,28 +101,51 @@ export function useParkingActions(): ParkingActions {
     }
   }, [reservations, myId, myName, syncParkingApproved, removeCalendarEvent]);
 
-  const claimingRef = useRef(false);
-  const handleClaim = useCallback(async (): Promise<void> => {
-    if (claimingRef.current) return; // guard against a double-tap claiming twice
-    claimingRef.current = true;
+  // Claim / release keep up with quick taps: while one is saving, further taps
+  // just flip what the spot should end up as, and that runs straight after.
+  // (The store can't release a claim that is still saving, so they can't overlap.)
+  const busyRef = useRef(false);
+  const wantMineRef = useRef<boolean | null>(null);
+  const toggleMine = useCallback(async (): Promise<void> => {
+    const isMineNow = (): boolean => useParkingStore.getState().current?.occupant === myId;
+    if (busyRef.current) {
+      wantMineRef.current = !(wantMineRef.current ?? isMineNow());
+      return;
+    }
+    busyRef.current = true;
+    wantMineRef.current = !isMineNow();
     setError('');
     try {
-      await claim(myId, myName, houseId ?? '');
-    } catch (err) {
-      setError(getErrorMessage(err, t('parking.failed_claim')));
+      // Keep going until the spot matches the last tap (or something fails).
+      // A few rounds at most, so an odd server state can never loop forever.
+      for (
+        let round = 0;
+        round < 4 && wantMineRef.current !== null && wantMineRef.current !== isMineNow();
+        round++
+      ) {
+        const cur = useParkingStore.getState().current;
+        if (cur && cur.occupant !== myId) break; // a housemate took it meanwhile
+        if (wantMineRef.current) {
+          try {
+            await claim(myId, myName, houseId ?? '');
+          } catch (err) {
+            setError(getErrorMessage(err, t('parking.failed_claim')));
+            break;
+          }
+        } else {
+          try {
+            await release(houseId ?? '', myName);
+          } catch (err) {
+            setError(getErrorMessage(err, t('parking.failed_release')));
+            break;
+          }
+        }
+      }
     } finally {
-      claimingRef.current = false;
+      busyRef.current = false;
+      wantMineRef.current = null;
     }
-  }, [claim, myId, myName, houseId, t]);
-
-  const handleRelease = useCallback(async (): Promise<void> => {
-    setError('');
-    try {
-      await release(houseId ?? '', myName);
-    } catch (err) {
-      setError(getErrorMessage(err, t('parking.failed_release')));
-    }
-  }, [release, houseId, myName, t]);
+  }, [claim, release, myId, myName, houseId, t]);
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
@@ -147,6 +171,17 @@ export function useParkingActions(): ParkingActions {
       ]);
     }
   }, [current, housemates, myName, release, houseId, t]);
+
+  const handleSpotPress = useCallback((): void => {
+    // Immediate tactile ack so the tap feels instant, like the Home card.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const cur = useParkingStore.getState().current;
+    if (cur && cur.occupant !== myId && !busyRef.current) {
+      handleReleaseOther();
+      return;
+    }
+    toggleMine().catch(() => {});
+  }, [myId, handleReleaseOther, toggleMine]);
 
   const handleCancel = useCallback(
     async (id: string): Promise<void> => {
@@ -212,8 +247,7 @@ export function useParkingActions(): ParkingActions {
   return {
     error,
     now,
-    handleClaim,
-    handleRelease,
+    handleSpotPress,
     handleReleaseOther,
     handleCancel,
     handleVote,

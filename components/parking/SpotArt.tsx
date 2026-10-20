@@ -33,9 +33,15 @@ export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
   // What is drawn lags the real state while the car drives off.
   const [showCar, setShowCar] = useState(!isFree);
   const [carMine, setCarMine] = useState(isMine);
+  const carVisible = useRef(!isFree);
   const carX = useRef(new Animated.Value(0)).current;
   const sign = useRef(new Animated.Value(1)).current;
   const wasFree = useRef(isFree);
+
+  const drawCar = (visible: boolean): void => {
+    carVisible.current = visible;
+    setShowCar(visible);
+  };
 
   useEffect(() => {
     const before = wasFree.current;
@@ -43,17 +49,22 @@ export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
     if (!isFree) setCarMine(isMine);
     if (before === isFree) return;
 
+    // Quick taps: stop whatever is still moving and carry on from where it is.
+    carX.stopAnimation();
+    sign.stopAnimation();
+
     if (reduceMotion) {
-      setShowCar(!isFree);
+      drawCar(!isFree);
       carX.setValue(0);
       sign.setValue(1);
       return;
     }
 
     if (!isFree) {
-      // Arrive: glide in from behind and ease to a stop.
-      setShowCar(true);
-      carX.setValue(-dir * DRIVE);
+      // Arrive: glide in from behind and ease to a stop. If the car was still
+      // driving off, it simply turns back from where it is.
+      if (!carVisible.current) carX.setValue(-dir * DRIVE);
+      drawCar(true);
       Animated.timing(carX, {
         toValue: 0,
         duration: 550,
@@ -70,8 +81,10 @@ export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
       duration: 400,
       easing: Easing.in(Easing.quad),
       useNativeDriver: true,
-    }).start(() => {
-      setShowCar(false);
+    }).start(({ finished }) => {
+      // Interrupted (someone parked again mid-drive) — leave the car be.
+      if (!finished) return;
+      drawCar(false);
       carX.setValue(0);
       Animated.timing(sign, {
         toValue: 1,
@@ -80,6 +93,8 @@ export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
         useNativeDriver: true,
       }).start();
     });
+    // drawCar only touches a ref and a state setter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFree, isMine, reduceMotion, dir, carX, sign]);
 
   if (showCar) {

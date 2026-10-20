@@ -19,9 +19,8 @@ interface SpotCardProps {
   blockedReservation: ParkingReservation | null;
   myId: string;
   nameOf: (id: string) => string;
-  onClaim: () => void;
-  onRelease: () => void;
-  onReleaseOther: () => void;
+  /** Claim / release / free a housemate's spot — the whole card does this. */
+  onPress: () => void;
 }
 
 /**
@@ -37,9 +36,7 @@ export function SpotCard({
   blockedReservation,
   myId,
   nameOf,
-  onClaim,
-  onRelease,
-  onReleaseOther,
+  onPress,
 }: SpotCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
@@ -50,7 +47,18 @@ export function SpotCard({
   const answerColor = isFree ? c.success : isMine ? c.textPrimary : c.danger;
 
   return (
-    <View style={[styles.bay, { backgroundColor: c.surface, borderColor: c.border }]}>
+    // The whole card is the switch, like the Home card. The button inside stays
+    // the screen-reader target (accessible={false} here) so the ticket can still
+    // be read out on its own.
+    <Pressable
+      style={({ pressed }) => [
+        styles.bay,
+        { backgroundColor: c.surface, borderColor: c.border },
+        pressed && styles.bayPressed,
+      ]}
+      onPress={onPress}
+      accessible={false}
+    >
       <View style={styles.top}>
         <View style={styles.copy}>
           <Text
@@ -84,7 +92,7 @@ export function SpotCard({
             { backgroundColor: c.primary },
             pressed && styles.pressed,
           ]}
-          onPress={onClaim}
+          onPress={onPress}
           accessible
           accessibilityRole="button"
         >
@@ -99,7 +107,7 @@ export function SpotCard({
             { borderColor: c.danger },
             pressed && styles.pressed,
           ]}
-          onPress={onRelease}
+          onPress={onPress}
           accessible
           accessibilityRole="button"
         >
@@ -109,7 +117,7 @@ export function SpotCard({
       {!isFree && !isMine && (
         <Pressable
           style={({ pressed }) => [styles.link, pressed && styles.pressed]}
-          onPress={onReleaseOther}
+          onPress={onPress}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('parking.free_the_spot')}
@@ -120,7 +128,7 @@ export function SpotCard({
           </Text>
         </Pressable>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -135,6 +143,7 @@ const styles = StyleSheet.create({
     paddingTop: ms(16),
     paddingBottom: ms(18),
   },
+  bayPressed: { opacity: 0.94, transform: [{ scale: 0.985 }] },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(10) },
   copy: { flex: 1, minWidth: 0 },
   answer: { fontSize: mf(48), lineHeight: mf(56), letterSpacing: -0.5 },
