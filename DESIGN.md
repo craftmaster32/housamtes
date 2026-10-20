@@ -48,7 +48,7 @@ review (a full re-check of everything), tell the owner — that wastes tokens.
   Splitwise-style split, moving Contributions to insights).
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
-- **One page at a time:** Home ✅ (reviewed) → Bills ✅ (reviewed) → Parking → Chores → Chat →
+- **One page at a time:** Home ✅ → Bills ✅ (review asked on #252) → Parking → Chores → Chat →
   More/Settings → the rest.
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
