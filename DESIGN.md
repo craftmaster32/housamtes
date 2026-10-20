@@ -10,6 +10,36 @@ like a generic AI-generated app.
 
 ---
 
+## 0. Start here — the loop for every page (new chat? follow this)
+
+The owner will just say "work on the design" or "next page". Do this, in order:
+
+1. **Get the branch:** `git fetch origin feature/app-redesign` and check it out.
+   Never start from `main`, never make a new design branch or PR. Read §7 to see
+   which page is next.
+2. **Mockup:** make an HTML mockup of the next page (light + dark), show it, and
+   wait for a yes. Change it until the owner is happy.
+3. **Build** it on `feature/app-redesign`. Commit as you go. Before each commit:
+   `npx tsc --noEmit`, `npm run lint`, `npx jest`. Look at the page in light and
+   dark on the test house before showing it.
+4. **Push only when the owner says "push"/"yes"** (even if a hook nags). Pushing
+   updates the preview link on PR #252 so the owner can try it on their phone.
+5. **When the owner says the page is done**, do the review step — once per page,
+   never per push: post the comment `@coderabbitai review` on PR #252.
+   CodeRabbit then checks only what changed since its last review. Fix what it
+   finds (push with permission), then tell the owner in plain English.
+6. **Write it down:** tick the page in §1, add what was decided to §7, commit.
+7. **Last page done?** Mark PR #252 "Ready for review" (not draft), let
+   CodeRabbit do its final pass, fix, then the owner merges once
+   ("Create a merge commit"). The whole app changes look in one update.
+
+Cost rule: drafts are not reviewed automatically, so many pushes are free. The
+only reviews are the one-per-page `@coderabbitai review` and the final one. If
+the repo's automation starts posting `@coderabbitai full review` after each page
+review (a full re-check of everything), tell the owner — that wastes tokens.
+
+---
+
 ## 1. Ground rules (owner's words, keep them)
 
 - **Design only.** Never change features, flows or wording ("word gaming") while
@@ -18,7 +48,7 @@ like a generic AI-generated app.
   Splitwise-style split, moving Contributions to insights).
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
-- **One page at a time:** Home ✅ → Bills ✅ → Parking → Chores → Chat →
+- **One page at a time:** Home ✅ (reviewed) → Bills ✅ (reviewed) → Parking → Chores → Chat →
   More/Settings → the rest.
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
