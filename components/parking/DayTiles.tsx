@@ -6,7 +6,7 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { useParkingStore } from '@stores/parkingStore';
-import { byStartTime, parseDateParts, toDateString } from '@utils/parkingDates';
+import { byStartTime, parseDateParts, toDateString, todayString } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
 import { statusDotColor } from './reservationStatus';
 
@@ -26,10 +26,14 @@ export function DayTiles({ onDayPress }: DayTilesProps): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const reservations = useParkingStore((s) => s.reservations);
 
+  // Read each render (the parking screen re-renders every minute), so the week
+  // moves on at midnight even if the page stays open.
+  const today = todayString();
+
   const days = useMemo(() => {
-    const now = new Date();
+    const [y, m, d] = today.split('-').map(Number);
     return Array.from({ length: 7 }, (_, i) => {
-      const dateStr = toDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() + i));
+      const dateStr = toDateString(new Date(y, m - 1, d + i));
       const { dayNum, weekdayShort, weekdayFull, monthAbbr } = parseDateParts(dateStr, language);
       const dots = reservations
         .filter((r) => r.date === dateStr)
@@ -37,7 +41,7 @@ export function DayTiles({ onDayPress }: DayTilesProps): React.JSX.Element {
         .slice(0, 3);
       return { dateStr, dayNum, weekdayShort, weekdayFull, monthAbbr, isToday: i === 0, dots };
     });
-  }, [language, reservations]);
+  }, [today, language, reservations]);
 
   // The weekday band: blue for today; a muted ink band otherwise (a lifted
   // graphite band in dark mode so the white-ish text still reads).
