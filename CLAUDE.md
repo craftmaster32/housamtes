@@ -467,3 +467,5 @@ npm run deploy               # Deploy web app to Vercel — automated on merge; 
 ## AGENT READ ORDER
 
 1. `CLAUDE.md` — rules 2. `FEATURES.md` — what's built 3. `PHASES.md` — progress 4. `AGENTS.md` — your role 5. `specs/[feature].md`
+
+**Design / redesign work:** the redesign lives on the `feature/app-redesign` branch (draft PR #252). Check out that branch first, then read `DESIGN.md` there and follow its "Start here" steps before touching any screen's look.
