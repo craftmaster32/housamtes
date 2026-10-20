@@ -110,6 +110,6 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   chipText: { fontSize: mf(17), ...font.bold, flexShrink: 1 },
-  note: { fontSize: mf(20), lineHeight: mf(25), marginTop: ms(6), writingDirection: 'ltr' },
+  note: { fontSize: mf(20), lineHeight: mf(25), marginTop: ms(6) },
   pressed: { opacity: 0.7 },
 });
