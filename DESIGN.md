@@ -232,12 +232,17 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   sits on the same page, faded and struck through, with a red "Clear All".
 - Pop-ups: Reserve and day schedule are bottom sheets (`SheetHeader`); clash
   warnings on a blue sticky note; the day schedule is a receipt slip with stamps.
-  The Reserve date is an underlined field that opens the Bills pop-up calendar
-  (`DatePickerModal`, pen-circled day) instead of a big inline calendar.
-- Motion (`SpotArt`, `ThumpStamp`): someone parks → their car drives in and
-  settles; spot freed → the car drives off forwards and the P sign rises in its
-  place. A stamp thumps down when a reservation's status changes. The ticket
-  drops onto the card and settles. Day pages lift a little when pressed.
+  Date, start and end time are all fields on a line (`LineField`); an empty
+  time shows grey "--:--". The date opens the Bills pop-up calendar; a time
+  opens `TimePickerModal` — two quiet wheels (5-minute steps) between thin
+  lines, big serif numbers, Clear / Cancel / Confirm. The old shared
+  TimePicker ("+ Add time" pill) is no longer used on Parking.
+- Motion must feel calm and grown-up, **not childish** (owner): no bounces or
+  overshoot. Someone parks → the car glides in and eases to a stop; spot freed →
+  the car drives off and the P sign eases up. A stamp gives a short small press
+  when a status changes. The ticket slides gently into place. Day pages only
+  darken when pressed.
+- No emoji in the Parking texts (owner removed the 🏎️).
 - Empty: Mate on a notebook page. The screen's logic lives in
   `hooks/useParkingActions.ts`; pieces in `components/parking/`.
 
