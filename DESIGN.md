@@ -221,6 +221,9 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   Free (green) / You / the parked housemate's name (red, like Home) — the status
   line, and the Home drawings (P sign / parked car, pink for a housemate).
   Claim = big blue button, Release = red outline, "Free the spot" = text link.
+  **The whole card is tappable** (owner): it claims / releases / frees, like
+  the Home card, with a light haptic. Quick taps are queued so the spot ends
+  where the last tap left it; the car turns back smoothly if tapped mid-drive.
 - "Please move your car" warning is a pink **parking ticket** taped on the card.
 - The next 7 days: owner asked for **each day separate** — every day is its own
   little tear-off calendar page (weekday band with binding holes, Fraunces date,
