@@ -27,15 +27,15 @@ const RULES: Array<{ category: string; re: RegExp }> = [
     'medico', 'dentista',
   ]) },
   { category: 'Transport', re: words([
-    'taxi', 'uber', 'gett', '=bus', '=train', 'fuel', 'petrol', 'gas station', 'parking', 'rav kav',
+    'taxi', '=uber', '=gett', '=bus', '=train', 'fuel', 'petrol', 'gas station', 'parking', 'rav kav',
     'flight', 'מונית', 'אוטובוס', 'רכבת', 'דלק', 'חניה', 'רב קו', 'רב-קו', 'טיסה', 'gasolina',
-    'tren', 'autobús', 'autobus', 'aparcamiento', 'vuelo',
+    '=tren', 'autobús', 'autobus', 'aparcamiento', 'vuelo',
   ]) },
   { category: 'Outside Food', re: words([
     'restaurant', 'pizza', 'takeaway', 'takeout', 'delivery', 'wolt', '10bis', 'sushi', 'burger',
     'cafe', 'café', 'coffee', 'dinner', 'lunch', 'breakfast', 'brunch', '=bar', 'falafel', 'shawarma',
     'מסעדה', 'פיצה', 'משלוח', 'וולט', 'סושי', 'המבורגר', 'ארוחת', 'קפה', 'בית קפה', '=בר',
-    'פלאפל', 'שווארמה', 'restaurante', 'cena', 'almuerzo', 'desayuno', 'hamburguesa',
+    'פלאפל', 'שווארמה', 'restaurante', '=cena', 'almuerzo', 'desayuno', 'hamburguesa',
   ]) },
   { category: 'Entertainment', re: words([
     'cinema', 'movie', 'netflix', 'spotify', 'disney', 'concert', 'tickets', 'party', '=games',
@@ -44,7 +44,7 @@ const RULES: Array<{ category: string; re: RegExp }> = [
   ]) },
   { category: 'Groceries', re: words([
     'supermarket', 'grocer', 'shufersal', 'rami levy', 'victory', 'yochananof', 'osher ad',
-    'tiv taam', 'mega', 'weekly shop', 'שופרסל', 'רמי לוי', 'ויקטורי', 'יוחננוף', 'אושר עד',
+    'tiv taam', '=mega', 'weekly shop', 'שופרסל', 'רמי לוי', 'ויקטורי', 'יוחננוף', 'אושר עד',
     'טיב טעם', '=סופר', 'מכולת', 'קניות', 'supermercado', 'mercadona', 'compra',
   ]) },
 ];

@@ -50,6 +50,13 @@ describe('guessExpenseCategory', () => {
   it("doesn't trip on words inside other words", () => {
     expect(guessExpenseCategory('Shower curtain', HOUSE)).not.toBe('Entertainment');
     expect(guessExpenseCategory('Electric kettle', HOUSE)).not.toBe('Electricity');
+    // short brand/word terms must not match as substrings
+    expect(guessExpenseCategory('Getting groceries', HOUSE)).not.toBe('Transport'); // gett
+    expect(guessExpenseCategory('strength training', HOUSE)).not.toBe('Transport'); // tren
+    expect(guessExpenseCategory('trendy cafe', HOUSE)).not.toBe('Transport'); // tren
+    expect(guessExpenseCategory('tuber vegetables', HOUSE)).not.toBe('Transport'); // uber
+    expect(guessExpenseCategory('omega 3 supplement', HOUSE)).not.toBe('Groceries'); // mega
+    expect(guessExpenseCategory('Paracetamol para cenar', HOUSE)).not.toBe('Outside Food'); // cena inside
   });
 
   it("only suggests categories the house has, matching the house's spelling", () => {
