@@ -50,7 +50,7 @@ review (a full re-check of everything), tell the owner — that wastes tokens.
   Splitwise-style split, moving Contributions to insights).
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
-- **One page at a time:** Home ✅ → Bills ✅ (review asked on #252) → Parking → Chores → Chat →
+- **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Chores → Chat →
   More/Settings → the rest.
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
@@ -249,7 +249,21 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
 - Empty: Mate on a notebook page. The screen's logic lives in
   `hooks/useParkingActions.ts`; pieces in `components/parking/`.
 
-**Next:** Chores (mockup first) — once the owner says Parking is done.
+**Chores (built on #252, waiting for the owner to say it's done)**
+
+- Glance tile like Home: one big Fraunces answer ("2 of 6 done"), subtitle, thin
+  progress line, bucket drawing; "Reset all" is a red text link (admins).
+- New chore: name on a line (`UnderlineInput`, keyboard "done" adds it), Repeat
+  as circled words (`CategoryWords`), weekday letters / days 1–31 circled in pen
+  (`CircledDays`), big blue "Add chore" (no "+").
+- List on a to-do pad (`PadSlice` rows, blue glued edge, stays light in dark):
+  square ink checkbox ticked in blue pen, done chores struck through under a
+  handwritten "2 done", repeat in handwriting, claimer as avatar + name with a
+  "drop" link, "Take it" as a paper tag, × to delete.
+- "TO DO" shown in sentence case; no emoji in Chores texts (owner removed them).
+- Empty: Mate on the pad.
+
+**Next:** Chat (mockup first) — once the owner says Chores is done.
 
 ## 8. Working setup (for the next session)
 
