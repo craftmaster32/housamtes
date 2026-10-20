@@ -1,4 +1,5 @@
-import { View, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AccessibilityInfo, Animated, View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { font } from '@constants/typography';
@@ -24,6 +25,30 @@ export function ParkingBlockedBanner({
 }: ParkingBlockedBannerProps): React.JSX.Element {
   const { t } = useTranslation();
 
+  // The ticket drops onto the card and settles, like paper landing on a table.
+  const settle = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduce) => {
+        if (cancelled) return;
+        if (reduce) {
+          settle.setValue(1);
+          return;
+        }
+        Animated.spring(settle, {
+          toValue: 1,
+          friction: 6,
+          tension: 90,
+          useNativeDriver: true,
+        }).start();
+      })
+      .catch(() => settle.setValue(1));
+    return (): void => {
+      cancelled = true;
+    };
+  }, [settle]);
+
   const holder = resolveName(reservation.requestedBy).split(' ')[0];
   const occupant = resolveName(occupantId).split(' ')[0];
   const until = reservation.endTime
@@ -44,8 +69,22 @@ export function ParkingBlockedBanner({
   }
 
   return (
-    <View
-      style={styles.ticket}
+    <Animated.View
+      style={[
+        styles.ticket,
+        {
+          opacity: settle.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
+          transform: [
+            { translateY: settle.interpolate({ inputRange: [0, 1], outputRange: [-ms(18), 0] }) },
+            {
+              rotate: settle.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['-6deg', '-1.5deg'],
+              }),
+            },
+          ],
+        },
+      ]}
       accessible
       accessibilityRole="alert"
       accessibilityLabel={`${title}. ${body}`}
@@ -53,7 +92,7 @@ export function ParkingBlockedBanner({
       <View style={styles.tape} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -69,7 +108,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: ms(14),
     marginTop: ms(14),
     marginHorizontal: ms(4),
-    transform: [{ rotate: '-1.5deg' }],
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

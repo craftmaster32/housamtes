@@ -6,11 +6,13 @@ import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { SheetHeader } from '@components/bills/recurring/SheetHeader';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
-import { CalendarPicker } from '@components/shared/CalendarPicker';
+import { Ionicons } from '@expo/vector-icons';
+import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { TimePicker } from '@components/shared/TimePicker';
 import { useHandFont } from '@hooks/useHandFont';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
 import {
   useParkingStore,
   isDateConflict,
@@ -19,7 +21,7 @@ import {
   type ParkingSession,
 } from '@stores/parkingStore';
 import { resolveName } from '@utils/housemates';
-import { todayString } from '@utils/parkingDates';
+import { parseDateParts, todayString } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
 
 export interface ReserveSheetProps {
@@ -49,6 +51,7 @@ export function ReserveSheet({
   const { t } = useTranslation();
   const c = useThemedColors();
   const hand = useHandFont();
+  const language = useLanguageStore((s) => s.language);
   const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -59,6 +62,7 @@ export function ReserveSheet({
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const activeConflict =
     current && date === todayStr
@@ -88,6 +92,7 @@ export function ReserveSheet({
     setEndTime('');
     setNote('');
     setError('');
+    setShowDatePicker(false);
   }, [todayStr]);
 
   const handleClose = useCallback((): void => {
@@ -95,9 +100,13 @@ export function ReserveSheet({
     onClose();
   }, [reset, onClose]);
 
+  // The date opens the pop-up calendar (a sibling Modal, see below).
+  const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
+  const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
   const handleDateChange = useCallback((d: string): void => {
     setDate(d);
     setError('');
+    setShowDatePicker(false);
   }, []);
 
   const handleSave = useCallback(async (): Promise<void> => {
@@ -157,99 +166,130 @@ export function ReserveSheet({
     saving,
   ]);
 
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date, language);
+  const dateLabel = `${weekdayFull}, ${dayNum} ${monthAbbr}`;
   const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
   const disabled = saving || !!dateConflict;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={[styles.overlay, { backgroundColor: overlay }]}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={handleClose}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.close')}
-        />
-        <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
-          <SheetHeader
-            eyebrow={t('parking.title')}
-            title={t('parking.reserve_parking')}
-            onClose={handleClose}
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+        <View style={[styles.overlay, { backgroundColor: overlay }]}>
+          <Pressable
+            style={styles.backdrop}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
           />
-          <ScrollView
-            contentContainerStyle={styles.body}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View>
-              <Text style={[styles.label, { color: c.textSecondary }]}>{t('parking.date')}</Text>
-              <CalendarPicker value={date} onChange={handleDateChange} />
-            </View>
-
-            {stickyLines.length > 0 && (
-              <View style={[styles.sticky, { backgroundColor: c.note }]} accessibilityRole="alert">
-                {stickyLines.map((line) => (
-                  <Text key={line} style={[styles.stickyText, hand, { color: c.noteInk }]}>
-                    {line}
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            <View>
-              <Text style={[styles.label, { color: c.textSecondary }]}>
-                {t('parking.start_time')}
-              </Text>
-              <TimePicker value={startTime} onChange={setStartTime} />
-            </View>
-            <View>
-              <Text style={[styles.label, { color: c.textSecondary }]}>
-                {t('parking.end_time')}
-              </Text>
-              <TimePicker value={endTime} onChange={setEndTime} />
-            </View>
-
-            <UnderlineInput
-              label={t('parking.note_label')}
-              value={note}
-              onChangeText={setNote}
-              placeholder={t('parking.note_placeholder')}
-              accessibilityLabel={t('parking.note_label')}
+          <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
+            <SheetHeader
+              eyebrow={t('parking.title')}
+              title={t('parking.reserve_parking')}
+              onClose={handleClose}
             />
+            <ScrollView
+              contentContainerStyle={styles.body}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View>
+                <Text style={[styles.label, { color: c.textSecondary }]}>{t('parking.date')}</Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.dateBtn,
+                    { borderBottomColor: c.border },
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={openDatePicker}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('parking.date')}: ${dateLabel}`}
+                  accessibilityHint={t('common.pick_date')}
+                >
+                  <Text style={[styles.dateText, { color: c.textPrimary }]}>{dateLabel}</Text>
+                  <Ionicons name="calendar-outline" size={18} color={c.textSecondary} />
+                </Pressable>
+              </View>
 
-            {!!error && (
-              <Text style={[styles.error, { color: c.danger }]} accessibilityRole="alert">
-                {error}
-              </Text>
-            )}
+              {stickyLines.length > 0 && (
+                <View
+                  style={[styles.sticky, { backgroundColor: c.note }]}
+                  accessibilityRole="alert"
+                >
+                  {stickyLines.map((line) => (
+                    <Text key={line} style={[styles.stickyText, hand, { color: c.noteInk }]}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+              )}
 
-            <View style={styles.foot}>
-              <Pressable
-                style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}
-                onPress={handleClose}
-                accessible
-                accessibilityRole="button"
-              >
-                <Text style={[styles.cancelText, { color: c.primary }]}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  { backgroundColor: c.primary },
-                  (disabled || pressed) && styles.dimmed,
-                ]}
-                onPress={handleSave}
-                disabled={disabled}
-                accessible
-                accessibilityRole="button"
-                accessibilityState={{ disabled, busy: saving }}
-              >
-                <Text style={styles.primaryText}>{saving ? '…' : t('parking.request')}</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
+              <View>
+                <Text style={[styles.label, { color: c.textSecondary }]}>
+                  {t('parking.start_time')}
+                </Text>
+                <TimePicker value={startTime} onChange={setStartTime} />
+              </View>
+              <View>
+                <Text style={[styles.label, { color: c.textSecondary }]}>
+                  {t('parking.end_time')}
+                </Text>
+                <TimePicker value={endTime} onChange={setEndTime} />
+              </View>
+
+              <UnderlineInput
+                label={t('parking.note_label')}
+                value={note}
+                onChangeText={setNote}
+                placeholder={t('parking.note_placeholder')}
+                accessibilityLabel={t('parking.note_label')}
+              />
+
+              {!!error && (
+                <Text style={[styles.error, { color: c.danger }]} accessibilityRole="alert">
+                  {error}
+                </Text>
+              )}
+
+              <View style={styles.foot}>
+                <Pressable
+                  style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}
+                  onPress={handleClose}
+                  accessible
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.cancelText, { color: c.primary }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.primaryBtn,
+                    { backgroundColor: c.primary },
+                    (disabled || pressed) && styles.dimmed,
+                  ]}
+                  onPress={handleSave}
+                  disabled={disabled}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled, busy: saving }}
+                >
+                  <Text style={styles.primaryText}>{saving ? '…' : t('parking.request')}</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      {/* Sibling of the sheet (not nested) — nested RN Modals misbehave on Android. */}
+      <DatePickerModal
+        visible={visible && showDatePicker}
+        value={date}
+        onSelect={handleDateChange}
+        onClose={closeDatePicker}
+      />
+    </>
   );
 }
 
@@ -266,6 +306,16 @@ const styles = StyleSheet.create({
   },
   body: { padding: ms(20), paddingBottom: ms(32), gap: ms(18) },
   label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(6) },
+  // The date is written on a line, like the other fields; tapping it opens the calendar.
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    borderBottomWidth: 1.5,
+    paddingVertical: ms(8),
+  },
+  dateText: { fontSize: mf(17), ...font.semibold },
   sticky: {
     gap: ms(6),
     paddingHorizontal: ms(12),

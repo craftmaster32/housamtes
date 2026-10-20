@@ -3,17 +3,11 @@ import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { CarArt } from '@components/dashboard/art/CarArt';
-import { ParkingSignArt } from '@components/dashboard/art/ParkingSignArt';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { isRTL } from '@lib/i18n';
-import { useLanguageStore } from '@stores/languageStore';
 import type { ParkingReservation, ParkingSession } from '@stores/parkingStore';
 import { mf, ms } from '@utils/responsive';
 import { ParkingBlockedBanner } from './ParkingBlockedBanner';
-
-// Same car colours as the Home parking card: blue for mine, pink for a housemate's.
-const HOUSEMATE_CAR = '#F2A7A0';
+import { SpotArt } from './SpotArt';
 
 interface SpotCardProps {
   current: ParkingSession | null;
@@ -50,7 +44,6 @@ export function SpotCard({
   const { t } = useTranslation();
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
-  const rtl = isRTL(useLanguageStore((s) => s.language));
   const isFree = !current;
 
   const answer = isFree ? t('parking.free') : isMine ? t('parking.you') : occupantName;
@@ -71,13 +64,7 @@ export function SpotCard({
           <Text style={[styles.meta, { color: c.textSecondary }]}>{statusLine}</Text>
         </View>
         <View style={styles.art} pointerEvents="none">
-          {isFree ? (
-            <ParkingSignArt color={c.success} lineColor={c.textTertiary} width={ms(84)} />
-          ) : (
-            <View style={rtl && styles.flip}>
-              <CarArt color={isMine ? c.primary : HOUSEMATE_CAR} width={ms(96)} />
-            </View>
-          )}
+          <SpotArt isFree={isFree} isMine={isMine} />
         </View>
       </View>
 
@@ -140,6 +127,7 @@ export function SpotCard({
 const styles = StyleSheet.create({
   // The painted bay: dashed lines round a white (graphite in dark) card.
   bay: {
+    overflow: 'hidden', // the car drives in and out across the card's edge
     borderRadius: ms(24),
     borderWidth: 2.5,
     borderStyle: 'dashed',
@@ -152,7 +140,6 @@ const styles = StyleSheet.create({
   answer: { fontSize: mf(48), lineHeight: mf(56), letterSpacing: -0.5 },
   meta: { fontSize: mf(14), ...font.medium, lineHeight: mf(19), marginTop: ms(2) },
   art: { paddingTop: ms(8) },
-  flip: { transform: [{ scaleX: -1 }] },
   btn: {
     minHeight: ms(52),
     borderRadius: ms(17),

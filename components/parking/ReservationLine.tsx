@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { Stamp } from '@components/shared/Stamp';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
@@ -19,6 +18,7 @@ import { parseDateParts, timeRange } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
 import { MARGIN_W } from './PaperSlice';
 import { reservationStatus } from './reservationStatus';
+import { ThumpStamp } from './ThumpStamp';
 import { VoteAvatars } from './VoteAvatars';
 
 // Vote circles and history ink on paper (paper stays light in dark mode).
@@ -117,9 +117,9 @@ export function ReservationLine({
           requestedBy={item.requestedBy}
           votingClosed={votingClosed}
         />
-        <Stamp color={status.ink} style={styles.stamp}>
+        <ThumpStamp color={status.ink} style={styles.stamp}>
           {status.label}
-        </Stamp>
+        </ThumpStamp>
       </View>
 
       <View style={styles.actions}>
