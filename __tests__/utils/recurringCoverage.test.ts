@@ -74,6 +74,17 @@ describe('monthTrack', () => {
     expect(track.map((m) => m.mark)).toEqual(['paid', 'paid', 'paid', 'paid', 'paid', 'next']);
   });
 
+  it('marks all uncovered months since the overdue period start as late', () => {
+    // Monthly bill last covered through Feb 2026; today is Oct 2026 — overdue by 7+ months.
+    const b = bill('late', 'monthly');
+    const latePayments = [pay('late', '2026-02-01', 1, '2026-02-01')];
+    const status = getDueStatus(b, latePayments, TODAY);
+    const track = monthTrack(latePayments, status, TODAY);
+    // Track window: Jun–Nov 2026. All of Jun–Oct are past the overdue start (Mar),
+    // none are covered, so they must be 'late'. Nov is future → 'none'.
+    expect(track.map((m) => m.mark)).toEqual(['late', 'late', 'late', 'late', 'late', 'none']);
+  });
+
   it('labels a month by its short name', () => {
     expect(formatMonthShort('2026-08-01', 'en')).toBe('Aug');
   });

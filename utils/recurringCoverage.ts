@@ -184,16 +184,19 @@ export function monthTrack(
     if (period) periodMonths(period).forEach((m) => covered.add(m));
   }
   const due = new Set(status ? periodMonths(status.period) : []);
+  const thisMonth = monthStart(today);
   const first = shiftMonth(monthStart(today), -(count - 2));
   return Array.from({ length: count }, (_, i) => {
     const month = shiftMonth(first, i);
+    const overdueMonth =
+      !!status?.isOverdue && month >= status.period.start && month <= thisMonth;
     const mark: MonthMark = covered.has(month)
       ? 'paid'
-      : due.has(month)
-        ? status?.isOverdue
-          ? 'late'
-          : 'next'
-        : 'none';
+      : overdueMonth || (status?.isOverdue && due.has(month))
+        ? 'late'
+        : due.has(month)
+          ? 'next'
+          : 'none';
     return { month, mark };
   });
 }
