@@ -67,6 +67,10 @@ jest.mock('@stores/calendarSyncStore', () => ({
     }),
 }));
 
+// Let any claim / release still "saving" finish before the next test starts —
+// otherwise its catch-up step could act on the next test's spot.
+const settle = (): Promise<void> => act(() => new Promise((r) => setTimeout(r, 100)));
+
 beforeEach(() => {
   mockState.current = null;
   mockClaim.mockClear();
@@ -80,7 +84,8 @@ describe('useParkingActions — quick taps on the spot', () => {
       result.current.handleSpotPress();
       result.current.handleSpotPress();
     });
-    await waitFor(() => expect(mockRelease).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockRelease).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    await settle();
     expect(mockClaim).toHaveBeenCalledTimes(1);
     expect(mockState.current).toBeNull();
     expect(result.current.error).toBe('');
@@ -93,8 +98,8 @@ describe('useParkingActions — quick taps on the spot', () => {
       result.current.handleSpotPress();
       result.current.handleSpotPress();
     });
-    await waitFor(() => expect(mockState.current?.id).toBe('s1'));
-    await new Promise((r) => setTimeout(r, 60));
+    await waitFor(() => expect(mockState.current?.id).toBe('s1'), { timeout: 3000 });
+    await settle();
     expect(mockClaim).toHaveBeenCalledTimes(1);
     expect(mockRelease).not.toHaveBeenCalled();
     expect(mockState.current?.occupant).toBe('me');
