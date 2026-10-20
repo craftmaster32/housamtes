@@ -215,7 +215,27 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   grouped sheet, recurring form as a dashed card, date picker with pen-circled
   day, new-category dialog.
 
-**Next:** Parking (mockup first).
+**Parking (built on #252, waiting for the owner to say it's done)**
+
+- Spot card: a painted bay (dashed outline) with one big Fraunces answer —
+  Free (green) / You / the parked housemate's name (red, like Home) — the status
+  line, and the Home drawings (P sign / parked car, pink for a housemate).
+  Claim = big blue button, Release = red outline, "Free the spot" = text link.
+- "Please move your car" warning is a pink **parking ticket** taped on the card.
+- The next 7 days: owner asked for **each day separate** — every day is its own
+  little tear-off calendar page (weekday band with binding holes, Fraunces date,
+  status dots). Today's page is blue. Tapping a day opens its schedule.
+- Reservations: "Reserve" is a paper tag; reservations are lines on one notebook
+  page (`PaperSlice` rows in the FlatList): date in the margin, time, who · note,
+  vote avatars with tick/cross badges, handwritten "not voting?" note, rubber
+  stamp for the status, round ✓ / ✕ vote buttons, red "Cancel" text. History
+  sits on the same page, faded and struck through, with a red "Clear All".
+- Pop-ups: Reserve and day schedule are bottom sheets (`SheetHeader`); clash
+  warnings on a blue sticky note; the day schedule is a receipt slip with stamps.
+- Empty: Mate on a notebook page. The screen's logic lives in
+  `hooks/useParkingActions.ts`; pieces in `components/parking/`.
+
+**Next:** Chores (mockup first) — once the owner says Parking is done.
 
 ## 8. Working setup (for the next session)
 
