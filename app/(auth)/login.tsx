@@ -23,6 +23,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { Entrance } from '@components/shared/Entrance';
 import { PasswordInput } from '@components/shared/PasswordInput';
+import { FlowLanguageBar } from '@components/shared/FlowLanguageBar';
 import { getErrorMessage } from '@utils/errors';
 
 import { mf, ms } from '@utils/responsive';
@@ -95,6 +96,7 @@ export default function LoginScreen(): React.JSX.Element {
     <View style={styles.root}>
       <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <FlowLanguageBar variant="onColor" />
           <Pressable
             style={styles.backBtn}
             onPress={() => router.back()}
