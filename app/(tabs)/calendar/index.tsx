@@ -20,7 +20,7 @@ import { useParkingStore } from '@stores/parkingStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useRecurringBillsStore, getNextDueDate } from '@stores/recurringBillsStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
@@ -820,7 +820,7 @@ export default function CalendarScreen(): React.JSX.Element {
   const reservations = useParkingStore((s) => s.reservations);
   const recurringBills = useRecurringBillsStore((s) => s.bills);
   const recurringPayments = useRecurringBillsStore((s) => s.payments);
-  const chores = useChoresStore((s) => s.chores);
+  const tasks = useTasksStore((s) => s.tasks);
   const housemates = useHousematesStore((s) => s.housemates);
   const currency = useSettingsStore((s) => s.currency);
   const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
@@ -952,15 +952,17 @@ export default function CalendarScreen(): React.JSX.Element {
       }
     }
 
-    for (const c of chores) {
-      if (c.recurrence === 'once' && c.recurrenceDay) {
+    // Chores were merged into Tasks: a task with a due date shows on its day
+    // (as dated chores did), with who it's for.
+    for (const tk of tasks) {
+      if (tk.dueDate) {
         list.push({
-          sourceId: c.id,
-          id: `ch-${c.id}`,
-          date: c.recurrenceDay,
-          title: c.name,
+          sourceId: tk.id,
+          id: `ch-${tk.id}`,
+          date: tk.dueDate,
+          title: tk.title,
           type: 'chore',
-          detail: c.claimedBy ? resolveName(c.claimedBy, housemates) : undefined,
+          detail: tk.assignedTo ? resolveName(tk.assignedTo, housemates) : undefined,
         });
       }
     }
@@ -984,7 +986,7 @@ export default function CalendarScreen(): React.JSX.Element {
     recurringBills,
     recurringPayments,
     showRecurringBillsOnCalendar,
-    chores,
+    tasks,
     currency,
     personalEvents,
     housemates,

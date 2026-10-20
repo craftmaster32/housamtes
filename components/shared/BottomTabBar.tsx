@@ -19,7 +19,7 @@ import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -113,7 +113,7 @@ export function BottomTabBar(): React.JSX.Element {
   );
   const reservations = useParkingStore((s) => s.reservations);
   const items = useGroceryStore((s) => s.items);
-  const chores = useChoresStore((s) => s.chores);
+  const tasks = useTasksStore((s) => s.tasks);
   const proposals = useVotingStore((s) => s.proposals);
   const myId = useAuthStore((s) => s.profile?.id);
   const parkingBadge = myId
@@ -132,10 +132,15 @@ export function BottomTabBar(): React.JSX.Element {
         'addedBy'
       )
     : 0;
-  const choresBadge = countNewSimple(
-    chores.filter((c) => !c.isComplete),
-    lastSeen.chores
-  );
+  // Chores live in the Tasks list now; the badge keeps its 'chores' key.
+  const choresBadge = myId
+    ? countNew(
+        tasks.filter((tk) => !tk.isComplete),
+        lastSeen.chores,
+        myId,
+        'createdBy'
+      )
+    : 0;
   const votingBadge = myId
     ? proposals.filter(
         (p) => p.isOpen && p.createdBy !== myId && !p.votes.some((v) => v.person === myId)

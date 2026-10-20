@@ -7,18 +7,22 @@ import { BucketArt } from '@components/dashboard/art/BucketArt';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { mf, ms } from '@utils/responsive';
 
-interface ChoresGlanceProps {
+interface TasksGlanceProps {
   done: number;
   total: number;
-  /** Shown to admins once something is done. */
-  onResetAll?: () => void;
+  /** Shown to admins when a repeating task is ticked. */
+  onResetRepeating?: () => void;
 }
 
 /**
- * The glance tile at the top of Chores, like the Home widgets: one big answer
+ * The glance tile at the top of Tasks, like the Home widgets: one big answer
  * ("3 of 7 done"), the subtitle, a thin progress line and the bucket drawing.
  */
-export function ChoresGlance({ done, total, onResetAll }: ChoresGlanceProps): React.JSX.Element {
+export function TasksGlance({
+  done,
+  total,
+  onResetRepeating,
+}: TasksGlanceProps): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
@@ -30,10 +34,10 @@ export function ChoresGlance({ done, total, onResetAll }: ChoresGlanceProps): Re
         <View style={styles.copy}>
           {total > 0 && (
             <Text style={[styles.answer, headingFont, { color: c.textPrimary }]}>
-              {t('chores.progress', { done, total })}
+              {t('tasks.progress', { done, total })}
             </Text>
           )}
-          <Text style={[styles.meta, { color: c.textSecondary }]}>{t('chores.subtitle')}</Text>
+          <Text style={[styles.meta, { color: c.textSecondary }]}>{t('tasks.subtitle')}</Text>
         </View>
         <View pointerEvents="none">
           <BucketArt width={ms(52)} />
@@ -56,15 +60,15 @@ export function ChoresGlance({ done, total, onResetAll }: ChoresGlanceProps): Re
         </View>
       )}
 
-      {!!onResetAll && (
+      {!!onResetRepeating && (
         <Pressable
-          onPress={onResetAll}
+          onPress={onResetRepeating}
           style={({ pressed }) => [styles.reset, pressed && styles.pressed]}
           accessible
           accessibilityRole="button"
-          accessibilityLabel={t('chores.reset_all')}
+          accessibilityLabel={t('tasks.reset_repeating')}
         >
-          <Text style={[styles.resetText, { color: c.danger }]}>{t('chores.reset_all')}</Text>
+          <Text style={[styles.resetText, { color: c.danger }]}>{t('tasks.reset_repeating')}</Text>
         </Pressable>
       )}
     </View>

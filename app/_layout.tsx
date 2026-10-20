@@ -23,7 +23,6 @@ import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useAppliancesStore } from '@stores/appliancesStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
@@ -276,7 +275,6 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadParking = useParkingStore((s) => s.load);
   const loadAppliances = useAppliancesStore((s) => s.load);
   const loadGrocery = useGroceryStore((s) => s.load);
-  const loadChores = useChoresStore((s) => s.load);
   const loadEvents = useEventsStore((s) => s.load);
   const loadAnnouncements = useAnnouncementsStore((s) => s.load);
   const loadMaintenance = useMaintenanceStore((s) => s.load);
@@ -399,7 +397,6 @@ export default function RootLayout(): React.JSX.Element | null {
       loadParking(houseId);
       loadAppliances(houseId);
       loadGrocery(houseId);
-      loadChores(houseId);
       loadEvents(houseId);
       loadAnnouncements(houseId);
       loadMaintenance(houseId);
@@ -419,7 +416,6 @@ export default function RootLayout(): React.JSX.Element | null {
       useParkingStore.getState().unsubscribe();
       useAppliancesStore.getState().unsubscribe();
       useGroceryStore.getState().unsubscribe();
-      useChoresStore.getState().unsubscribe();
       useEventsStore.getState().unsubscribe();
       useAnnouncementsStore.getState().unsubscribe();
       useMaintenanceStore.getState().unsubscribe();
@@ -436,7 +432,6 @@ export default function RootLayout(): React.JSX.Element | null {
     loadParking,
     loadAppliances,
     loadGrocery,
-    loadChores,
     loadEvents,
     loadAnnouncements,
     loadMaintenance,
@@ -474,7 +469,6 @@ export default function RootLayout(): React.JSX.Element | null {
           loadParking(houseId);
           loadAppliances(houseId);
           loadGrocery(houseId);
-          loadChores(houseId);
           loadEvents(houseId);
           loadAnnouncements(houseId);
           loadMaintenance(houseId);
@@ -499,7 +493,6 @@ export default function RootLayout(): React.JSX.Element | null {
     loadParking,
     loadAppliances,
     loadGrocery,
-    loadChores,
     loadEvents,
     loadAnnouncements,
     loadMaintenance,

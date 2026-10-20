@@ -14,7 +14,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useBadgeStore, countNew, countNewSimple, type BadgeFeature } from '@stores/badgeStore';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
@@ -74,6 +74,7 @@ const POPUP_NAV: NavItem[] = [
     iconActive: 'list',
     labelKey: 'nav.tasks',
     route: '/(tabs)/tasks',
+    badgeKey: 'chores',
     color: '#2FA37A',
   },
   {
@@ -123,7 +124,7 @@ export function MorePopup(): React.JSX.Element {
   const proposals = useVotingStore((s) => s.proposals);
   const maintenanceItems = useMaintenanceStore((s) => s.requests);
   const groceryItems = useGroceryStore((s) => s.items);
-  const chores = useChoresStore((s) => s.chores);
+  const tasks = useTasksStore((s) => s.tasks);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const markSeen = useBadgeStore((s) => s.markSeen);
 
@@ -134,9 +135,12 @@ export function MorePopup(): React.JSX.Element {
       myId,
       'addedBy'
     ),
-    chores: countNewSimple(
-      chores.filter((ch) => !ch.isComplete),
-      lastSeen.chores
+    // Chores live in the Tasks list now; the badge keeps its 'chores' key.
+    chores: countNew(
+      tasks.filter((tk) => !tk.isComplete),
+      lastSeen.chores,
+      myId,
+      'createdBy'
     ),
     voting: myId
       ? proposals.filter(
@@ -284,7 +288,8 @@ export function MorePopup(): React.JSX.Element {
             {/* 3-column grid */}
             <View style={styles.grid}>
               {visibleItems.map((item) => {
-                const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
+                const badgeFor = item.badgeKey ?? item.featureKey;
+                const count = badgeFor ? (badgeCounts[badgeFor] ?? 0) : 0;
 
                 return (
                   <Pressable
