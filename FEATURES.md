@@ -2,6 +2,7 @@
 
 All features written in BDD (Behavior-Driven Development) format.
 Each feature uses MUST / SHOULD / MAY keywords:
+
 - **MUST** = required, non-negotiable
 - **SHOULD** = important, build in this phase
 - **MAY** = nice-to-have, can move to next phase
@@ -18,6 +19,7 @@ New ideas go in IDEAS.md, not here.
 **User Story:** As a new housemate, I want to create an account so I can access my household.
 
 **Acceptance Criteria:**
+
 - MUST support email + password sign-up
 - MUST validate email format before submitting
 - MUST require password of minimum 8 characters
@@ -28,6 +30,7 @@ New ideas go in IDEAS.md, not here.
 - MAY support Sign in with Apple (Phase 7+)
 
 **Scenarios:**
+
 ```
 GIVEN I am on the Sign Up screen
 WHEN I enter a valid email and password (8+ chars) and tap "Create Account"
@@ -50,6 +53,7 @@ AND disables the "Create Account" button until fixed
 ### Feature 1.2 — User Login
 
 **Acceptance Criteria:**
+
 - MUST support login with email + password
 - MUST persist session for 30 days (user stays logged in)
 - MUST handle incorrect password with a clear message
@@ -59,6 +63,7 @@ AND disables the "Create Account" button until fixed
 - MUST redirect to Dashboard after successful login
 
 **Scenarios:**
+
 ```
 GIVEN I have a verified account
 WHEN I enter correct email and password and tap "Log In"
@@ -82,6 +87,7 @@ THEN I am automatically logged in without entering credentials
 **User Story:** As the first housemate, I want to create a house profile so others can join.
 
 **Acceptance Criteria:**
+
 - MUST allow user to set house name (2–50 characters)
 - MUST generate a unique 8-character invite code (e.g. "NEST-4821")
 - MUST make the invite code easy to copy and share
@@ -91,6 +97,7 @@ THEN I am automatically logged in without entering credentials
 - SHOULD allow the house name to be changed later in settings
 
 **Scenarios:**
+
 ```
 GIVEN I have just signed up and have no house
 WHEN I enter "Our Flat" and tap "Create House"
@@ -109,6 +116,7 @@ AND prevents creation
 ### Feature 1.4 — Join a House
 
 **Acceptance Criteria:**
+
 - MUST allow user to enter an invite code to join
 - MUST validate the code exists before showing confirmation
 - MUST show the house name and existing member count before joining
@@ -119,6 +127,7 @@ AND prevents creation
 - MAY support joining via a shared link (Phase 7+)
 
 **Scenarios:**
+
 ```
 GIVEN I have a valid invite code "NEST-4821"
 WHEN I enter it and tap "Join"
@@ -136,6 +145,7 @@ AND does not add me to any house
 ### Feature 1.5 — House Settings
 
 **Acceptance Criteria:**
+
 - MUST show all house members with their names
 - MUST allow admin to change house name
 - MUST allow admin to remove a member (with confirmation)
@@ -154,6 +164,7 @@ AND does not add me to any house
 **User Story:** As a housemate, I want to log a bill so everyone knows what we owe.
 
 **Acceptance Criteria:**
+
 - MUST allow entering: bill name, category, total amount, due date, who paid it
 - MUST support split types: equal (default), or custom percentage per person
 - MUST support categories: Electricity, Water, Internet, Rent, Subscriptions, Groceries, Other
@@ -165,6 +176,7 @@ AND does not add me to any house
 - SHOULD allow attaching a photo of the receipt
 
 **Scenarios:**
+
 ```
 GIVEN I am on the Add Bill screen
 WHEN I enter: "Electricity", amount €120, due in 5 days, paid by me, split equally (3 people)
@@ -186,6 +198,7 @@ THEN the bill automatically re-appears each month on the same due day
 ### Feature 2.2 — Bills Overview
 
 **Acceptance Criteria:**
+
 - MUST show all bills grouped by category
 - MUST show each bill: name, amount, due date, who paid, status (pending/settled)
 - MUST highlight overdue bills visibly (red or warning label)
@@ -196,6 +209,7 @@ THEN the bill automatically re-appears each month on the same due day
 - SHOULD show a monthly total spending for the house
 
 **Scenarios:**
+
 ```
 GIVEN there are 3 bills this month
 WHEN I open the Bills screen
@@ -211,6 +225,7 @@ THEN it shows a red "Overdue" label next to it
 ### Feature 2.3 — Bill Detail & Edit
 
 **Acceptance Criteria:**
+
 - MUST show full bill details: all fields, who owes what, history of changes
 - MUST allow the bill owner to edit: amount, due date, notes
 - MUST show a breakdown of every person's share with calculations visible
@@ -219,6 +234,7 @@ THEN it shows a red "Overdue" label next to it
 - SHOULD show a timeline of changes to the bill
 
 **Scenarios:**
+
 ```
 GIVEN I tap on the "Water" bill
 THEN I see: total €60, due March 31, paid by Jordan
@@ -235,6 +251,7 @@ AND a notification is sent to all members: "Water bill marked as settled"
 ### Feature 2.4 — Balance Dashboard
 
 **Acceptance Criteria:**
+
 - MUST show each housemate's balance at all times on the Dashboard
 - MUST show: positive = they are owed money, negative = they owe money
 - MUST show the exact bills contributing to each balance (tap to expand)
@@ -252,6 +269,7 @@ AND a notification is sent to all members: "Water bill marked as settled"
 **User Story:** As a housemate, I want to see if the parking spot is free right now.
 
 **Acceptance Criteria:**
+
 - MUST show current parking status on the Dashboard: "Free" or "Taken by [Name]"
 - MUST allow any member to claim the spot with one tap
 - MUST allow the current occupant to release the spot with one tap
@@ -260,6 +278,7 @@ AND a notification is sent to all members: "Water bill marked as settled"
 - MUST notify all members when the spot is claimed or released
 
 **Scenarios:**
+
 ```
 GIVEN the parking spot is free
 WHEN I tap "I'm using it"
@@ -277,6 +296,7 @@ AND the other housemates receive a notification: "Parking spot is now free"
 ### Feature 3.2 — Parking Reservations
 
 **Acceptance Criteria:**
+
 - MUST allow any member to request the spot for a future date and time range
 - MUST enforce advance booking limit (default 2 days, configurable in house settings)
 - MUST send the request to all other members for approval
@@ -289,6 +309,7 @@ AND the other housemates receive a notification: "Parking spot is now free"
 - MAY allow one member to deny with a reason
 
 **Scenarios:**
+
 ```
 GIVEN I want the spot on Saturday 10am–2pm
 WHEN I submit a reservation request
@@ -312,6 +333,7 @@ AND prevents my booking
 ### Feature 4.1 — Shared Grocery List
 
 **Acceptance Criteria:**
+
 - MUST show one shared list for common household items
 - MUST allow any member to add items with: name and optional quantity
 - MUST allow any member to check off items when bought (shows who bought it)
@@ -326,6 +348,7 @@ AND prevents my booking
 ### Feature 4.2 — Personal Lists
 
 **Acceptance Criteria:**
+
 - MUST allow each user to maintain private shopping lists
 - MUST keep personal lists invisible to other members
 - MUST allow switching between shared and personal lists with a toggle
@@ -336,7 +359,14 @@ AND prevents my booking
 
 ### Feature 4.3 — Chore Management
 
-**Acceptance Criteria:**
+> **Merged into Feature 4.4 (owner decision, Oct 2026).** Chores and Tasks are
+> one list now, called **Tasks**: a chore is a task that repeats. Existing
+> chores were copied into Tasks; the old Chores page forwards to Tasks. The
+> original chore criteria are kept below for reference — rotation and the
+> per-person stat were never built and are not part of the merged list.
+
+**Acceptance Criteria (original):**
+
 - MUST allow creating chores with: name, frequency (daily/weekly/monthly), assigned person or rotation
 - MUST show whose turn it is this cycle for rotating chores
 - MUST auto-advance rotation after a chore is marked complete
@@ -352,16 +382,23 @@ AND prevents my booking
 ### Feature 4.4 — House Task List
 
 **Acceptance Criteria:**
+
 - MUST allow adding tasks with: title, description, priority (low/medium/high), optional assignee
 - MUST allow marking tasks complete (stays in history, doesn't disappear)
 - MUST filter tasks: All / Active / Completed
 - SHOULD allow assigning a due date to tasks
+- MUST allow a task to repeat: once, weekly (on a weekday) or monthly (on a day of the month) — merged in from Chores
+- MUST let any member take an unassigned task ("Take it") and give it back ("drop")
+- MUST let an admin/owner un-tick all repeating tasks for a new round ("Reset repeating"); one-off tasks keep their history
+- MUST send the assigned person a reminder on the day a repeating task is due (daily 9:00 job, respects their chore-notification setting)
+- SHOULD show tasks with a due date on the house calendar
 
 ---
 
 ### Feature 4.5 — House Notice Board
 
 **Acceptance Criteria:**
+
 - MUST allow any member to pin notes visible to all (WiFi password, bin day, etc.)
 - MUST allow editing and deleting any note
 - MUST show who posted each note and when
@@ -374,6 +411,7 @@ AND prevents my booking
 ### Feature 5.1 — House Group Chat
 
 **Acceptance Criteria:**
+
 - MUST show a single group chat for all house members
 - MUST support text messages with sender name, color avatar, and timestamp
 - MUST show unread message count on the tab icon
@@ -386,6 +424,7 @@ AND prevents my booking
 ### Feature 5.2 — Photo Board
 
 **Acceptance Criteria:**
+
 - MUST allow uploading photos from camera or photo library
 - MUST show photos in a grid with uploader name and date
 - MUST support categories: Receipts, Damage/Maintenance, Memories
@@ -401,19 +440,19 @@ AND prevents my booking
 
 All push notifications are configurable per user in Settings.
 
-| Event | Who gets notified | Message |
-|---|---|---|
-| New bill added | All members | "New bill: [Name] €[Amount] due [Date]" |
-| Bill due in 2 days | Bill owner | "[Name] bill is due in 2 days" |
-| Bill settled | All members | "[Name] bill marked as settled by [Person]" |
-| Parking claimed | All members | "[Person] claimed the parking spot" |
-| Parking released | All members | "Parking spot is now free" |
-| Parking request received | All other members | "[Person] wants the spot [Date] [Time]" |
-| Parking request approved/denied | Requester | "Your parking request was [approved/denied]" |
-| Chore due today | Assigned person | "[Chore name] is due today" |
-| Chore overdue | Assigned person | "[Chore name] is overdue" |
-| New task assigned | Assignee | "New task assigned to you: [Title]" |
-| New chat message | All members (if app backgrounded) | "[Person]: [First 50 chars of message]" |
+| Event                           | Who gets notified                 | Message                                      |
+| ------------------------------- | --------------------------------- | -------------------------------------------- |
+| New bill added                  | All members                       | "New bill: [Name] €[Amount] due [Date]"      |
+| Bill due in 2 days              | Bill owner                        | "[Name] bill is due in 2 days"               |
+| Bill settled                    | All members                       | "[Name] bill marked as settled by [Person]"  |
+| Parking claimed                 | All members                       | "[Person] claimed the parking spot"          |
+| Parking released                | All members                       | "Parking spot is now free"                   |
+| Parking request received        | All other members                 | "[Person] wants the spot [Date] [Time]"      |
+| Parking request approved/denied | Requester                         | "Your parking request was [approved/denied]" |
+| Chore due today                 | Assigned person                   | "[Chore name] is due today"                  |
+| Chore overdue                   | Assigned person                   | "[Chore name] is overdue"                    |
+| New task assigned               | Assignee                          | "New task assigned to you: [Title]"          |
+| New chat message                | All members (if app backgrounded) | "[Person]: [First 50 chars of message]"      |
 
 ---
 
