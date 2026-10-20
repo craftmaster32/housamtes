@@ -28,6 +28,8 @@ The owner will just say "work on the design" or "next page". Do this, in order:
    never per push: post the comment `@coderabbitai review` on PR #252.
    CodeRabbit then checks only what changed since its last review. Fix what it
    finds (push with permission), then tell the owner in plain English.
+   **Don't push anything while CodeRabbit is reviewing** — a new commit cancels
+   the review ("Head commit changed") and it has to be asked again.
 6. **Write it down:** tick the page in §1, add what was decided to §7, commit.
 7. **Last page done?** Mark PR #252 "Ready for review" (not draft), let
    CodeRabbit do its final pass, fix, then the owner merges once
