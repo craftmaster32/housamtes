@@ -188,8 +188,7 @@ export function monthTrack(
   const first = shiftMonth(monthStart(today), -(count - 2));
   return Array.from({ length: count }, (_, i) => {
     const month = shiftMonth(first, i);
-    const overdueMonth =
-      !!status?.isOverdue && month >= status.period.start && month <= thisMonth;
+    const overdueMonth = !!status?.isOverdue && month >= status.period.start && month <= thisMonth;
     const mark: MonthMark = covered.has(month)
       ? 'paid'
       : overdueMonth || (status?.isOverdue && due.has(month))

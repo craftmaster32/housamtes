@@ -32,7 +32,7 @@ const RULES: Array<{ category: string; re: RegExp }> = [
     '=tren', 'autobús', 'autobus', 'aparcamiento', 'vuelo',
   ]) },
   { category: 'Outside Food', re: words([
-    'restaurant', 'pizza', 'takeaway', 'takeout', 'delivery', 'wolt', '10bis', 'sushi', 'burger',
+    'restaurant', 'pizza', 'takeaway', 'takeout', 'delivery', '=wolt', '10bis', 'sushi', 'burger',
     'cafe', 'café', 'coffee', 'dinner', 'lunch', 'breakfast', 'brunch', '=bar', 'falafel', 'shawarma',
     'מסעדה', 'פיצה', 'משלוח', 'וולט', 'סושי', 'המבורגר', 'ארוחת', 'קפה', 'בית קפה', '=בר',
     'פלאפל', 'שווארמה', 'restaurante', '=cena', 'almuerzo', 'desayuno', 'hamburguesa',
