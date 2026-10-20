@@ -6,23 +6,23 @@ import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { SheetHeader } from '@components/bills/recurring/SheetHeader';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
-import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { TimePicker } from '@components/shared/TimePicker';
 import { useHandFont } from '@hooks/useHandFont';
-import { useCalendarSyncStore } from '@stores/calendarSyncStore';
-import { useHousematesStore } from '@stores/housematesStore';
+import { useReserveForm } from '@hooks/useReserveForm';
 import { useLanguageStore } from '@stores/languageStore';
-import {
-  useParkingStore,
-  isDateConflict,
-  type ConflictResult,
-  type ParkingReservation,
-  type ParkingSession,
-} from '@stores/parkingStore';
-import { resolveName } from '@utils/housemates';
-import { parseDateParts, todayString } from '@utils/parkingDates';
+import type { ParkingReservation, ParkingSession } from '@stores/parkingStore';
+import { parseDateParts } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
+import { LineField } from './LineField';
+import { TimePickerModal } from './TimePickerModal';
+
+type TimeFieldKey = 'start' | 'end';
+
+/** One hour after 'HH:MM' (capped at 23:55), as a starting point for the end time. */
+function hourAfter(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  return h >= 23 ? '23:55' : `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
 
 export interface ReserveSheetProps {
   visible: boolean;
@@ -52,122 +52,54 @@ export function ReserveSheet({
   const c = useThemedColors();
   const hand = useHandFont();
   const language = useLanguageStore((s) => s.language);
-  const addReservation = useParkingStore((s) => s.addReservation);
-  const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const todayStr = todayString();
-  const [date, setDate] = useState(todayStr);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const activeConflict =
-    current && date === todayStr
-      ? current.occupant === myId
-        ? t('parking.currently_using_you')
-        : t('parking.currently_using_other', {
-            name: resolveName(current.occupant, housemates, t('common.unknown')),
-          })
-      : null;
-  const conflictResult: ConflictResult = isDateConflict(
-    date,
-    startTime || undefined,
-    endTime || undefined,
-    reservations,
-    (id: string): string => resolveName(id, housemates, t('common.unknown'))
-  );
-  const dateConflict = conflictResult.conflict;
-  const dateWarning = conflictResult.warning;
-  // A hard clash replaces everything else; otherwise any softer warnings show.
-  const stickyLines = dateConflict
-    ? [dateConflict]
-    : [dateWarning, activeConflict].filter((s): s is string => !!s);
-
-  const reset = useCallback((): void => {
-    setDate(todayStr);
-    setStartTime('');
-    setEndTime('');
-    setNote('');
-    setError('');
-    setShowDatePicker(false);
-  }, [todayStr]);
+  const [timeField, setTimeField] = useState<TimeFieldKey | null>(null);
+  const form = useReserveForm({ myId, myName, houseId, reservations, current, onDone: onClose });
+  const { date, startTime, endTime, saving, dateConflict, setDate, setStartTime, setEndTime } =
+    form;
 
   const handleClose = useCallback((): void => {
-    reset();
+    form.reset();
+    setShowDatePicker(false);
+    setTimeField(null);
     onClose();
-  }, [reset, onClose]);
+  }, [form, onClose]);
 
   // The date opens the pop-up calendar (a sibling Modal, see below).
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
-  const handleDateChange = useCallback((d: string): void => {
-    setDate(d);
-    setError('');
-    setShowDatePicker(false);
-  }, []);
+  const handleDateChange = useCallback(
+    (d: string): void => {
+      setDate(d);
+      setShowDatePicker(false);
+    },
+    [setDate]
+  );
 
-  const handleSave = useCallback(async (): Promise<void> => {
-    if (saving) return; // guard against a double-tap creating two reservations
-    if (dateConflict) {
-      setError(dateConflict);
-      return;
-    }
-    if (!!startTime !== !!endTime) {
-      setError(t('parking.error_both_times'));
-      return;
-    }
-    if (startTime && endTime && endTime <= startTime) {
-      setError(t('parking.error_end_before_start'));
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      const reservationId = await addReservation(
-        {
-          requestedBy: myId,
-          date,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          note,
-        },
-        myName,
-        houseId
-      );
-      syncParkingPending({
-        id: reservationId,
-        requestedBy: myName,
-        date,
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
-      }).catch(() => {});
-      handleClose();
-    } catch {
-      setError(t('parking.failed_reservation'));
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    dateConflict,
-    date,
-    startTime,
-    endTime,
-    note,
-    myId,
-    myName,
-    houseId,
-    addReservation,
-    handleClose,
-    syncParkingPending,
-    t,
-    saving,
-  ]);
+  // Each time opens the time pop-up; Clear takes it back to no time.
+  const openStart = useCallback((): void => setTimeField('start'), []);
+  const openEnd = useCallback((): void => setTimeField('end'), []);
+  const closeTime = useCallback((): void => setTimeField(null), []);
+  const handleTimeSelect = useCallback(
+    (time: string): void => {
+      if (timeField === 'start') setStartTime(time);
+      else setEndTime(time);
+      setTimeField(null);
+    },
+    [timeField, setStartTime, setEndTime]
+  );
+  const handleTimeClear = useCallback((): void => {
+    if (timeField === 'start') setStartTime('');
+    else setEndTime('');
+    setTimeField(null);
+  }, [timeField, setStartTime, setEndTime]);
+  const timeStart =
+    timeField === 'start'
+      ? startTime || '09:00'
+      : endTime || (startTime ? hourAfter(startTime) : '10:00');
 
-  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date, language);
-  const dateLabel = `${weekdayFull}, ${dayNum} ${monthAbbr}`;
+  const { dayNum, monthShort, weekdayFull } = parseDateParts(date, language);
+  const dateLabel = `${weekdayFull}, ${dayNum} ${monthShort}`;
   const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
   const disabled = saving || !!dateConflict;
 
@@ -192,31 +124,20 @@ export function ReserveSheet({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <View>
-                <Text style={[styles.label, { color: c.textSecondary }]}>{t('parking.date')}</Text>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.dateBtn,
-                    { borderBottomColor: c.border },
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={openDatePicker}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t('parking.date')}: ${dateLabel}`}
-                  accessibilityHint={t('common.pick_date')}
-                >
-                  <Text style={[styles.dateText, { color: c.textPrimary }]}>{dateLabel}</Text>
-                  <Ionicons name="calendar-outline" size={18} color={c.textSecondary} />
-                </Pressable>
-              </View>
+              <LineField
+                label={t('parking.date')}
+                value={dateLabel}
+                icon="calendar-outline"
+                onPress={openDatePicker}
+                accessibilityHint={t('common.pick_date')}
+              />
 
-              {stickyLines.length > 0 && (
+              {form.stickyLines.length > 0 && (
                 <View
                   style={[styles.sticky, { backgroundColor: c.note }]}
                   accessibilityRole="alert"
                 >
-                  {stickyLines.map((line) => (
+                  {form.stickyLines.map((line) => (
                     <Text key={line} style={[styles.stickyText, hand, { color: c.noteInk }]}>
                       {line}
                     </Text>
@@ -224,30 +145,38 @@ export function ReserveSheet({
                 </View>
               )}
 
-              <View>
-                <Text style={[styles.label, { color: c.textSecondary }]}>
-                  {t('parking.start_time')}
-                </Text>
-                <TimePicker value={startTime} onChange={setStartTime} />
-              </View>
-              <View>
-                <Text style={[styles.label, { color: c.textSecondary }]}>
-                  {t('parking.end_time')}
-                </Text>
-                <TimePicker value={endTime} onChange={setEndTime} />
+              <View style={styles.twoCol}>
+                <View style={styles.col}>
+                  <LineField
+                    label={t('parking.start_time')}
+                    value={startTime}
+                    placeholder="--:--"
+                    icon="time-outline"
+                    onPress={openStart}
+                  />
+                </View>
+                <View style={styles.col}>
+                  <LineField
+                    label={t('parking.end_time')}
+                    value={endTime}
+                    placeholder="--:--"
+                    icon="time-outline"
+                    onPress={openEnd}
+                  />
+                </View>
               </View>
 
               <UnderlineInput
                 label={t('parking.note_label')}
-                value={note}
-                onChangeText={setNote}
+                value={form.note}
+                onChangeText={form.setNote}
                 placeholder={t('parking.note_placeholder')}
                 accessibilityLabel={t('parking.note_label')}
               />
 
-              {!!error && (
+              {!!form.error && (
                 <Text style={[styles.error, { color: c.danger }]} accessibilityRole="alert">
-                  {error}
+                  {form.error}
                 </Text>
               )}
 
@@ -268,7 +197,7 @@ export function ReserveSheet({
                     { backgroundColor: c.primary },
                     (disabled || pressed) && styles.dimmed,
                   ]}
-                  onPress={handleSave}
+                  onPress={form.handleSave}
                   disabled={disabled}
                   accessible
                   accessibilityRole="button"
@@ -289,6 +218,14 @@ export function ReserveSheet({
         onSelect={handleDateChange}
         onClose={closeDatePicker}
       />
+      <TimePickerModal
+        visible={visible && timeField !== null}
+        title={timeField === 'start' ? t('parking.start_time') : t('parking.end_time')}
+        value={timeStart}
+        onSelect={handleTimeSelect}
+        onClear={handleTimeClear}
+        onClose={closeTime}
+      />
     </>
   );
 }
@@ -305,17 +242,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   body: { padding: ms(20), paddingBottom: ms(32), gap: ms(18) },
-  label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(6) },
-  // The date is written on a line, like the other fields; tapping it opens the calendar.
-  dateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
-    borderBottomWidth: 1.5,
-    paddingVertical: ms(8),
-  },
-  dateText: { fontSize: mf(17), ...font.semibold },
+  twoCol: { flexDirection: 'row', gap: ms(16) },
+  col: { flex: 1, minWidth: 0 },
   sticky: {
     gap: ms(6),
     paddingHorizontal: ms(12),

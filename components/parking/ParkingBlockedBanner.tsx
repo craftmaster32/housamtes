@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, View, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { font } from '@constants/typography';
@@ -25,7 +25,7 @@ export function ParkingBlockedBanner({
 }: ParkingBlockedBannerProps): React.JSX.Element {
   const { t } = useTranslation();
 
-  // The ticket drops onto the card and settles, like paper landing on a table.
+  // The ticket slides gently into place when it appears.
   const settle = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     let cancelled = false;
@@ -36,10 +36,10 @@ export function ParkingBlockedBanner({
           settle.setValue(1);
           return;
         }
-        Animated.spring(settle, {
+        Animated.timing(settle, {
           toValue: 1,
-          friction: 6,
-          tension: 90,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }).start();
       })
@@ -75,11 +75,11 @@ export function ParkingBlockedBanner({
         {
           opacity: settle.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
           transform: [
-            { translateY: settle.interpolate({ inputRange: [0, 1], outputRange: [-ms(18), 0] }) },
+            { translateY: settle.interpolate({ inputRange: [0, 1], outputRange: [-ms(8), 0] }) },
             {
               rotate: settle.interpolate({
                 inputRange: [0, 1],
-                outputRange: ['-6deg', '-1.5deg'],
+                outputRange: ['-2.5deg', '-1deg'],
               }),
             },
           ],

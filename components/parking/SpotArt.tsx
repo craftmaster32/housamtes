@@ -19,9 +19,9 @@ interface SpotArtProps {
 }
 
 /**
- * The spot's drawing. When someone parks, their car drives in from the reading
- * start and settles; when the spot is freed, the car drives off forwards and
- * the P sign rises into place behind it — one continuous move, never a swap.
+ * The spot's drawing. When someone parks, their car glides in from the reading
+ * start and eases to a stop; when the spot is freed, the car drives off
+ * forwards and the P sign eases up into place — calm, no bounce.
  * With Reduce Motion on, the end state just shows.
  */
 export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
@@ -51,32 +51,32 @@ export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
     }
 
     if (!isFree) {
-      // Arrive: drive in from behind and settle with a small overshoot.
+      // Arrive: glide in from behind and ease to a stop.
       setShowCar(true);
       carX.setValue(-dir * DRIVE);
       Animated.timing(carX, {
         toValue: 0,
-        duration: 650,
-        easing: Easing.out(Easing.back(1.2)),
+        duration: 550,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
       return;
     }
 
-    // Leave: drive off forwards, then the sign rises where the car stood.
+    // Leave: drive off forwards, then the sign eases up where the car stood.
     sign.setValue(0);
     Animated.timing(carX, {
       toValue: dir * DRIVE,
-      duration: 450,
+      duration: 400,
       easing: Easing.in(Easing.quad),
       useNativeDriver: true,
     }).start(() => {
       setShowCar(false);
       carX.setValue(0);
-      Animated.spring(sign, {
+      Animated.timing(sign, {
         toValue: 1,
-        friction: 6,
-        tension: 120,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
     });
@@ -100,7 +100,7 @@ export function SpotArt({ isFree, isMine }: SpotArtProps): React.JSX.Element {
         {
           opacity: sign,
           transform: [
-            { translateY: sign.interpolate({ inputRange: [0, 1], outputRange: [ms(18), 0] }) },
+            { translateY: sign.interpolate({ inputRange: [0, 1], outputRange: [ms(8), 0] }) },
           ],
         },
       ]}

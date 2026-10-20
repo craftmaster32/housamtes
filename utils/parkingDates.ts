@@ -18,6 +18,8 @@ export function todayString(): string {
 export interface DateParts {
   dayNum: string;
   monthAbbr: string;
+  /** Month as written in a sentence, e.g. "Oct". */
+  monthShort: string;
   weekdayFull: string;
   weekdayShort: string;
 }
@@ -29,6 +31,7 @@ export function parseDateParts(dateStr: string, locale: string): DateParts {
   return {
     dayNum: String(d),
     monthAbbr: date.toLocaleString(locale, { month: 'short' }).toUpperCase(),
+    monthShort: date.toLocaleString(locale, { month: 'short' }),
     weekdayFull: date.toLocaleString(locale, { weekday: 'long' }),
     weekdayShort: date.toLocaleString(locale, { weekday: 'short' }).toUpperCase(),
   };

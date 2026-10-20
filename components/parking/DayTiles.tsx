@@ -98,8 +98,7 @@ const styles = StyleSheet.create({
     paddingBottom: ms(6),
   },
   tileToday: { borderWidth: 2 },
-  // Pressed: the page lifts a little, like flipping a desk calendar.
-  pressed: { transform: [{ translateY: -ms(3) }, { rotate: '-3deg' }] },
+  pressed: { opacity: 0.75 },
   band: {
     alignSelf: 'stretch',
     alignItems: 'center',

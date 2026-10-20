@@ -40,7 +40,7 @@ export function DayScheduleSheet({
   );
 
   if (!date) return null;
-  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date, language);
+  const { dayNum, monthShort, weekdayFull } = parseDateParts(date, language);
   const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
 
   return (
@@ -55,7 +55,7 @@ export function DayScheduleSheet({
         <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
           <SheetHeader
             eyebrow={t('parking.reservations')}
-            title={`${weekdayFull}, ${dayNum} ${monthAbbr}`}
+            title={`${weekdayFull}, ${dayNum} ${monthShort}`}
             onClose={onClose}
           />
           <ScrollView contentContainerStyle={styles.body}>
