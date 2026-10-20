@@ -232,6 +232,12 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   sits on the same page, faded and struck through, with a red "Clear All".
 - Pop-ups: Reserve and day schedule are bottom sheets (`SheetHeader`); clash
   warnings on a blue sticky note; the day schedule is a receipt slip with stamps.
+  The Reserve date is an underlined field that opens the Bills pop-up calendar
+  (`DatePickerModal`, pen-circled day) instead of a big inline calendar.
+- Motion (`SpotArt`, `ThumpStamp`): someone parks → their car drives in and
+  settles; spot freed → the car drives off forwards and the P sign rises in its
+  place. A stamp thumps down when a reservation's status changes. The ticket
+  drops onto the card and settles. Day pages lift a little when pressed.
 - Empty: Mate on a notebook page. The screen's logic lives in
   `hooks/useParkingActions.ts`; pieces in `components/parking/`.
 
