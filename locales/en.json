@@ -280,7 +280,19 @@
     "enter_invite_code": "Please enter an invite code",
     "code_not_found": "Invite code not found. Check it and try again.",
     "failed_create": "Failed to create house",
-    "failed_join": "Failed to join house"
+    "failed_join": "Failed to join house",
+    "house_name_label": "House name",
+    "house_name_hint": "Give your home a name your housemates will recognise",
+    "code_hint": "8 letters and numbers, e.g. ABCD2345",
+    "find_house": "Find house",
+    "color_updated": "Your colour was already taken in this house, so we picked a new one for you.",
+    "confirm_join_title": "Is this your house?",
+    "confirm_join_subtitle": "We found this house for code {{code}}",
+    "member_count_one": "{{count}} member",
+    "member_count_other": "{{count}} members",
+    "confirm_join": "Join this house",
+    "wrong_house": "Not my house",
+    "too_many_attempts": "Too many tries. Please wait {{seconds}} seconds."
   },
   "dashboard": {
     "greeting_morning": "Rise and shine",

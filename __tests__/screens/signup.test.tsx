@@ -28,8 +28,16 @@ jest.mock('@stores/authStore', () => ({
     selector({ signUp: mockSignUp, isLoading: false }),
 }));
 
+const mockReplace = jest.fn();
+const mockBack = jest.fn();
+const mockCanGoBack = jest.fn(() => true);
 jest.mock('expo-router', () => ({
-  router: { replace: jest.fn(), push: jest.fn() },
+  router: {
+    replace: (...a: unknown[]): unknown => mockReplace(...a),
+    push: jest.fn(),
+    back: (): unknown => mockBack(),
+    canGoBack: (): unknown => mockCanGoBack(),
+  },
 }));
 
 jest.mock('@utils/tour', () => ({
@@ -127,5 +135,27 @@ describe('Signup — points at the field that needs fixing', () => {
 
     expect(mockSignUp).not.toHaveBeenCalled();
     expect(screen.getByText('Passwords do not match')).toBeTruthy();
+  });
+});
+
+describe('Signup back button', () => {
+  beforeAll(() => setupI18n('en'));
+  beforeEach(() => {
+    mockReplace.mockClear();
+    mockBack.mockClear();
+  });
+
+  it('goes back to the previous screen', () => {
+    mockCanGoBack.mockReturnValue(true);
+    renderSignup();
+    fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('falls back to the welcome screen when opened directly', () => {
+    mockCanGoBack.mockReturnValue(false);
+    renderSignup();
+    fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/welcome');
   });
 });

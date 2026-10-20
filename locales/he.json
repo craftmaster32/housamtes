@@ -280,7 +280,19 @@
     "enter_invite_code": "הכנס קוד הזמנה",
     "code_not_found": "קוד לא נמצא. בדוק שוב ונסה.",
     "failed_create": "יצירת הבית נכשלה",
-    "failed_join": "ההצטרפות לבית נכשלה"
+    "failed_join": "ההצטרפות לבית נכשלה",
+    "house_name_label": "שם הבית",
+    "house_name_hint": "תנו לבית שם שהשותפים יזהו",
+    "code_hint": "8 אותיות ומספרים, למשל ABCD2345",
+    "find_house": "חיפוש בית",
+    "color_updated": "הצבע שלך כבר היה תפוס בבית הזה, אז בחרנו לך צבע חדש.",
+    "confirm_join_title": "זה הבית שלך?",
+    "confirm_join_subtitle": "מצאנו את הבית הזה לפי הקוד {{code}}",
+    "member_count_one": "דייר אחד",
+    "member_count_other": "{{count}} דיירים",
+    "confirm_join": "הצטרפות לבית",
+    "wrong_house": "זה לא הבית שלי",
+    "too_many_attempts": "יותר מדי ניסיונות. נא להמתין {{seconds}} שניות."
   },
   "dashboard": {
     "greeting_morning": "בוקר טוב",
