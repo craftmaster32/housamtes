@@ -1,156 +1,39 @@
 import { useState, useCallback, useMemo } from 'react';
-import { withFeatureGuard } from '@components/shared/withFeatureGuard';
-import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { AnimatedListItem } from '@components/shared/AnimatedListItem';
-import { BackLink } from '@components/shared/BackLink';
-import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { View, StyleSheet, FlatList, type ListRenderItemInfo } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { useChoresStore, type Chore, type Recurrence } from '@stores/choresStore';
-import { useAuthStore } from '@stores/authStore';
-import { useBadgeStore } from '@stores/badgeStore';
-import { useHousematesStore } from '@stores/housematesStore';
-import { useLanguageStore } from '@stores/languageStore';
-import { resolveName } from '@utils/housemates';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
+import { BackLink } from '@components/shared/BackLink';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { Mate } from '@components/shared/Mate';
+import { ChoreLine } from '@components/chores/ChoreLine';
+import { ChoresGlance } from '@components/chores/ChoresGlance';
+import { NewChoreForm } from '@components/chores/NewChoreForm';
+import { PadSlice } from '@components/chores/PadSlice';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { getErrorMessage } from '@utils/errors';
+import { useHandFont } from '@hooks/useHandFont';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { Alert } from '@lib/alert';
-
+import { useAuthStore } from '@stores/authStore';
+import { useBadgeStore } from '@stores/badgeStore';
+import { useChoresStore, type Chore, type Recurrence } from '@stores/choresStore';
+import { WEEK_DAYS } from '@utils/choreLabels';
+import { getErrorMessage } from '@utils/errors';
 import { mf, ms } from '@utils/responsive';
-const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
-function ordinal(n: string): string {
-  const num = parseInt(n, 10);
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = num % 100;
-  return num + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
-}
-
-function localizedWeekDay(englishDay: string, language: string): string {
-  const idx = WEEK_DAYS.indexOf(englishDay);
-  if (idx < 0) return englishDay;
-  return new Intl.DateTimeFormat(language, { weekday: 'long' }).format(new Date(2024, 0, 7 + idx));
-}
-
-function freqLabel(
-  chore: Chore,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-  language: string
-): string | null {
-  if (chore.recurrence === 'once') return null;
-  if (chore.recurrence === 'weekly')
-    return chore.recurrenceDay
-      ? `Every ${localizedWeekDay(chore.recurrenceDay, language)}`
-      : t('chores.weekly');
-  if (chore.recurrence === 'monthly')
-    return chore.recurrenceDay
-      ? `${ordinal(chore.recurrenceDay)} ${t('chores.of_month')}`
-      : t('chores.monthly');
-  return null;
-}
-
-function ChoreRow({
-  chore,
-  myId,
-  onToggle,
-  onClaim,
-  onUnclaim,
-  onDelete,
-}: {
-  chore: Chore;
-  myId: string;
-  onToggle: (id: string) => void;
-  onClaim: (id: string) => void;
-  onUnclaim: (id: string) => void;
-  onDelete: (id: string) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const isMineClaimed = chore.claimedBy === myId;
-  const freq = freqLabel(chore, t, language);
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-
-  return (
-    <View style={[styles.choreRow, chore.isComplete && styles.choreRowDone]}>
-      <Pressable
-        style={styles.checkBtn}
-        onPress={() => onToggle(chore.id)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: chore.isComplete }}
-      >
-        <Ionicons
-          name={chore.isComplete ? 'checkmark-circle' : 'ellipse-outline'}
-          size={26}
-          color={chore.isComplete ? C.positive : C.border}
-        />
-      </Pressable>
-
-      <View style={styles.choreInfo}>
-        <Text
-          style={[styles.choreName, chore.isComplete && styles.choreNameDone]}
-          numberOfLines={1}
-        >
-          {chore.name}
-        </Text>
-
-        {freq && (
-          <View style={styles.freqRow}>
-            <Ionicons name="repeat-outline" size={12} color={C.primary} />
-            <Text style={styles.freqText}>{freq}</Text>
-          </View>
-        )}
-
-        {chore.claimedBy ? (
-          <View style={styles.claimedRow}>
-            <View style={styles.claimedBadge}>
-              <Ionicons name="person-outline" size={11} color={C.primary} />
-              <Text style={styles.claimedText}>
-                {isMineClaimed ? t('common.you') : resolveName(chore.claimedBy ?? '', housemates)}
-              </Text>
-            </View>
-            {isMineClaimed && (
-              <Pressable onPress={() => onUnclaim(chore.id)} accessibilityRole="button">
-                <Text style={styles.unclaimText}>{t('chores.drop')}</Text>
-              </Pressable>
-            )}
-          </View>
-        ) : (
-          !chore.isComplete && (
-            <Pressable onPress={() => onClaim(chore.id)} accessibilityRole="button">
-              <Text style={styles.claimBtnText}>{t('chores.take')}</Text>
-            </Pressable>
-          )
-        )}
-      </View>
-
-      {(!chore.claimedBy || chore.claimedBy === myId) && (
-        <Pressable
-          onPress={() => onDelete(chore.id)}
-          style={styles.deleteBtn}
-          accessibilityRole="button"
-          hitSlop={8}
-        >
-          <Ionicons name="close" size={16} color={C.textSecondary} />
-        </Pressable>
-      )}
-    </View>
-  );
-}
+// Rows of the to-do pad: chores, and the handwritten "3 done" before the done ones.
+type PadItem = { _k: 'chore'; chore: Chore } | { _k: 'done-header'; count: number };
 
 function ChoresScreen(): React.JSX.Element {
   const { t } = useTranslation();
-
+  const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
   const markSeen = useBadgeStore((s) => s.markSeen);
+
   useFocusEffect(
     useCallback((): void => {
       markSeen('chores').catch(() => {});
@@ -170,37 +53,24 @@ function ChoresScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
   const canReset = role === 'owner' || role === 'admin';
-  const language = useLanguageStore((s) => s.language);
-
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont();
-
-  const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
-    { value: 'once', label: t('chores.once') },
-    { value: 'weekly', label: t('chores.weekly') },
-    { value: 'monthly', label: t('chores.monthly') },
-  ];
-
-  const weekDayLabels = useMemo(
-    () =>
-      WEEK_DAYS.map((_, i) =>
-        new Intl.DateTimeFormat(language, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
-      ),
-    [language]
-  );
-
   const myId = profile?.id ?? '';
+
   const [choreName, setChoreName] = useState('');
   const [recurrence, setRecurrence] = useState<Recurrence>('once');
   const [recurrenceDay, setRecurrenceDay] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
-  const pending = chores.filter((c) => !c.isComplete);
-  const done = chores.filter((c) => c.isComplete);
-  const listData = [...pending, ...done];
-  const progress = chores.length > 0 ? done.length / chores.length : 0;
+  const pending = useMemo(() => chores.filter((ch) => !ch.isComplete), [chores]);
+  const done = useMemo(() => chores.filter((ch) => ch.isComplete), [chores]);
+  const listData = useMemo(
+    (): PadItem[] => [
+      ...pending.map((chore) => ({ _k: 'chore' as const, chore })),
+      ...(done.length > 0 ? [{ _k: 'done-header' as const, count: done.length }] : []),
+      ...done.map((chore) => ({ _k: 'chore' as const, chore })),
+    ],
+    [pending, done]
+  );
 
   const handleRecurrenceChange = useCallback((r: Recurrence): void => {
     setRecurrence(r);
@@ -229,30 +99,13 @@ function ChoresScreen(): React.JSX.Element {
     }
   }, [choreName, recurrence, recurrenceDay, addChore, houseId, isAdding, t]);
 
-  const handleToggle = useCallback(
-    (id: string): void => {
-      toggleChore(id);
-    },
-    [toggleChore]
-  );
+  const handleToggle = useCallback((id: string): void => void toggleChore(id), [toggleChore]);
   const handleClaim = useCallback(
-    (id: string): void => {
-      claimChore(id, myId);
-    },
+    (id: string): void => void claimChore(id, myId),
     [claimChore, myId]
   );
-  const handleUnclaim = useCallback(
-    (id: string): void => {
-      unclaimChore(id);
-    },
-    [unclaimChore]
-  );
-  const handleDelete = useCallback(
-    (id: string): void => {
-      deleteChore(id);
-    },
-    [deleteChore]
-  );
+  const handleUnclaim = useCallback((id: string): void => void unclaimChore(id), [unclaimChore]);
+  const handleDelete = useCallback((id: string): void => void deleteChore(id), [deleteChore]);
 
   // Destructive: wipes every chore's completion + claims. Confirm first, and
   // surface a failed reset instead of leaving the rejected promise unhandled.
@@ -272,491 +125,149 @@ function ChoresScreen(): React.JSX.Element {
     ]);
   }, [houseId, resetAll, t]);
 
-  const renderChore = useCallback(
-    ({ item, index }: { item: Chore; index: number }): React.JSX.Element => (
-      <AnimatedListItem index={index}>
-        <ChoreRow
-          chore={item}
-          myId={myId}
-          onToggle={handleToggle}
-          onClaim={handleClaim}
-          onUnclaim={handleUnclaim}
-          onDelete={handleDelete}
-        />
-      </AnimatedListItem>
-    ),
-    [myId, handleToggle, handleClaim, handleUnclaim, handleDelete]
+  const keyExtractor = useCallback(
+    (item: PadItem): string => (item._k === 'done-header' ? 'done-header' : item.chore.id),
+    []
   );
 
+  // Every row is a slice of one to-do pad: the first carries the glued edge,
+  // chores that follow another get a dashed rule.
+  const renderItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<PadItem>): React.JSX.Element => {
+      const isFirst = index === 0;
+      const isLast = index === listData.length - 1;
+      if (item._k === 'done-header') {
+        return (
+          <PadSlice isFirst={isFirst} isLast={isLast}>
+            <Text style={[styles.doneHeader, hand, { color: c.receiptMuted }]}>
+              {t('chores.done', { count: item.count })}
+            </Text>
+          </PadSlice>
+        );
+      }
+      return (
+        <PadSlice isFirst={isFirst} isLast={isLast} dashedTop={listData[index - 1]?._k === 'chore'}>
+          <ChoreLine
+            chore={item.chore}
+            myId={myId}
+            onToggle={handleToggle}
+            onClaim={handleClaim}
+            onUnclaim={handleUnclaim}
+            onDelete={handleDelete}
+          />
+        </PadSlice>
+      );
+    },
+    [listData, myId, handleToggle, handleClaim, handleUnclaim, handleDelete, hand, c, t]
+  );
+
+  const todoTitle = t('chores.todo');
+
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View entering={FadeIn.duration(300)} style={styles.flex}>
-        <FlatList
-          data={listData}
-          keyExtractor={(item) => item.id}
-          renderItem={renderChore}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListHeaderComponent={
-            <View>
-              <BackLink label={t('common.home')} />
-              {/* ── Hero card ──────────────────────────────────────── */}
-              <View style={styles.heroCard}>
-                <View style={styles.heroCopy}>
-                  <Text style={[styles.titleHero, headingFont]}>{t('chores.title')}</Text>
-                  <Text style={styles.textBase}>{t('chores.subtitle')}</Text>
-                </View>
+    <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
+      <FlatList
+        data={listData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View>
+            <BackLink label={t('common.home')} />
+            <Text
+              style={[styles.pageTitle, headingFont, { color: c.textPrimary }]}
+              numberOfLines={1}
+              accessibilityRole="header"
+            >
+              {t('chores.title')}
+            </Text>
 
-                {/* Progress hero */}
-                {chores.length > 0 && (
-                  <LinearGradient
-                    colors={C.successGradient}
-                    start={{ x: 0.15, y: 0 }}
-                    end={{ x: 0.85, y: 1 }}
-                    style={styles.progressHero}
-                  >
-                    <View style={styles.progressHeroHighlight} />
-                    <View style={styles.progressHeroTop}>
-                      <Text style={styles.progressHeroNum}>
-                        {done.length}
-                        <Text style={styles.progressHeroDenom}>/{chores.length}</Text>
-                      </Text>
-                      <View style={styles.progressHeroCopy}>
-                        <Text style={styles.progressHeroLabel}>{t('chores.done_label')}</Text>
-                      </View>
-                      {done.length > 0 && canReset && (
-                        <Pressable
-                          onPress={handleResetAll}
-                          style={styles.progressHeroReset}
-                          hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
-                          accessible
-                          accessibilityRole="button"
-                          accessibilityLabel={t('chores.reset_all')}
-                        >
-                          <Text style={styles.progressHeroResetText}>{t('chores.reset_all')}</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                    <View style={styles.progressHeroTrack}>
-                      <View
-                        style={[
-                          styles.progressHeroFill,
-                          { width: `${progress * 100}%` as `${number}%` },
-                        ]}
-                      />
-                    </View>
-                  </LinearGradient>
-                )}
+            <ChoresGlance
+              done={done.length}
+              total={chores.length}
+              onResetAll={done.length > 0 && canReset ? handleResetAll : undefined}
+            />
 
-                {/* Add form */}
-                <TextInput
-                  value={choreName}
-                  onChangeText={setChoreName}
-                  placeholder={t('chores.chore_placeholder')}
-                  placeholderTextColor={C.textSecondary}
-                  style={styles.formInput}
-                  returnKeyType="done"
-                  onSubmitEditing={handleAdd}
-                  accessibilityLabel={t('chores.chore_name_label')}
-                  accessibilityHint="Enter the name of the chore and press done to add"
-                />
+            <NewChoreForm
+              name={choreName}
+              onNameChange={setChoreName}
+              recurrence={recurrence}
+              onRecurrenceChange={handleRecurrenceChange}
+              recurrenceDay={recurrenceDay}
+              onRecurrenceDayChange={setRecurrenceDay}
+              isAdding={isAdding}
+              error={addError}
+              onAdd={handleAdd}
+            />
 
-                {/* Recurrence */}
-                <Text style={styles.pickerLabel}>{t('chores.repeat')}</Text>
-                <View style={styles.chipRow}>
-                  {RECURRENCE_OPTIONS.map((opt) => (
-                    <Pressable
-                      key={opt.value}
-                      style={[styles.chip, recurrence === opt.value && styles.chipActive]}
-                      onPress={() => handleRecurrenceChange(opt.value)}
-                      accessible={true}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: recurrence === opt.value }}
-                    >
-                      <Text
-                        style={[styles.chipText, recurrence === opt.value && styles.chipTextActive]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+            {isLoading && chores.length === 0 && (
+              <LoadingSpinner size={64} style={styles.loading} />
+            )}
+            {!!storeError && (
+              <Text style={[styles.storeError, { color: c.danger }]} accessibilityRole="alert">
+                {storeError}
+              </Text>
+            )}
 
-                {recurrence === 'weekly' && (
-                  <View style={styles.daySection}>
-                    <Text style={styles.pickerLabel}>{t('chores.which_day')}</Text>
-                    <View style={styles.weekDayRow}>
-                      {WEEK_DAYS.map((day, i) => (
-                        <Pressable
-                          key={day}
-                          style={[
-                            styles.weekDayChip,
-                            recurrenceDay === day && styles.weekDayChipActive,
-                          ]}
-                          onPress={() => setRecurrenceDay(day)}
-                          accessible={true}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: recurrenceDay === day }}
-                        >
-                          <Text
-                            style={[
-                              styles.weekDayText,
-                              recurrenceDay === day && styles.weekDayTextActive,
-                            ]}
-                          >
-                            {weekDayLabels[i].slice(0, 2)}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {recurrence === 'monthly' && (
-                  <View style={styles.daySection}>
-                    <Text style={styles.pickerLabel}>{t('chores.which_day_of_month')}</Text>
-                    <View style={styles.monthDayGrid}>
-                      {MONTH_DAYS.map((d) => (
-                        <Pressable
-                          key={d}
-                          style={[
-                            styles.monthDayChip,
-                            recurrenceDay === d && styles.monthDayChipActive,
-                          ]}
-                          onPress={() => setRecurrenceDay(d)}
-                          accessible={true}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: recurrenceDay === d }}
-                        >
-                          <Text
-                            style={[
-                              styles.monthDayText,
-                              recurrenceDay === d && styles.monthDayTextActive,
-                            ]}
-                          >
-                            {d}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {!!addError && (
-                  <View style={styles.errorBox}>
-                    <Ionicons name="warning-outline" size={14} color={C.danger} />
-                    <Text style={styles.errorText}>{addError}</Text>
-                  </View>
-                )}
-
-                <Pressable
-                  style={[styles.btnPrimary, (!choreName.trim() || isAdding) && styles.btnOff]}
-                  onPress={handleAdd}
-                  disabled={isAdding}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="add" size={16} color="#fff" style={styles.btnIcon} />
-                  <Text style={styles.btnPrimaryText}>
-                    {isAdding ? t('chores.adding') : t('chores.add_chore')}
-                  </Text>
-                </Pressable>
-              </View>
-
-              {isLoading && chores.length === 0 && (
-                <LoadingSpinner size={64} style={styles.loadingIndicator} />
-              )}
-              {!!storeError && (
-                <View style={styles.storeErrorBox}>
-                  <Text style={styles.storeErrorText}>{storeError}</Text>
-                </View>
-              )}
-
-              {pending.length > 0 && (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.eyebrow}>{t('chores.todo')}</Text>
-                  <View style={styles.countPill}>
-                    <Text style={styles.countPillText}>{pending.length}</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          }
-          ListFooterComponent={
-            done.length > 0 ? (
-              <View style={[styles.sectionHeader, { marginTop: ms(16) }]}>
-                <Text style={styles.eyebrow}>{t('chores.done_section')}</Text>
-                <View style={[styles.countPill, styles.countPillDone]}>
-                  <Text style={styles.countPillText}>{done.length}</Text>
-                </View>
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
+            {chores.length > 0 && (
+              <Text
+                style={[styles.sectionTitle, headingFont, { color: c.textPrimary }]}
+                accessibilityRole="header"
+              >
+                {/* "TO DO" in the translations — written in sentence case here. */}
+                {todoTitle.charAt(0) + todoTitle.slice(1).toLowerCase()}
+              </Text>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? null : (
+            // Mate keeps the empty pad company — the one Mate on this screen.
             <View style={styles.emptyWrap}>
-              <View style={styles.emptyIconWrap}>
-                <Ionicons name="checkmark-done-outline" size={36} color={C.textSecondary} />
-              </View>
-              <Text style={styles.emptyTitle}>{t('chores.no_chores')}</Text>
-              <Text style={styles.emptyText}>{t('chores.no_chores_hint')}</Text>
+              <PadSlice isFirst isLast>
+                <View style={styles.empty}>
+                  <Mate size={ms(80)} />
+                  <Text style={[styles.emptyTitle, headingFont, { color: c.receiptInk }]}>
+                    {t('chores.no_chores')}
+                  </Text>
+                  <Text style={[styles.emptyText, { color: c.receiptMuted }]}>
+                    {t('chores.no_chores_hint')}
+                  </Text>
+                </View>
+              </PadSlice>
             </View>
-          }
-        />
-      </Animated.View>
+          )
+        }
+      />
     </SafeAreaView>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
-    sep: { height: ms(8) },
-
-    heroCard: {
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: ms(20),
-      gap: ms(14),
-      marginBottom: ms(24),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    heroCopy: { gap: ms(6) },
-    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
-
-    progressHero: {
-      borderRadius: ms(18),
-      padding: ms(18),
-      gap: ms(12),
-      overflow: 'hidden',
-      shadowColor: C.successGradient[1],
-      shadowOffset: { width: 0, height: ms(10) },
-      shadowOpacity: 0.35,
-      shadowRadius: 18,
-      elevation: 6,
-    },
-    progressHeroHighlight: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: ms(1),
-      backgroundColor: 'rgba(255,255,255,0.2)',
-    },
-    progressHeroTop: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
-    progressHeroNum: { fontSize: mf(30), ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
-    progressHeroDenom: { fontSize: mf(18), ...font.bold, color: 'rgba(255,255,255,0.7)' },
-    progressHeroCopy: { flex: 1 },
-    progressHeroLabel: {
-      fontSize: mf(12),
-      ...font.bold,
-      color: 'rgba(255,255,255,0.85)',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    progressHeroReset: {
-      paddingVertical: ms(6),
-      paddingHorizontal: ms(12),
-      borderRadius: 9999,
-      backgroundColor: 'rgba(255,255,255,0.18)',
-    },
-    progressHeroResetText: { fontSize: mf(12), ...font.bold, color: '#fff' },
-    progressHeroTrack: {
-      height: ms(6),
-      backgroundColor: 'rgba(255,255,255,0.25)',
-      borderRadius: ms(3),
-      overflow: 'hidden',
-    },
-    progressHeroFill: { height: ms(6), backgroundColor: '#fff', borderRadius: ms(3) },
-
-    formInput: {
-      height: ms(46),
-      backgroundColor: C.surface,
-      borderRadius: ms(10),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingHorizontal: ms(13),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-    },
-
-    pickerLabel: {
-      fontSize: mf(11),
-      ...font.bold,
-      color: C.textSecondary,
-      letterSpacing: 0.72,
-      textTransform: 'uppercase',
-    },
-    chipRow: { flexDirection: 'row', gap: ms(8) },
-    chip: {
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(7),
-      borderRadius: 9999,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-    },
-    chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    chipTextActive: { color: '#fff' },
-
-    daySection: { gap: ms(8) },
-    weekDayRow: { flexDirection: 'row', gap: ms(6) },
-    weekDayChip: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(22),
-      backgroundColor: C.surfaceSecondary,
-      borderWidth: 1,
-      borderColor: C.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    weekDayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    weekDayText: { fontSize: mf(12), ...font.bold, color: C.textSecondary },
-    weekDayTextActive: { color: '#fff' },
-    monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(4) },
-    monthDayChip: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(22),
-      backgroundColor: C.surfaceSecondary,
-      borderWidth: 1,
-      borderColor: C.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    monthDayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    monthDayText: { fontSize: mf(12), ...font.bold, color: C.textSecondary },
-    monthDayTextActive: { color: '#fff' },
-
-    btnPrimary: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: ms(48),
-      paddingHorizontal: ms(18),
-      borderRadius: ms(10),
-      backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    btnOff: { backgroundColor: C.textDisabled },
-    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
-    btnIcon: { marginEnd: ms(6) },
-
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingHorizontal: ms(4),
-      marginBottom: ms(10),
-    },
-    eyebrow: {
-      fontSize: mf(12),
-      ...font.bold,
-      color: C.textSecondary,
-      letterSpacing: 0.72,
-      textTransform: 'uppercase',
-    },
-    countPill: {
-      minHeight: ms(22),
-      paddingHorizontal: ms(8),
-      borderRadius: 9999,
-      backgroundColor: C.secondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    countPillDone: { backgroundColor: C.positive + '20' },
-    countPillText: { fontSize: mf(11), ...font.bold, color: C.secondaryForeground },
-
-    choreRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(12),
-      borderRadius: ms(14),
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    choreRowDone: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
-    checkBtn: { flexShrink: 0 },
-    choreInfo: { flex: 1, gap: ms(4) },
-    choreName: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
-    choreNameDone: { textDecorationLine: 'line-through', color: C.textSecondary },
-    freqRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
-    freqText: { fontSize: mf(12), ...font.medium, color: C.primary },
-    claimedRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
-    claimedBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      backgroundColor: C.primary + '18',
-      paddingHorizontal: ms(8),
-      paddingVertical: ms(3),
-      borderRadius: 9999,
-    },
-    claimedText: { fontSize: mf(12), ...font.bold, color: C.primary },
-    unclaimText: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
-    claimBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
-    deleteBtn: { padding: ms(4), flexShrink: 0 },
-
-    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(12) },
-    emptyIconWrap: {
-      width: ms(72),
-      height: ms(72),
-      borderRadius: ms(36),
-      backgroundColor: C.surfaceSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
-    emptyText: {
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(20),
-    },
-
-    loadingIndicator: { marginBottom: ms(8) },
-    storeErrorBox: {
-      backgroundColor: '#FFF0F0',
-      borderRadius: ms(10),
-      padding: ms(12),
-      marginBottom: ms(8),
-    },
-    storeErrorText: { fontSize: mf(13), color: '#D94F4F' },
-
-    errorBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(6),
-      backgroundColor: C.danger + '15',
-      borderRadius: ms(10),
-      padding: ms(10),
-    },
-    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
-  });
-}
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+  pageTitle: {
+    fontSize: mf(36),
+    lineHeight: mf(40),
+    letterSpacing: -1,
+    marginTop: ms(6),
+    marginBottom: ms(14),
+  },
+  loading: { alignSelf: 'center', marginTop: ms(24) },
+  storeError: { fontSize: mf(14), ...font.medium, marginTop: ms(12) },
+  sectionTitle: { fontSize: mf(22), letterSpacing: -0.4, marginTop: ms(28), marginBottom: ms(12) },
+  doneHeader: { fontSize: mf(20), paddingHorizontal: ms(16), paddingTop: ms(10) },
+  emptyWrap: { marginTop: ms(28) },
+  empty: {
+    alignItems: 'center',
+    paddingTop: ms(26),
+    paddingBottom: ms(30),
+    paddingHorizontal: ms(24),
+    gap: ms(6),
+  },
+  emptyTitle: { fontSize: mf(19), textAlign: 'center', marginTop: ms(8) },
+  emptyText: { fontSize: mf(14), ...font.medium, textAlign: 'center', lineHeight: mf(20) },
+});
 
 export default withFeatureGuard('chores', ChoresScreen);
