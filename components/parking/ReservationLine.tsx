@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Animated as RNAnimated } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +21,9 @@ import { MARGIN_W } from './PaperSlice';
 import { reservationStatus } from './reservationStatus';
 import { ThumpStamp } from './ThumpStamp';
 import { VoteAvatars } from './VoteAvatars';
+
+// Width of the swipe-to-delete panel, kept in sync between the reveal and its style.
+const SWIPE_DELETE_WIDTH = ms(84);
 
 // Vote circles and history ink on paper (paper stays light in dark mode).
 const YES = '#2F8550';
@@ -83,7 +87,7 @@ export function ReservationLine({
   const timeText = timeRange(item);
   const who = isOwn ? t('parking.you') : resolveName(item.requestedBy, housemates);
 
-  return (
+  const line = (
     <View style={[styles.line, isHistory && styles.history]}>
       <Pressable
         style={styles.when}
@@ -115,7 +119,8 @@ export function ReservationLine({
           votes={item.votes}
           housemates={housemates}
           requestedBy={item.requestedBy}
-          votingClosed={votingClosed}
+          // Only an open request is still waiting on votes.
+          votingClosed={votingClosed || !isPending}
         />
         <ThumpStamp color={status.ink} style={styles.stamp}>
           {status.label}
@@ -193,6 +198,41 @@ export function ReservationLine({
       </View>
     </View>
   );
+
+  // Old reservations: swipe left to reveal a red Delete, like the Bills expenses.
+  // (The bin on the line stays as the screen-reader route.)
+  if (!isHistory) return line;
+  return (
+    <Swipeable
+      renderRightActions={(_progress, dragX): React.JSX.Element => {
+        // Slide the panel in 1:1 with the drag so it stays glued to the line's edge.
+        const translateX = dragX.interpolate({
+          inputRange: [-SWIPE_DELETE_WIDTH, 0],
+          outputRange: [0, SWIPE_DELETE_WIDTH],
+          extrapolate: 'clamp',
+        });
+        return (
+          <RNAnimated.View style={[styles.swipeLane, { transform: [{ translateX }] }]}>
+            <Pressable
+              style={[styles.swipeDelete, { backgroundColor: NO }]}
+              onPress={handleClear}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('parking.clear_from_history')}
+            >
+              <Ionicons name="trash" size={20} color="#FFFFFF" />
+              <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
+            </Pressable>
+          </RNAnimated.View>
+        );
+      }}
+      overshootRight={false}
+      rightThreshold={40}
+      friction={2}
+    >
+      {line}
+    </Swipeable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -219,4 +259,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: { opacity: 0.7 },
+  swipeLane: { width: SWIPE_DELETE_WIDTH },
+  swipeDelete: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: ms(3) },
+  swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#FFFFFF' },
 });

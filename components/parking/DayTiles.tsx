@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 44,
-    borderRadius: ms(10),
+    borderRadius: ms(4),
     borderWidth: 1,
     overflow: 'hidden',
     alignItems: 'center',

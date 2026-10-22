@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: ms(340),
-    borderRadius: ms(26),
+    borderRadius: ms(10),
     padding: ms(20),
     gap: ms(8),
     shadowColor: '#000',
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   confirmBtn: {
     minHeight: ms(50),
     paddingHorizontal: ms(24),
-    borderRadius: ms(16),
+    borderRadius: ms(6),
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -252,7 +252,9 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: mf(36),
-    lineHeight: mf(40),
+    // Tall enough for the descenders (the "g" in Parking was being clipped).
+    lineHeight: mf(46),
+    paddingBottom: ms(2),
     letterSpacing: -1,
     marginTop: ms(6),
     marginBottom: ms(14),

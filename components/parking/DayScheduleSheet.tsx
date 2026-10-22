@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   dash: { width: ms(5), height: 1.5 },
   closeBtn: {
     minHeight: ms(56),
-    borderRadius: ms(18),
+    borderRadius: ms(6),
     alignItems: 'center',
     justifyContent: 'center',
   },

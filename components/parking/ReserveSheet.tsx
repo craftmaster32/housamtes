@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     flex: 1,
     minHeight: ms(56),
-    borderRadius: ms(18),
+    borderRadius: ms(6),
     alignItems: 'center',
     justifyContent: 'center',
   },
