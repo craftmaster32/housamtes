@@ -7,14 +7,19 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { type GroceryItem } from '@stores/groceryStore';
 import { useLanguageStore } from '@stores/languageStore';
-import { useThemedColors, darkColors } from '@constants/colors';
+import Svg, { Path } from 'react-native-svg';
+import { useThemedColors, lightColors } from '@constants/colors';
+import { useHandFont } from '@hooks/useHandFont';
 import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { useMemberName } from '@hooks/useMemberName';
 import { formatItemAge } from '@utils/groceryAge';
-import { detectCategory, detectItemIcon, toneColors } from '@utils/groceryCategory';
 import { localizeQuantityForDisplay } from '@utils/groceryUnits';
+import { ms } from '@utils/responsive';
 import { makeStyles, SWIPE_DELETE_WIDTH } from './GroceryItemRow.styles';
+
+// Pen colour for ticks on the bag (the paper stays light in dark mode).
+const PEN = lightColors.primary;
 
 export interface GroceryItemRowProps {
   item: GroceryItem;
@@ -43,17 +48,15 @@ export const GroceryItemRow = memo(function GroceryItemRow({
 }: GroceryItemRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const isDark = C.background === darkColors.background;
+  const hand = useHandFont();
   const language = useLanguageStore((s) => s.language);
   const memberName = useMemberName();
-  const s = useMemo(() => makeStyles(C, isDark), [C, isDark]);
+  const s = useMemo(() => makeStyles(C), [C]);
 
   const isPlainInt = /^\d+$/.test(item.quantity.trim());
   const qtyNum = isPlainInt ? parseInt(item.quantity, 10) : NaN;
   const hasCount = isPlainInt && qtyNum > 1;
   const bought = item.boughtCount ?? 0;
-  const category = detectCategory(item.name);
-  const tone = toneColors(item.isPersonal ? 'violet' : category.tone, isDark);
   const showQtyPill = !hasCount && !!item.quantity && item.quantity !== '1';
 
   const handleTap = useCallback((): void => {
@@ -95,11 +98,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
 
   const row = (
     <Pressable
-      style={[
-        s.card,
-        item.isChecked && s.cardDone,
-        item.isPersonal && !item.isDraft && s.cardPersonal,
-      ]}
+      style={s.card}
       // Counted items are driven only by their +/- control, so the card itself
       // isn't a toggle — that also stops a +/- tap from bubbling into a toggle.
       onPress={hasCount ? undefined : handleTap}
@@ -123,34 +122,43 @@ export const GroceryItemRow = memo(function GroceryItemRow({
       accessibilityHint={t('grocery.long_press_hint')}
     >
       <View style={s.topRow}>
-        <View style={[s.tile, { backgroundColor: item.isChecked ? C.surfaceSecondary : tone.bg }]}>
-          <Ionicons
-            name={item.isPersonal ? 'lock-closed-outline' : detectItemIcon(item.name)}
-            size={22}
-            color={item.isChecked ? C.textTertiary : tone.fg}
-          />
-        </View>
+        {hasCount ? (
+          <View style={s.boxSpacer} />
+        ) : (
+          // A box drawn in ink, ticked in blue pen (the paper stays light).
+          <View style={s.box}>
+            {item.isChecked && (
+              <Svg width={ms(25)} height={ms(25)} viewBox="0 0 26 26" style={s.tick}>
+                <Path
+                  d="M4 13 L10.5 20 L23 3"
+                  stroke={PEN}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </Svg>
+            )}
+          </View>
+        )}
 
         <View style={s.main}>
           <View style={s.nameRow}>
+            {item.isPersonal && (
+              <Ionicons name="lock-closed-outline" size={14} color={C.kraftMuted} />
+            )}
             <Text style={[s.name, item.isChecked && s.nameDone]} numberOfLines={2}>
               {item.name}
             </Text>
             {showQtyPill && (
-              <View style={[s.qtyPill, { backgroundColor: tone.bg }]}>
-                <Text style={[s.qtyPillText, { color: tone.fg }]}>
-                  {localizeQuantityForDisplay(item.quantity, language === 'he')}
-                </Text>
-              </View>
+              <Text style={[s.qty, hand, item.isChecked && s.faded]}>
+                {localizeQuantityForDisplay(item.quantity, language === 'he')}
+              </Text>
             )}
-            {isDuplicate && (
-              <View style={s.dupBadge}>
-                <Text style={s.dupBadgeText}>{t('grocery.on_list')}</Text>
-              </View>
-            )}
+            {isDuplicate && <Text style={[s.dup, hand]}>{t('grocery.on_list')}</Text>}
           </View>
-          <View style={s.metaRow}>
-            {!item.isPersonal && <UserAvatar userId={item.addedBy} size={18} />}
+          <View style={[s.metaRow, item.isChecked && s.faded]}>
+            {!item.isPersonal && <UserAvatar userId={item.addedBy} size={16} />}
             <ItemAgeMeta
               addedBy={item.addedBy}
               createdAt={item.createdAt}
@@ -159,19 +167,20 @@ export const GroceryItemRow = memo(function GroceryItemRow({
               showName={!item.isPersonal}
               isChecked={item.isChecked}
               highlightStale={false}
+              color={C.kraftMuted}
             />
             {!!item.comment && (
               <Ionicons
                 name="chatbubble-outline"
-                size={14}
-                color={C.textSecondary}
+                size={13}
+                color={C.kraftMuted}
                 accessibilityLabel={t('grocery.has_note')}
               />
             )}
           </View>
         </View>
 
-        {hasCount ? (
+        {hasCount && (
           <View style={s.counter}>
             <Pressable
               onPress={handleDecrement}
@@ -182,7 +191,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
             >
               <Text style={s.ctrBtnText}>−</Text>
             </Pressable>
-            <Text style={s.ctrText}>
+            <Text style={[s.ctrText, hand]}>
               {bought}/{qtyNum}
             </Text>
             <Pressable
@@ -194,10 +203,6 @@ export const GroceryItemRow = memo(function GroceryItemRow({
             >
               <Text style={[s.ctrBtnText, s.ctrBtnTextPlus]}>+</Text>
             </Pressable>
-          </View>
-        ) : (
-          <View style={[s.check, item.isChecked && s.checkOn]}>
-            {item.isChecked && <Ionicons name="checkmark" size={22} color="#FFFFFF" />}
           </View>
         )}
       </View>

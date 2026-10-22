@@ -61,6 +61,11 @@ export interface ColorPalette {
   receiptInk: string;
   receiptMuted: string;
   receiptRule: string;
+  // Brown paper grocery bag (grocery list): stays light in dark mode too
+  kraft: string;
+  kraftInk: string;
+  kraftMuted: string;
+  kraftRule: string;
   // Light backing behind hand-drawn pictures in dark mode (a sticker)
   sticker: string;
 }
@@ -128,6 +133,10 @@ export const lightColors: ColorPalette = {
   receiptInk: '#22201D',
   receiptMuted: '#7A746B',
   receiptRule: 'rgba(34,32,29,0.2)',
+  kraft: '#DCC39A',
+  kraftInk: '#2E2416',
+  kraftMuted: '#5E4A2E',
+  kraftRule: 'rgba(90,60,20,0.28)',
   sticker: 'transparent',
 };
 
@@ -194,6 +203,10 @@ export const darkColors: ColorPalette = {
   receiptInk: '#22201D',
   receiptMuted: '#7A746B',
   receiptRule: 'rgba(34,32,29,0.2)',
+  kraft: '#D6BC91',
+  kraftInk: '#2E2416',
+  kraftMuted: '#5E4A2E',
+  kraftRule: 'rgba(90,60,20,0.28)',
   sticker: '#F3EEE3',
 };
 
