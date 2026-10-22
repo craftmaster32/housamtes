@@ -8,11 +8,18 @@ import { mf, ms } from '@utils/responsive';
 interface DayProps {
   dayKey: string;
   label: string;
+  accessibilityLabel?: string;
   selected: boolean;
   onSelect: (key: string) => void;
 }
 
-const Day = memo(function Day({ dayKey, label, selected, onSelect }: DayProps): React.JSX.Element {
+const Day = memo(function Day({
+  dayKey,
+  label,
+  accessibilityLabel,
+  selected,
+  onSelect,
+}: DayProps): React.JSX.Element {
   const c = useThemedColors();
   const handlePress = useCallback((): void => onSelect(dayKey), [onSelect, dayKey]);
   return (
@@ -22,7 +29,7 @@ const Day = memo(function Day({ dayKey, label, selected, onSelect }: DayProps): 
       accessible
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
     >
       {/* The chosen day is circled in pen, like the date pop-up. */}
       {selected && <View style={[styles.circle, { borderColor: c.primary }]} />}
@@ -40,7 +47,7 @@ const Day = memo(function Day({ dayKey, label, selected, onSelect }: DayProps): 
 });
 
 interface CircledDaysProps {
-  items: { key: string; label: string }[];
+  items: { key: string; label: string; accessibilityLabel?: string }[];
   columns: number;
   selected: string | null;
   onSelect: (key: string) => void;
@@ -60,6 +67,7 @@ export function CircledDays({
           <Day
             dayKey={it.key}
             label={it.label}
+            accessibilityLabel={it.accessibilityLabel}
             selected={selected === it.key}
             onSelect={onSelect}
           />
