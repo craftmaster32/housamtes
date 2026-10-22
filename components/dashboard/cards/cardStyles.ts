@@ -55,14 +55,16 @@ export const makeCardStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.cre
 
     groceryList: { marginTop: ms(8) },
     groceryRow: { flexDirection: 'row', alignItems: 'center', gap: ms(9), minHeight: ms(32) },
+    // A square drawn in ink, a little crooked, like on a paper list.
     groceryBox: {
-      width: ms(20),
-      height: ms(20),
-      borderRadius: ms(7),
-      borderWidth: 1.5,
-      alignItems: 'center',
-      justifyContent: 'center',
+      width: ms(19),
+      height: ms(19),
+      borderRadius: ms(4),
+      borderWidth: 2,
+      transform: [{ rotate: '-2deg' }],
     },
+    // The tick overshoots the box, the way a pen tick does.
+    groceryTick: { position: 'absolute', left: ms(1), top: -ms(7) },
     groceryName: { flex: 1, fontSize: mf(14.5), ...font.medium },
     groceryDone: { textDecorationLine: 'line-through' },
   });

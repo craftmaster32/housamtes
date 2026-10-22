@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { View, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import { navigateToBase } from '@stores/navigationStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { type ColorTokens } from '@constants/colors';
 import { type CardStyles } from '@components/dashboard/cards/cardStyles';
 import { CardLabel } from '@components/dashboard/cards/CardLabel';
+import { ms } from '@utils/responsive';
 
 interface GroceriesCardProps {
   styles: CardStyles;
@@ -65,15 +66,25 @@ export function GroceriesCard({
               accessibilityState={{ checked: item.isChecked }}
               accessibilityLabel={item.name}
             >
-              <View
-                style={[
-                  styles.groceryBox,
-                  item.isChecked
-                    ? { backgroundColor: c.success, borderColor: c.success }
-                    : { borderColor: c.textTertiary },
-                ]}
-              >
-                {item.isChecked && <Ionicons name="checkmark" size={12} color="#fff" />}
+              {/* A box drawn in ink, ticked in blue pen like the Tasks pad. */}
+              <View style={[styles.groceryBox, { borderColor: c.textSecondary }]}>
+                {item.isChecked && (
+                  <Svg
+                    width={ms(22)}
+                    height={ms(22)}
+                    viewBox="0 0 26 26"
+                    style={styles.groceryTick}
+                  >
+                    <Path
+                      d="M4 13 L10.5 20 L23 3"
+                      stroke={c.primary}
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </Svg>
+                )}
               </View>
               <Text
                 style={[
