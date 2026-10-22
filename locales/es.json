@@ -1199,7 +1199,6 @@
     "which_day_of_month": "¿Qué día del mes?",
     "of_month": "del mes",
     "take": "+ Tomar",
-    "drop": "soltar",
     "progress": "{{done}} de {{total}} hechas",
     "done_one": "{{count}} hecha",
     "done_other": "{{count}} hechas",
@@ -1208,7 +1207,8 @@
     "reset_repeating": "Reiniciar repetitivas",
     "reset_repeating_title": "¿Reiniciar las tareas repetitivas?",
     "reset_repeating_body": "Esto desmarca todas las tareas semanales y mensuales para que estén listas para la próxima ronda. Las tareas únicas conservan su historial.",
-    "reset_failed": "No se pudieron reiniciar las tareas repetitivas. Inténtalo de nuevo."
+    "reset_failed": "No se pudieron reiniciar las tareas repetitivas. Inténtalo de nuevo.",
+    "give_back": "Devolver"
   },
   "notes": {
     "title": "Tablón de anuncios",

@@ -130,13 +130,22 @@ export function TaskLine({
                   {isMine ? t('tasks.assigned_you') : resolveName(task.assignedTo, housemates)}
                 </Text>
                 {isMine && !done && (
+                  // The person a task is assigned to can always hand it back, whoever
+                  // created it. A real button (44pt tall), not a tiny link.
                   <Pressable
                     onPress={handleDrop}
-                    hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                    style={({ pressed }) => [
+                      styles.giveBack,
+                      { borderColor: PEN },
+                      pressed && styles.pressed,
+                    ]}
                     accessible
                     accessibilityRole="button"
+                    accessibilityLabel={`${t('tasks.give_back')}: ${task.title}`}
                   >
-                    <Text style={[styles.drop, { color: PEN }]}>{t('tasks.drop')}</Text>
+                    <Text style={[styles.giveBackText, { color: PEN }]}>
+                      {t('tasks.give_back')}
+                    </Text>
                   </Pressable>
                 )}
               </View>
@@ -204,7 +213,15 @@ const styles = StyleSheet.create({
   },
   who: { flexDirection: 'row', alignItems: 'center', gap: ms(7) },
   whoText: { fontSize: mf(13.5), ...font.semibold },
-  drop: { fontSize: mf(13.5), ...font.bold },
+  giveBack: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: ms(12),
+    borderWidth: 1.5,
+    borderRadius: ms(14),
+  },
+  giveBackText: { fontSize: mf(13.5), ...font.bold },
+  pressed: { opacity: 0.7 },
   tag: { alignSelf: 'flex-start', marginTop: ms(8), marginBottom: ms(4) },
   deleteHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });

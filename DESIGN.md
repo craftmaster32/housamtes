@@ -275,7 +275,8 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   "4 active". Tasks sit on a to-do pad (`PadSlice`, blue glued edge, stays light
   in dark): ink checkbox ticked in blue pen, priority dot, details in grey,
   "Every Thursday" and due date in handwriting (red "Overdue · 14 Oct"), who
-  it's for with "drop", or a paper-tag "Take it". Done tasks under a
+  it's for with a clear "Give back" button (anyone a task is assigned to can
+  hand it back, even if they didn't create it), or a paper-tag "Take it". Done tasks under a
   handwritten "2 done". Empty: Mate on the pad.
 - No emoji in these texts (owner removed them on Parking and Chores).
 
