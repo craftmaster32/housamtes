@@ -50,8 +50,8 @@ review (a full re-check of everything), tell the owner — that wastes tokens.
   Splitwise-style split, moving Contributions to insights).
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
-- **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Tasks (Chores merged in) ✅ → Chat →
-  More/Settings → the rest.
+- **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Tasks (Chores merged in) ✅ → Chat ✅ → More/Settings →
+  the rest.
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
   work cost no reviews; each push still gets a Vercel preview and the free CI
@@ -280,7 +280,7 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   handwritten "2 done". Empty: Mate on the pad.
 - No emoji in these texts (owner removed them on Parking and Chores).
 
-**Chat (built on #252, waiting for the owner to say it's done)**
+**Chat (done, review asked on #252)**
 
 - Opens from the floating chat button (`ChatFab`) → `app/(tabs)/more/chat.tsx`.
   Back link + Fraunces "House Chat" title (taller line height, no clipped
@@ -297,7 +297,32 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   focus box on web) with a round blue send button (`MessageBar`).
 - Empty chat: Mate. No emoji in the empty message (owner removed them everywhere).
 
-**Next:** More / Settings (mockup first) — once the owner says Chat is done.
+**Settings + More menu (built on #252, waiting for the owner to say it's done)**
+
+- Owner felt the app had **too many pages**. Appearance (Light · Dark · System)
+  and Language (English · עברית · Español) are now picked right on Settings as
+  pen-circled words (`ChoiceWords`); their two pages were deleted. Profile is
+  only about you — its House card (housemates) went, Settings has it.
+- Owner **rejected merging Notes, Votes and Photos** into one Notice Board:
+  people wouldn't find Photos and Votes under Notes. Every page keeps its own
+  name in the menu.
+- Settings: Fraunces title and section words ("General", not "GENERAL", via
+  `utils/asWord`), rows written on lines (`SettingsLine`) with the current
+  choice handwritten in blue, no row icons (owner found icons + everything
+  "crowded"). House = cream key tag with a metal ring, faces and handwritten
+  "3 people ›" (opens Housemates); the invite code is a blue ticket stub with
+  punched holes on its end (tap to share). Leave House is red text; Version,
+  Terms and Privacy are small print under a dotted line, footer handwritten.
+- Pop-ups: Leave / Settle first are centred dialogs on the page colour
+  (`SettingsDialog`); Timezone (search on a line) and Currency are bottom sheets
+  with `SheetHeader`. Leave logic lives in `hooks/useLeaveHouse.ts`.
+- More menu (⋯ tab): sheet on the page colour with a round close button; the
+  items sit two per row on a `NotebookPaper` page titled "House". New counts are
+  a red number circled in pen; a yellow highlighter swipes the name while
+  pressed.
+
+**Next:** the rest (Grocery, Machines, Calendar, Photos, Notice Board, Votes,
+Property, Profile) — mockup first, once the owner says Settings is done.
 
 ## 8. Working setup (for the next session)
 
