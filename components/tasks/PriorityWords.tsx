@@ -5,6 +5,7 @@ import { useThemedColors, type ColorPalette } from '@constants/colors';
 import { font } from '@constants/typography';
 import type { TaskPriority } from '@stores/tasksStore';
 import { mf, ms } from '@utils/responsive';
+import { PenCircle } from '@components/shared/PenCircle';
 
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high'];
 
@@ -36,7 +37,7 @@ export function PriorityWords({ selected, onSelect }: PriorityWordsProps): React
             accessibilityState={{ selected: on }}
             accessibilityLabel={t(`tasks.priority_${p}`)}
           >
-            {on && <View style={[styles.circle, { borderColor: c.primary }]} />}
+            {on && <PenCircle color={c.primary} style={styles.circle} />}
             <View style={[styles.dot, { backgroundColor: priorityColor(p, c) }]} />
             <Text style={[styles.label, { color: on ? c.textPrimary : c.textSecondary }]}>
               {t(`tasks.priority_${p}`)}
@@ -63,8 +64,6 @@ const styles = StyleSheet.create({
     bottom: ms(7),
     left: 0,
     right: 0,
-    borderWidth: 2,
-    borderRadius: 999,
     transform: [{ rotate: '-3deg' }],
   },
   dot: { width: ms(8), height: ms(8), borderRadius: ms(4) },

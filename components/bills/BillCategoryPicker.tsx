@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
 import {
-  View,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -17,6 +16,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
 import { mf, ms } from '@utils/responsive';
+import { PenCircle } from '@components/shared/PenCircle';
 
 interface BillCategoryPickerProps {
   categories: ExpenseCategory[];
@@ -98,7 +98,7 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
             accessibilityState={{ selected: isSelected }}
           >
             {/* The chosen category gets circled by hand. */}
-            {isSelected && <View style={styles.circle} />}
+            {isSelected && <PenCircle color={C.primary} style={styles.circle} />}
             <Ionicons
               name={resolveCategoryIcon(cat.icon)}
               size={16}
@@ -149,9 +149,6 @@ const makeStyles = (C: ColorTokens): BillCategoryPickerStyles =>
       bottom: ms(5),
       left: 0,
       right: 0,
-      borderWidth: 2,
-      borderRadius: 999,
-      borderColor: C.primary,
       transform: [{ rotate: '-3deg' }],
     },
     wordText: { color: C.textSecondary, fontSize: mf(15), ...font.bold },

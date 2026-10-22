@@ -1,9 +1,10 @@
 import { memo, useCallback } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
+import { PenCircle } from '@components/shared/PenCircle';
 
 interface WordProps {
   wordKey: string;
@@ -30,7 +31,7 @@ const Word = memo(function Word({
       accessibilityLabel={label}
     >
       {/* The chosen word gets circled by hand. */}
-      {selected && <View style={[styles.circle, { borderColor: c.primary }]} />}
+      {selected && <PenCircle color={c.primary} style={styles.circle} />}
       <Text style={[styles.label, { color: selected ? c.textPrimary : c.textSecondary }]}>
         {label}
       </Text>
@@ -80,8 +81,6 @@ const styles = StyleSheet.create({
     bottom: ms(7),
     left: 0,
     right: 0,
-    borderWidth: 2,
-    borderRadius: 999,
     transform: [{ rotate: '-3deg' }],
   },
   pressed: { opacity: 0.6 },

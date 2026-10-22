@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
+import { PenCircle } from '@components/shared/PenCircle';
 
 interface DayProps {
   dayKey: string;
@@ -32,7 +33,7 @@ const Day = memo(function Day({
       accessibilityLabel={accessibilityLabel ?? label}
     >
       {/* The chosen day is circled in pen, like the date pop-up. */}
-      {selected && <View style={[styles.circle, { borderColor: c.primary }]} />}
+      {selected && <PenCircle color={c.primary} style={styles.circle} strokeWidth={2.2} />}
       <Text
         style={[
           styles.label,
@@ -84,8 +85,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: ms(38),
     height: ms(38),
-    borderWidth: 2.2,
-    borderRadius: 999,
     transform: [{ rotate: '-8deg' }],
   },
   label: { fontSize: mf(15), ...font.bold },

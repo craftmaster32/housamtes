@@ -11,6 +11,7 @@ import { isRTL, getFirstDayOfWeek } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 
 import { mf, ms } from '@utils/responsive';
+import { PenCircle } from '@components/shared/PenCircle';
 function getMonthName(year: number, month: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
 }
@@ -191,7 +192,9 @@ export function DatePickerModal({
                     accessibilityState={{ selected: isSelected(day) }}
                   >
                     {/* The chosen day is circled in pen. */}
-                    {isSelected(day) && <View style={styles.dayCircle} />}
+                    {isSelected(day) && (
+                      <PenCircle color={c.primary} style={styles.dayCircle} strokeWidth={2.5} />
+                    )}
                     <Text
                       style={[
                         styles.dayText,
@@ -299,9 +302,6 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       bottom: -ms(1),
       left: -ms(3),
       right: -ms(3),
-      borderWidth: 2.5,
-      borderRadius: 999,
-      borderColor: C.primary,
       transform: [{ rotate: '-8deg' }],
     },
     dayText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },

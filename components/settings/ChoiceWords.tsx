@@ -3,6 +3,7 @@ import { Text } from 'react-native-paper';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
+import { PenCircle } from '@components/shared/PenCircle';
 
 export interface ChoiceWord<T extends string> {
   value: T;
@@ -39,7 +40,7 @@ export function ChoiceWords<T extends string>({
             accessibilityState={{ selected: on }}
             accessibilityLabel={o.label}
           >
-            {on && <View style={[styles.circle, { borderColor: c.primary }]} />}
+            {on && <PenCircle color={c.primary} style={styles.circle} />}
             <Text
               style={[
                 styles.label,
@@ -65,8 +66,6 @@ const styles = StyleSheet.create({
     bottom: ms(8),
     left: 0,
     right: 0,
-    borderWidth: 2,
-    borderRadius: 999,
     transform: [{ rotate: '-4deg' }],
   },
   label: { fontSize: mf(15), ...font.medium },

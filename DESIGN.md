@@ -151,6 +151,7 @@ Card radius 20–24, sheet radius 26, buttons 16–18.
 | PaperTag                                | `components/bills/recurring/PaperTag.tsx`                           | tile action button (no "+")                                               |
 | MonthTrack                              | `components/bills/recurring/MonthTrack.tsx`                         | 6 month boxes: tick / red ring / dashed next                              |
 | SheetHeader, PeriodStepper, ChoiceChips | `components/bills/recurring/`                                       | bottom-sheet header with grab handle, period on paper strip, people chips |
+| PenCircle                               | `components/shared/PenCircle.tsx`                                   | the pen ring around any chosen word/day; draws itself in one stroke       |
 | Dashboard art                           | `components/dashboard/art/*` and `components/bills/art/BillArt.tsx` | hand-drawn SVG pictures                                                   |
 
 Pop-ups: bottom sheets sit on the **page colour** (`background`) with a grab
@@ -166,6 +167,9 @@ primary = big blue rounded button. System Alerts stay native.
   _together_ (the next item rises while the current one leaves), no blank gap,
   no pop-in. ~250–400 ms. Small spring for "settling" paper.
 - Mate hops/waves once; loaders rotate funny lines.
+- Every pen circle around a choice (`PenCircle`) is **drawn** when picked
+  (owner): one quick stroke (~360 ms, ease-out) that overshoots where it
+  started, like a real pen. Use it for any new circled choice.
 - Pinned notes: the next note (with its real text) waits under the top one and
   rises into place while the top one is flicked away (`NextNote`), so the swap
   is one continuous move — never "slide off, then a new note pops in".
