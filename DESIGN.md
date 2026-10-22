@@ -246,8 +246,9 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   when a status changes. The ticket slides gently into place. Day pages only
   darken when pressed.
 - No emoji in the Parking texts (owner removed the 🏎️).
-- Owner asked for a **squarer** Parking page: small corner radii (spot card 8,
-  buttons 6, day tiles 4, pop-up cards 10) instead of big round ones.
+- Owner tried a squarer Parking (small corners) and **preferred the round
+  corners** — keep them (spot card 24, buttons 17–18, day tiles 10, pop-up
+  cards 26).
 - Old reservations are **swiped left to delete** (red Delete, like the Bills
   expenses); the bin stays for screen readers. The vote note is hidden once a
   request is settled. Page titles use a taller line height so descenders ("g")

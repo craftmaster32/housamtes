@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   // The painted bay: dashed lines round a white (graphite in dark) card.
   bay: {
     overflow: 'hidden', // the car drives in and out across the card's edge
-    borderRadius: ms(8),
+    borderRadius: ms(24),
     borderWidth: 2.5,
     borderStyle: 'dashed',
     paddingHorizontal: ms(18),
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   art: { paddingTop: ms(8) },
   btn: {
     minHeight: ms(52),
-    borderRadius: ms(6),
+    borderRadius: ms(17),
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: ms(16),
