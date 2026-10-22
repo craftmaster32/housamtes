@@ -15,6 +15,7 @@ export type TaskRecurrence = 'once' | 'weekly' | 'monthly';
 
 export interface HouseTask {
   id: string;
+  houseId: string;
   title: string;
   description: string;
   priority: TaskPriority;
@@ -57,6 +58,7 @@ interface TasksStore {
 function rowToTask(r: HouseTaskRow): HouseTask {
   return {
     id: r.id,
+    houseId: r.house_id,
     title: r.title,
     description: r.description ?? '',
     priority: (r.priority ?? 'medium') as TaskPriority,
@@ -306,7 +308,7 @@ export const useTasksStore = create<TasksStore>()(
         }
         set({
           tasks: get().tasks.map((t) =>
-            t.recurrence === 'once'
+            t.houseId !== houseId || t.recurrence === 'once'
               ? t
               : { ...t, isComplete: false, completedAt: null, completedBy: null }
           ),
