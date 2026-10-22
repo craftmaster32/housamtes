@@ -27,15 +27,12 @@ export function LeaveWithoutShareModal({
   const rtl = isRTL(language);
   const C = useThemedColors();
   const styles = makeStyles(C);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onStayAndShare}>
       <View style={styles.backdrop}>
         <View style={styles.box}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="warning-outline" size={30} color={C.danger} />
-          </View>
           <Text style={[styles.title, headingFont]}>{t('grocery.share_before_leaving')}</Text>
           <Text style={styles.body}>{t('grocery.draft_unsaved_body', { count: draftCount })}</Text>
 
@@ -70,15 +67,16 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
+      backgroundColor: 'rgba(34,32,29,0.42)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: ms(24),
     },
     box: {
       width: '100%',
-      backgroundColor: C.surface,
-      borderRadius: ms(24),
+      maxWidth: 380,
+      backgroundColor: C.background,
+      borderRadius: ms(26),
       padding: ms(24),
       gap: ms(12),
       shadowColor: '#000',
@@ -87,21 +85,11 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 24,
       elevation: 10,
     },
-    iconWrap: {
-      width: ms(60),
-      height: ms(60),
-      borderRadius: ms(30),
-      alignSelf: 'center',
-      backgroundColor: C.dangerTint,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    title: { fontSize: mf(21), color: C.textPrimary, textAlign: 'center', letterSpacing: -0.3 },
+    title: { fontSize: mf(26), lineHeight: mf(33), color: C.textPrimary, letterSpacing: -0.4 },
     body: {
       fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
-      textAlign: 'center',
       lineHeight: mf(21),
     },
     bodyBold: { ...font.semibold, color: C.textPrimary },
@@ -111,14 +99,9 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       gap: ms(8),
       minHeight: ms(52),
-      borderRadius: ms(14),
+      borderRadius: ms(17),
       backgroundColor: C.primary,
       marginTop: ms(4),
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.28,
-      shadowRadius: 16,
-      elevation: 6,
     },
     primaryBtnText: { fontSize: mf(15), ...font.bold, color: '#fff' },
     leaveBtn: { alignItems: 'center', paddingVertical: ms(12), minHeight: ms(44) },

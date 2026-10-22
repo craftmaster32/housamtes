@@ -129,7 +129,7 @@ export function GroceryItemDetailModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable style={s.backdrop} onPress={onClose} accessible={false} />
-        <View style={[s.sheet, { backgroundColor: C.surface }]}>
+        <View style={[s.sheet, { backgroundColor: C.background }]}>
           {item && (
             <>
               <View style={[s.handle, { backgroundColor: C.border }]} />
@@ -159,7 +159,7 @@ export function GroceryItemDetailModal({
                     style={[
                       s.editInput,
                       s.editName,
-                      { color: C.textPrimary, backgroundColor: C.surfaceSecondary },
+                      { color: C.textPrimary, backgroundColor: C.surface },
                     ]}
                     accessibilityLabel={t('grocery.item_name_edit')}
                     accessibilityHint={t('grocery.item_name_edit_hint')}
@@ -172,7 +172,7 @@ export function GroceryItemDetailModal({
                     style={[
                       s.editInput,
                       s.editQty,
-                      { color: C.textPrimary, backgroundColor: C.surfaceSecondary },
+                      { color: C.textPrimary, backgroundColor: C.surface },
                     ]}
                     accessibilityLabel={t('grocery.qty_edit')}
                     accessibilityHint={t('grocery.qty_edit_hint')}
@@ -198,12 +198,7 @@ export function GroceryItemDetailModal({
                 </Text>
               </View>
 
-              <View
-                style={[
-                  s.commentBox,
-                  { backgroundColor: C.surfaceSecondary, borderColor: C.border },
-                ]}
-              >
+              <View style={[s.commentBox, { backgroundColor: C.surface, borderColor: C.border }]}>
                 <TextInput
                   value={comment}
                   onChangeText={handleCommentChange}
@@ -274,7 +269,7 @@ export function GroceryItemDetailModal({
 function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end' },
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(34,32,29,0.42)' },
     sheet: {
       borderTopLeftRadius: ms(26),
       borderTopRightRadius: ms(26),

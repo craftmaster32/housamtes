@@ -7,9 +7,9 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
   return StyleSheet.create({
     flex: { flex: 1 },
     overlay: { flex: 1, justifyContent: 'flex-end' },
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(34,32,29,0.42)' },
     sheet: {
-      backgroundColor: C.surface,
+      backgroundColor: C.background,
       borderTopLeftRadius: ms(28),
       borderTopRightRadius: ms(28),
       paddingHorizontal: ms(20),
@@ -109,9 +109,9 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    chipOn: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+    chipOn: { borderWidth: 2, borderColor: C.primary },
     chipText: { fontSize: mf(14), ...font.medium, color: C.textPrimary },
-    chipTextOn: { color: C.surface, ...font.semibold },
+    chipTextOn: { color: C.textPrimary, ...font.bold },
 
     noteInput: {
       height: ms(48),
@@ -145,7 +145,7 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
     destSubOn: { color: C.textPrimary },
     submit: {
       height: ms(56),
-      borderRadius: ms(28),
+      borderRadius: ms(17),
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',

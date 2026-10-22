@@ -4,20 +4,25 @@ import {
   Modal,
   Pressable,
   TextInput,
-  FlatList,
+  ScrollView,
   StyleSheet,
-  Switch,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   type ViewStyle,
   type TextInput as RNTextInput,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { type SavedListItem } from '@stores/groceryStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useThemedColors, darkColors, lightColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { SheetHeader } from '@components/bills/recurring/SheetHeader';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
 
 import { mf, ms } from '@utils/responsive';
 
@@ -44,8 +49,7 @@ export function GroceryListEditorModal({
 }: GroceryListEditorModalProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const styles = makeStyles(C);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
   const itemInputRef = useRef<RNTextInput>(null);
 
   const [listName, setListName] = useState(initialName);
@@ -113,324 +117,258 @@ export function GroceryListEditorModal({
     setError(null);
   }, []);
 
-  // Stops backdrop taps from closing when the sheet itself is pressed.
-  const stopPress = useCallback((): void => {}, []);
-
-  const renderItem = useCallback(
-    ({ item, index }: { item: SavedListItem; index: number }): React.JSX.Element => (
-      <View style={styles.itemRow}>
-        <Text style={styles.itemName} numberOfLines={1}>
-          {item.name}
-          {item.quantity ? <Text style={styles.itemQty}>{`  ·  ${item.quantity}`}</Text> : null}
-        </Text>
-        <Pressable
-          style={styles.itemRemoveBtn}
-          onPress={() => handleRemoveItem(index)}
-          disabled={isSaving}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('grocery.remove_item', { name: item.name })}
-        >
-          <Ionicons name="close" size={18} color={C.textSecondary} />
-        </Pressable>
-      </View>
-    ),
-    [styles, handleRemoveItem, isSaving, t, C.textSecondary]
-  );
-
+  const hand = useHandFont();
+  const overlay = C === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
   const title = mode === 'create' ? t('grocery.new_list') : t('grocery.edit_list');
+  const canSave = !!listName.trim() && !isSaving;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
-      <Pressable style={styles.backdrop} onPress={handleCancel} disabled={isSaving}>
-        <Pressable style={styles.box} onPress={stopPress}>
-          <View style={styles.iconWrap}>
-            <View style={styles.iconBadge}>
-              <Ionicons
-                name={mode === 'create' ? 'add-circle-outline' : 'create-outline'}
-                size={28}
-                color={C.primary}
-              />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
+      <KeyboardAvoidingView
+        style={[styles.overlay, { backgroundColor: overlay }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleCancel}
+          disabled={isSaving}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+        <View style={[styles.sheet, { backgroundColor: C.background }]} accessibilityViewIsModal>
+          <SheetHeader eyebrow={t('grocery.saved_lists')} title={title} onClose={handleCancel} />
+          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+            <UnderlineInput
+              label={t('grocery.list_name')}
+              value={listName}
+              onChangeText={handleListNameChange}
+              placeholder={t('grocery.list_name_placeholder')}
+              accessibilityLabel={t('grocery.list_name')}
+              accessibilityHint={t('grocery.list_name_hint')}
+            />
+
+            {/* The list itself, written on an index card. */}
+            <View style={styles.card}>
+              <View style={styles.cardHead}>
+                <Text style={[styles.cardTitle, headingFont]} numberOfLines={1}>
+                  {listName.trim() || title}
+                </Text>
+              </View>
+              {items.length === 0 && (
+                <Text style={styles.emptyItems}>{t('grocery.no_items_yet')}</Text>
+              )}
+              {items.map((item, index) => (
+                <View key={`${item.name}-${index}`} style={styles.cardRow}>
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  {!!item.quantity && <Text style={[styles.itemQty, hand]}>{item.quantity}</Text>}
+                  <Pressable
+                    style={styles.removeBtn}
+                    onPress={() => handleRemoveItem(index)}
+                    disabled={isSaving}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t('grocery.remove_item', { name: item.name })}
+                  >
+                    <Ionicons name="close" size={18} color={MUTED} />
+                  </Pressable>
+                </View>
+              ))}
+              {/* The next line on the card: write an item and its amount, then add. */}
+              <View style={styles.cardRow}>
+                <TextInput
+                  ref={itemInputRef}
+                  value={itemName}
+                  onChangeText={setItemName}
+                  placeholder={t('grocery.item_name_placeholder')}
+                  placeholderTextColor="#A39F97"
+                  style={[styles.cardInput, noWebOutline]}
+                  maxLength={80}
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddItem}
+                  accessible
+                  accessibilityLabel={t('grocery.item_name_placeholder')}
+                  accessibilityHint={t('grocery.add_item_name_hint')}
+                />
+                <TextInput
+                  value={itemQty}
+                  onChangeText={setItemQty}
+                  placeholder={t('grocery.qty_short')}
+                  placeholderTextColor="#A39F97"
+                  style={[styles.qtyInput, hand, noWebOutline]}
+                  maxLength={12}
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddItem}
+                  accessible
+                  accessibilityLabel={t('grocery.quantity')}
+                  accessibilityHint={t('grocery.add_item_qty_hint')}
+                />
+              </View>
+              <Pressable
+                onPress={handleAddItem}
+                disabled={!itemName.trim()}
+                style={({ pressed }) => [
+                  styles.addLink,
+                  (!itemName.trim() || pressed) && styles.dim,
+                ]}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('grocery.add_item')}
+                accessibilityState={{ disabled: !itemName.trim() }}
+              >
+                <Text style={[styles.addLinkText, hand]}>+ {t('grocery.add_item')}</Text>
+              </Pressable>
             </View>
-          </View>
 
-          <Text style={[styles.title, headingFont]}>{title}</Text>
-
-          <TextInput
-            value={listName}
-            onChangeText={handleListNameChange}
-            placeholder={t('grocery.list_name_placeholder')}
-            placeholderTextColor={C.textSecondary}
-            style={styles.nameInput}
-            maxLength={60}
-            returnKeyType="done"
-            accessible
-            accessibilityLabel={t('grocery.list_name')}
-            accessibilityHint={t('grocery.list_name_hint')}
-          />
-
-          <View style={styles.privateRow}>
-            <View style={styles.privateTextWrap}>
-              <Text style={styles.privateLabel}>{t('grocery.keep_private')}</Text>
-              <Text style={styles.privateSub}>{t('grocery.keep_private_hint')}</Text>
-            </View>
-            <Switch
-              value={isPrivate}
-              onValueChange={setIsPrivate}
-              trackColor={{ false: C.border, true: C.primary }}
-              thumbColor="#fff"
-              activeThumbColor="#fff"
-              style={styles.switchLtr}
+            {/* Keep private, as a box ticked in pen. */}
+            <Pressable
+              onPress={() => setIsPrivate((v) => !v)}
+              style={styles.privateRow}
               accessible
-              accessibilityRole="switch"
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isPrivate }}
               accessibilityLabel={t('grocery.private_list')}
               accessibilityHint={t('grocery.keep_private_hint')}
-              accessibilityState={{ checked: isPrivate }}
-            />
-          </View>
+            >
+              <View style={[styles.box, { borderColor: C.textSecondary }]}>
+                {isPrivate && (
+                  <Svg width={ms(24)} height={ms(24)} viewBox="0 0 26 26" style={styles.tick}>
+                    <Path
+                      d="M4 13 L10.5 20 L23 3"
+                      stroke={C.primary}
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </Svg>
+                )}
+              </View>
+              <View style={styles.privateText}>
+                <Text style={[styles.privateLabel, { color: C.textPrimary }]}>
+                  {t('grocery.keep_private')}
+                </Text>
+                <Text style={[styles.privateSub, { color: C.textSecondary }]}>
+                  {t('grocery.keep_private_hint')}
+                </Text>
+              </View>
+            </Pressable>
 
-          {/* Add-item area: name on its own line, then quantity + Add button.
-              Stacked so the controls can never overflow the modal width. */}
-          <TextInput
-            ref={itemInputRef}
-            value={itemName}
-            onChangeText={setItemName}
-            placeholder={t('grocery.item_name_placeholder')}
-            placeholderTextColor={C.textSecondary}
-            style={styles.itemInput}
-            maxLength={80}
-            returnKeyType="done"
-            onSubmitEditing={handleAddItem}
-            accessible
-            accessibilityLabel={t('grocery.item_name_placeholder')}
-            accessibilityHint={t('grocery.add_item_name_hint')}
-          />
-          <View style={styles.addItemRow}>
-            <TextInput
-              value={itemQty}
-              onChangeText={setItemQty}
-              placeholder={t('grocery.qty_short')}
-              placeholderTextColor={C.textSecondary}
-              style={styles.qtyInput}
-              maxLength={12}
-              returnKeyType="done"
-              onSubmitEditing={handleAddItem}
-              accessible
-              accessibilityLabel={t('grocery.quantity')}
-              accessibilityHint={t('grocery.add_item_qty_hint')}
-            />
+            {!!error && <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>}
+
             <Pressable
-              style={[styles.addItemBtn, !itemName.trim() && styles.addItemBtnOff]}
-              onPress={handleAddItem}
-              disabled={!itemName.trim()}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                { backgroundColor: C.primary },
+                (!canSave || pressed) && styles.dim,
+              ]}
+              onPress={handleSave}
+              disabled={!canSave}
               accessible
               accessibilityRole="button"
-              accessibilityLabel={t('grocery.add_item')}
-              accessibilityState={{ disabled: !itemName.trim() }}
+              accessibilityState={{ disabled: !canSave }}
             >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.addItemBtnText} numberOfLines={1} ellipsizeMode="tail">
-                {t('grocery.add_item')}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Items list */}
-          {items.length === 0 ? (
-            <Text style={styles.emptyItems}>{t('grocery.no_items_yet')}</Text>
-          ) : (
-            <FlatList
-              data={items}
-              keyExtractor={(item, i) => `${item.name}-${i}`}
-              renderItem={renderItem}
-              style={styles.itemsList}
-              keyboardShouldPersistTaps="handled"
-            />
-          )}
-
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-          <Pressable
-            style={[styles.primaryBtn, (!listName.trim() || isSaving) && styles.btnOff]}
-            onPress={handleSave}
-            disabled={!listName.trim() || isSaving}
-            accessible
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !listName.trim() || isSaving }}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons
-                  name={mode === 'create' ? 'bookmark' : 'checkmark'}
-                  size={16}
-                  color="#fff"
-                />
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
                 <Text style={styles.primaryBtnText}>
                   {mode === 'create' ? t('grocery.save_list') : t('grocery.save_changes')}
                 </Text>
-              </>
-            )}
-          </Pressable>
-          <Pressable
-            style={styles.skipBtn}
-            onPress={handleCancel}
-            disabled={isSaving}
-            accessible
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isSaving }}
-          >
-            <Text style={styles.skipBtnText}>{t('common.cancel')}</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
+              )}
+            </Pressable>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: ms(24),
-    },
-    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
-    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
-    box: {
-      width: '100%',
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
-      padding: ms(24),
-      gap: ms(12),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.15,
-      shadowRadius: 24,
-      elevation: 10,
-    },
-    iconWrap: { alignItems: 'center' },
-    iconBadge: {
-      width: ms(60),
-      height: ms(60),
-      borderRadius: ms(30),
-      backgroundColor: C.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    title: {
-      fontSize: mf(20),
-      ...font.bold,
-      color: C.textPrimary,
-      textAlign: 'center',
-      letterSpacing: -0.4,
-    },
-    nameInput: {
-      height: ms(48),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: ms(14),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-    },
-    privateRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(12),
-      padding: ms(14),
-      gap: ms(10),
-    },
-    privateTextWrap: { flex: 1 },
-    privateLabel: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
-    privateSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
-    addItemRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
-    itemInput: {
-      height: ms(46),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: ms(14),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-    },
-    qtyInput: {
-      width: ms(72),
-      flexShrink: 0,
-      height: ms(46),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: ms(10),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-      textAlign: 'center',
-    },
-    addItemBtn: {
-      flex: 1,
-      minWidth: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      height: Math.max(44, ms(46)),
-      minHeight: 44,
-      borderRadius: ms(12),
-      backgroundColor: C.primary,
-    },
-    addItemBtnText: { fontSize: mf(14), ...font.semibold, color: '#fff', flexShrink: 1 },
-    addItemBtnOff: { backgroundColor: C.textDisabled },
-    itemsList: { maxHeight: ms(190) },
-    itemRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: ms(8),
-      paddingHorizontal: ms(12),
-      borderRadius: ms(10),
-      backgroundColor: C.surfaceSecondary,
-      marginBottom: ms(6),
-      gap: ms(8),
-    },
-    itemName: { flex: 1, fontSize: mf(14), ...font.regular, color: C.textPrimary },
-    itemQty: { ...font.regular, color: C.textSecondary },
-    itemRemoveBtn: {
-      width: ms(44),
-      height: ms(44),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyItems: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      paddingVertical: ms(8),
-    },
-    errorText: { fontSize: mf(13), color: '#D94F4F', textAlign: 'center' },
-    primaryBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      minHeight: ms(50),
-      borderRadius: ms(12),
-      backgroundColor: C.primary,
-    },
-    btnOff: { backgroundColor: C.textDisabled },
-    primaryBtnText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
-    skipBtn: { alignItems: 'center', paddingVertical: ms(10), minHeight: ms(44) },
-    skipBtnText: { fontSize: mf(14), ...font.regular, color: C.textSecondary },
-  });
-}
+// The index card is paper, so it keeps its light colours in dark mode.
+const CARD = lightColors.receipt;
+const INK = lightColors.receiptInk;
+const MUTED = lightColors.receiptMuted;
+const RULE = 'rgba(59,111,191,0.18)';
+const noWebOutline = (Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) as ViewStyle;
+
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    borderTopLeftRadius: ms(26),
+    borderTopRightRadius: ms(26),
+    maxHeight: '92%',
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  body: { padding: ms(20), paddingTop: ms(8), paddingBottom: ms(36), gap: ms(16) },
+  card: {
+    backgroundColor: CARD,
+    borderRadius: ms(4),
+    paddingHorizontal: ms(14),
+    paddingBottom: ms(4),
+    transform: [{ rotate: '-0.5deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(6) },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cardHead: {
+    minHeight: 46,
+    justifyContent: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(184,69,64,0.45)',
+  },
+  cardTitle: { fontSize: mf(19), color: INK },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(10),
+    minHeight: 44,
+    borderBottomWidth: 1,
+    borderBottomColor: RULE,
+  },
+  itemName: { flex: 1, fontSize: mf(15.5), ...font.semibold, color: INK },
+  itemQty: { fontSize: mf(20), color: '#3B6FBF', writingDirection: 'ltr' },
+  removeBtn: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
+  cardInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: mf(15.5),
+    ...font.medium,
+    color: INK,
+    paddingVertical: ms(8),
+  },
+  qtyInput: {
+    width: ms(70),
+    fontSize: mf(20),
+    color: '#3B6FBF',
+    paddingVertical: ms(4),
+    textAlign: 'right',
+  },
+  addLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  addLinkText: { fontSize: mf(20), color: '#3B6FBF' },
+  emptyItems: { fontSize: mf(13.5), ...font.regular, color: MUTED, paddingVertical: ms(10) },
+  privateRow: { flexDirection: 'row', alignItems: 'center', gap: ms(12), minHeight: 48 },
+  box: {
+    width: ms(22),
+    height: ms(22),
+    borderWidth: 2.2,
+    borderRadius: ms(4),
+    transform: [{ rotate: '-2deg' }],
+  },
+  tick: { position: 'absolute', left: 0, top: -ms(9) },
+  privateText: { flex: 1 },
+  privateLabel: { fontSize: mf(15.5), ...font.semibold },
+  privateSub: { fontSize: mf(13), ...font.regular, marginTop: ms(1) },
+  errorText: { fontSize: mf(13) },
+  primaryBtn: {
+    minHeight: 52,
+    borderRadius: ms(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
+  dim: { opacity: 0.5 },
+});
