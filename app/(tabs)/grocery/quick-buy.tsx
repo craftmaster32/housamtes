@@ -1,26 +1,17 @@
 import { useCallback, useMemo } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
-import { goBack } from '@stores/navigationStore';
 import { Alert } from '@lib/alert';
 import { useAuthStore } from '@stores/authStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { ShoppingCheckout, type CheckoutItem } from '@components/grocery/ShoppingCheckout';
 import { EmptyState } from '@components/ui';
+import { BackLink } from '@components/shared/BackLink';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { mf, ms } from '@utils/responsive';
@@ -29,7 +20,7 @@ function QuickBuyScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -49,10 +40,6 @@ function QuickBuyScreen(): React.JSX.Element {
         .map((i) => ({ id: i.id, name: i.name, quantity: i.quantity })),
     [items, myId]
   );
-
-  const handleBack = useCallback((): void => {
-    goBack();
-  }, []);
 
   const handleSaved = useCallback(
     async (boughtItemIds: string[]): Promise<void> => {
@@ -75,28 +62,16 @@ function QuickBuyScreen(): React.JSX.Element {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <Pressable
-            onPress={handleBack}
-            style={styles.iconBtn}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            accessibilityState={{ disabled: false }}
-          >
-            <Ionicons name="chevron-back" size={22} color={C.primary} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={[styles.headerTitle, headingFont]}>{t('grocery.shop.quick_buy')}</Text>
-            <Text style={styles.headerSub}>{t('grocery.shop.quick_buy_hint')}</Text>
-          </View>
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <BackLink label={t('common.back')} />
+          <Text style={[styles.title, headingFont]} accessibilityRole="header">
+            {t('grocery.shop.quick_buy')}
+          </Text>
+          <Text style={styles.sub}>{t('grocery.shop.quick_buy_hint')}</Text>
           {houseId ? (
             <ShoppingCheckout
               houseId={houseId}
@@ -115,28 +90,27 @@ function QuickBuyScreen(): React.JSX.Element {
   );
 }
 
-const makeStyles = (C: ColorTokens) =>
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.sm,
-      paddingHorizontal: sizes.md,
-      paddingTop: sizes.xs,
-      paddingBottom: sizes.xs,
+    title: {
+      fontSize: mf(36),
+      // Tall enough for the descenders, so no letter is clipped.
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
+      color: C.textPrimary,
     },
-    iconBtn: {
-      minWidth: ms(44),
-      minHeight: ms(44),
-      alignItems: 'center',
-      justifyContent: 'center',
+    sub: {
+      fontSize: mf(14),
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: mf(20),
+      marginBottom: ms(18),
     },
-    headerCopy: { flex: 1 },
-    headerTitle: { fontSize: mf(22), color: C.textPrimary, letterSpacing: -0.4 },
-    headerSub: { fontSize: mf(13), ...font.medium, color: C.textSecondary, marginTop: ms(1) },
-    content: { padding: sizes.lg, paddingBottom: ms(40) },
+    content: { paddingHorizontal: ms(20), paddingTop: ms(4), paddingBottom: ms(40) },
   });
 
 export default withFeatureGuard('grocery', QuickBuyScreen);
