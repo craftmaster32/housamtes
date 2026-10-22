@@ -41,6 +41,7 @@ export function MessageSlip({
   const c = useThemedColors();
   const hand = useHandFont();
   const canDelete = isMine && Date.now() - new Date(msg.createdAt).getTime() < DELETE_WINDOW_MS;
+  const isActionable = canDelete || !isMine;
 
   const handleLongPress = useCallback((): void => {
     if (isMine) {
@@ -68,16 +69,18 @@ export function MessageSlip({
   return (
     <Pressable
       style={[styles.row, isMine && styles.rowMine]}
-      onLongPress={handleLongPress}
+      onLongPress={isActionable ? handleLongPress : undefined}
+      onPress={isActionable ? handleLongPress : undefined}
       delayLongPress={400}
       accessible
-      accessibilityRole="button"
-      accessibilityLabel={
-        isMine
-          ? canDelete
+      accessibilityRole={isActionable ? 'button' : 'text'}
+      accessibilityLabel={isMine ? msg.text : `${authorName}: ${msg.text}`}
+      accessibilityHint={
+        isActionable
+          ? isMine
             ? t('chat.your_message_hint')
-            : t('chat.your_message_hint_locked')
-          : t('chat.other_message_hint', { name: authorName })
+            : t('chat.other_message_hint', { name: authorName })
+          : undefined
       }
     >
       <UserAvatar userId={msg.author} size={ms(30)} />
