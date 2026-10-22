@@ -64,8 +64,15 @@ export function SettingsLine({
   const lineStyle = [styles.line, !last && { borderBottomColor: c.border, ...styles.ruled }];
 
   if (!onPress) {
+    // Interactive content in right (e.g. ChoiceWords radios) must stay
+    // individually focusable, so only group plain label/value rows.
+    const group = !right;
     return (
-      <View style={lineStyle} accessible accessibilityLabel={value ? `${label}, ${value}` : label}>
+      <View
+        style={lineStyle}
+        accessible={group}
+        accessibilityLabel={group ? (value ? `${label}, ${value}` : label) : undefined}
+      >
         {body}
       </View>
     );
