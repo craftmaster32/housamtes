@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Platform,
   View,
   StyleSheet,
   TextInput,
@@ -95,6 +96,8 @@ const styles = StyleSheet.create({
     ...font.semibold,
     paddingVertical: ms(8),
     paddingHorizontal: 0,
+    // The line is the focus cue (it turns blue); on web, drop the browser's own box.
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
   suffix: { fontSize: mf(16), ...font.semibold, marginStart: ms(4) },
 });
