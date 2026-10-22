@@ -17,10 +17,12 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
   },
@@ -448,12 +450,11 @@ describe('tasksStore — repeating tasks', () => {
         task({ id: 'o', recurrence: 'once', isComplete: true, completedBy: ME }),
       ],
     });
-    const chain = ok(null);
-    mockFrom.mockReturnValue(chain);
+    mockRpc.mockResolvedValue({ error: null });
 
     await useTasksStore.getState().resetRepeating(HOUSE);
 
-    expect(chain.neq).toHaveBeenCalledWith('recurrence', 'once');
+    expect(mockRpc).toHaveBeenCalledWith('reset_repeating_tasks', { p_house_id: HOUSE });
     const byId = Object.fromEntries(useTasksStore.getState().tasks.map((t) => [t.id, t]));
     expect(byId.r).toMatchObject({ isComplete: false, completedBy: null, completedAt: null });
     expect(byId.o).toMatchObject({ isComplete: true, completedBy: ME });
@@ -461,7 +462,7 @@ describe('tasksStore — repeating tasks', () => {
 
   it('reset throws and changes nothing when the database fails', async () => {
     useTasksStore.setState({ tasks: [task({ id: 'r', recurrence: 'weekly', isComplete: true })] });
-    mockFrom.mockReturnValue(fail('connection error'));
+    mockRpc.mockResolvedValue({ error: { message: 'connection error' } });
 
     await expect(useTasksStore.getState().resetRepeating(HOUSE)).rejects.toThrow(
       'Could not reset the repeating tasks. Please try again.'
