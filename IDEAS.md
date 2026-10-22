@@ -32,6 +32,10 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 (Add ideas here as they come up during building)
 
+- **Photos on grocery items** — let a housemate add a photo of the exact
+  product (brand, size) to an item. The redesigned list rows keep room for a
+  small thumbnail next to the name.
+
 ---
 
 ## Rejected Ideas (and Why)
