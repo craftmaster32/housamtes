@@ -50,7 +50,7 @@ review (a full re-check of everything), tell the owner — that wastes tokens.
   Splitwise-style split, moving Contributions to insights).
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
-- **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Tasks (Chores merged in) → Chat →
+- **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Tasks (Chores merged in) ✅ → Chat →
   More/Settings → the rest.
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
@@ -280,7 +280,24 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   handwritten "2 done". Empty: Mate on the pad.
 - No emoji in these texts (owner removed them on Parking and Chores).
 
-**Next:** Chat (mockup first) — once the owner says Tasks is done.
+**Chat (built on #252, waiting for the owner to say it's done)**
+
+- Opens from the floating chat button (`ChatFab`) → `app/(tabs)/more/chat.tsx`.
+  Back link + Fraunces "House Chat" title (taller line height, no clipped
+  descenders). Same behaviour: lazy load, mark read, send, long-press to
+  delete your own message for 15 min or report someone else's.
+- Messages are paper: someone else's is a light slip with the author's name in
+  handwriting (`MessageSlip`, avatar-side corner nearly square), yours is a blue
+  sticky note on the other side. Both stay light in dark mode. Time and the
+  small "Hold to…" hints stay.
+- Day headings are handwritten between dashed lines (`DayHeading`); messages
+  are grouped by the housemates' **local** day (was UTC, which could put a
+  late-evening message under the wrong day).
+- The message is written on a line (`UnderlineInput`, now without the browser's
+  focus box on web) with a round blue send button (`MessageBar`).
+- Empty chat: Mate. No emoji in the empty message (owner removed them everywhere).
+
+**Next:** More / Settings (mockup first) — once the owner says Chat is done.
 
 ## 8. Working setup (for the next session)
 
