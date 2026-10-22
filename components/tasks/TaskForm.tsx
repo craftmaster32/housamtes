@@ -54,16 +54,17 @@ export function TaskForm({ onAdd, myId }: TaskFormProps): React.JSX.Element {
     ],
     [t]
   );
-  const weekDays = useMemo(
-    () =>
-      WEEK_DAYS.map((key, i) => ({
+  const weekDays = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(language, { weekday: 'short' });
+    return WEEK_DAYS.map((key, i) => {
+      const full = fmt.format(new Date(2024, 0, 7 + i));
+      return {
         key,
-        label: new Intl.DateTimeFormat(language, { weekday: 'short' })
-          .format(new Date(2024, 0, 7 + i))
-          .slice(0, 2),
-      })),
-    [language]
-  );
+        label: language.startsWith('he') ? full.replace(/^יום\s*/, '') : full.slice(0, 2),
+        accessibilityLabel: full,
+      };
+    });
+  }, [language]);
   const monthDays = useMemo(() => MONTH_DAYS.map((d) => ({ key: d, label: d })), []);
 
   const handleRepeat = useCallback((key: string): void => {
