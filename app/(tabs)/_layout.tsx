@@ -37,7 +37,6 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="grocery/shop" options={{ href: null }} />
       <Tabs.Screen name="grocery/quick-buy" options={{ href: null }} />
       <Tabs.Screen name="chores/index" />
-      <Tabs.Screen name="more/index" options={{ href: null }} />
       <Tabs.Screen name="more/chat" options={{ href: null }} />
       <Tabs.Screen name="more/settings" options={{ href: null }} />
       <Tabs.Screen name="photos/index" />
