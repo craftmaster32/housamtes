@@ -292,11 +292,9 @@ export const useTasksStore = create<TasksStore>()(
       },
       resetRepeating: async (houseId): Promise<void> => {
         try {
-          const { error } = await supabase
-            .from('house_tasks')
-            .update({ is_done: false, completed_at: null, completed_by: null })
-            .eq('house_id', houseId)
-            .neq('recurrence', 'once');
+          const { error } = await supabase.rpc('reset_repeating_tasks', {
+            p_house_id: houseId,
+          });
           if (error) throw error;
         } catch (err) {
           captureError(err, {
