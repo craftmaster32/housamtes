@@ -14,6 +14,8 @@ import { mf, ms } from '@utils/responsive';
 /** Your own messages can be deleted for this long after sending. */
 export const DELETE_WINDOW_MS = 15 * 60 * 1000;
 
+const A11Y_ACTIONS = [{ name: 'activate' }, { name: 'longpress' }];
+
 // Pen colour for names on paper (the paper stays light in dark mode).
 const PEN = lightColors.primary;
 
@@ -61,6 +63,8 @@ export function MessageSlip({
     }
   }, [isMine, canDelete, msg.id, msg.author, authorName, onDelete, onReport, t]);
 
+  // Your own message can only be deleted for a while; others' can always be reported.
+  const actionable = !isMine || canDelete;
   const paper = isMine ? c.note : c.receipt;
   const ink = isMine ? c.noteInk : c.receiptInk;
   const muted = isMine ? c.noteInk : c.receiptMuted;
@@ -71,14 +75,19 @@ export function MessageSlip({
       onLongPress={handleLongPress}
       delayLongPress={400}
       accessible
-      accessibilityRole="button"
-      accessibilityLabel={
+      // Screen readers hear who wrote it and what it says; the hint names the
+      // delete / report action, which their activate gesture also opens.
+      accessibilityRole={actionable ? 'button' : 'text'}
+      accessibilityLabel={`${isMine ? t('common.you') : authorName}: ${msg.text}`}
+      accessibilityHint={
         isMine
           ? canDelete
             ? t('chat.your_message_hint')
             : t('chat.your_message_hint_locked')
           : t('chat.other_message_hint', { name: authorName })
       }
+      accessibilityActions={actionable ? A11Y_ACTIONS : undefined}
+      onAccessibilityAction={actionable ? handleLongPress : undefined}
     >
       <UserAvatar userId={msg.author} size={ms(30)} />
       <View

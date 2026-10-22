@@ -15,6 +15,7 @@ export type TaskRecurrence = 'once' | 'weekly' | 'monthly';
 
 export interface HouseTask {
   id: string;
+  houseId: string;
   title: string;
   description: string;
   priority: TaskPriority;
@@ -57,6 +58,7 @@ interface TasksStore {
 function rowToTask(r: HouseTaskRow): HouseTask {
   return {
     id: r.id,
+    houseId: r.house_id,
     title: r.title,
     description: r.description ?? '',
     priority: (r.priority ?? 'medium') as TaskPriority,
@@ -304,9 +306,11 @@ export const useTasksStore = create<TasksStore>()(
           });
           throw new Error('Could not reset the repeating tasks. Please try again.');
         }
+        // Only this house's tasks: after switching house the old list can
+        // still be in memory until the next load.
         set({
           tasks: get().tasks.map((t) =>
-            t.recurrence === 'once'
+            t.houseId !== houseId || t.recurrence === 'once'
               ? t
               : { ...t, isComplete: false, completedAt: null, completedBy: null }
           ),

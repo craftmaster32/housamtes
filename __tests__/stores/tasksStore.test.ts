@@ -42,6 +42,7 @@ const HOUSE = 'house-1';
 function task(overrides: Partial<HouseTask> = {}): HouseTask {
   return {
     id: 't1',
+    houseId: HOUSE,
     title: 'Call the landlord',
     description: '',
     priority: 'medium',
@@ -458,6 +459,22 @@ describe('tasksStore — repeating tasks', () => {
     const byId = Object.fromEntries(useTasksStore.getState().tasks.map((t) => [t.id, t]));
     expect(byId.r).toMatchObject({ isComplete: false, completedBy: null, completedAt: null });
     expect(byId.o).toMatchObject({ isComplete: true, completedBy: ME });
+  });
+
+  it("reset leaves another house's tasks alone", async () => {
+    useTasksStore.setState({
+      tasks: [
+        task({ id: 'mine', recurrence: 'weekly', isComplete: true, completedBy: ME }),
+        task({ id: 'old', houseId: 'house-2', recurrence: 'weekly', isComplete: true }),
+      ],
+    });
+    mockRpc.mockResolvedValue({ error: null });
+
+    await useTasksStore.getState().resetRepeating(HOUSE);
+
+    const byId = Object.fromEntries(useTasksStore.getState().tasks.map((t) => [t.id, t]));
+    expect(byId.mine.isComplete).toBe(false);
+    expect(byId.old.isComplete).toBe(true);
   });
 
   it('reset throws and changes nothing when the database fails', async () => {
