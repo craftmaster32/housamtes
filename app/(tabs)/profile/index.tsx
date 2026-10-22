@@ -35,7 +35,6 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { Bill } from '@stores/billsStore';
-import type { Housemate } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
@@ -94,39 +93,6 @@ function ProfileRow({
       </View>
       <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={C.textSecondary} />
     </Pressable>
-  );
-}
-
-function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JSX.Element {
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
-  const shown = housemates.slice(0, 4);
-  return (
-    <View style={s.avatarStack}>
-      {shown.map((h, i) => (
-        <View
-          key={h.id}
-          style={[
-            s.stackAvatar,
-            {
-              backgroundColor: h.avatarUrl ? 'transparent' : h.color,
-              marginStart: i === 0 ? 0 : -10,
-            },
-          ]}
-        >
-          {h.avatarUrl ? (
-            <Image
-              source={{ uri: h.avatarUrl }}
-              style={s.stackAvatarImg}
-              contentFit="cover"
-              accessibilityLabel={h.name}
-            />
-          ) : (
-            <Text style={s.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
-          )}
-        </View>
-      ))}
-    </View>
   );
 }
 
@@ -658,7 +624,6 @@ export default function ProfileScreen(): React.JSX.Element {
   const uploadCover = useAuthStore((s) => s.uploadCover);
   const removeCover = useAuthStore((s) => s.removeCover);
   const currency = useSettingsStore((s) => s.currency);
-  const housemates = useHousematesStore((s) => s.housemates);
   const houseName = useHousematesStore((s) => s.houseName);
   const loadHousemates = useHousematesStore((s) => s.load);
   const bills = useBillsStore((s) => s.bills);
@@ -1043,28 +1008,6 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             )}
 
-            {/* ── House ──────────────────────────────────────────────────── */}
-            <View style={styles.card}>
-              <View style={styles.cardInnerRow}>
-                <Text style={styles.sectionTitle}>{t('profile.house_label')}</Text>
-                <Pressable
-                  onPress={() => router.push('/(tabs)/bills/setup')}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.sectionAction}>{t('profile.manage_label')}</Text>
-                </Pressable>
-              </View>
-              <View style={styles.houseRow}>
-                <View style={styles.houseInfo}>
-                  <Text style={styles.houseName}>{houseName || t('profile.the_house')}</Text>
-                  <Text style={styles.houseSub}>
-                    {t('profile.housemates_count', { count: housemates.length })}
-                  </Text>
-                </View>
-                <HousemateAvatars housemates={housemates} />
-              </View>
-            </View>
-
             {/* ── Profile settings ───────────────────────────────────────── */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('profile.profile_label')}</Text>
@@ -1375,25 +1318,6 @@ function makeStyles(C: ColorTokens) {
     },
     expenseName: { fontSize: mf(13), ...font.bold, color: C.textSecondary },
     expenseAmt: { fontSize: mf(18), ...font.extrabold, color: C.textPrimary },
-
-    // House section
-    houseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    houseInfo: { gap: ms(2) },
-    houseName: { fontSize: mf(15), ...font.extrabold, color: C.textPrimary },
-    houseSub: { fontSize: mf(13), ...font.bold, color: C.textSecondary },
-    avatarStack: { flexDirection: 'row', alignItems: 'center' },
-    stackAvatar: {
-      width: ms(34),
-      height: ms(34),
-      borderRadius: ms(17),
-      borderWidth: 2,
-      borderColor: '#fff',
-      justifyContent: 'center',
-      alignItems: 'center',
-      overflow: 'hidden',
-    },
-    stackAvatarImg: { width: ms(34), height: ms(34) },
-    stackAvatarText: { color: '#fff', fontSize: mf(13), ...font.bold },
 
     // Profile row
     profileRow: {
