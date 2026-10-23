@@ -152,6 +152,8 @@ Card radius 20–24, sheet radius 26, buttons 16–18.
 | MonthTrack                              | `components/bills/recurring/MonthTrack.tsx`                         | 6 month boxes: tick / red ring / dashed next                              |
 | SheetHeader, PeriodStepper, ChoiceChips | `components/bills/recurring/`                                       | bottom-sheet header with grab handle, period on paper strip, people chips |
 | PenCircle                               | `components/shared/PenCircle.tsx`                                   | the pen ring around any chosen word/day; draws itself in one stroke       |
+| PageSheet, SheetButton                  | `components/shared/PageSheet.tsx`, `SheetButton.tsx`                | standard bottom sheet (page colour, header, scroll) and its blue button   |
+| InkTickBox                              | `components/shared/InkTickBox.tsx`                                  | on/off as an ink box ticked in blue pen (instead of a switch)             |
 | Dashboard art                           | `components/dashboard/art/*` and `components/bills/art/BillArt.tsx` | hand-drawn SVG pictures                                                   |
 
 Pop-ups: bottom sheets sit on the **page colour** (`background`) with a grab
@@ -353,9 +355,45 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
 - Owner idea for later (in IDEAS.md): photos on grocery items; rows keep room.
 - Empty grocery texts lost their emoji.
 
-**Next:** the rest (Machines, Calendar, Photos, Notice Board, Votes, Property,
-Profile) — mockup first, once the owner says Grocery is done. Give each page its
-own signature object (owner: avoid monotony) and keep it calm (avoid crowding).
+**Autonomous pass (built on #252 without mockups, owner to review on the preview)**
+
+The owner asked for every remaining page and pop-up in one go, so these skipped
+the mockup step and follow the approved style. Each has its own object:
+
+- **Machines** — drawn washer / dryer / dishwasher (`MachineArt`); the door
+  ring (or the dishwasher's strip) fills as the cycle runs. One big Fraunces
+  answer (Free / time left / Just finished), who's using it in handwriting,
+  Start is a paper tag, freeing is red text. Start sheet: presets as paper
+  tags with a ×, hours : minutes as big numbers on lines.
+- **Notice Board** — a cork board with a wooden frame (`CorkBoard`, drawn in
+  slices so notes stay in a FlatList); notes are paper slips in each
+  housemate's paper colour with a push pin, signed "— Dana, 12 Oct".
+- **Votes** — ballot slips: tick a box with a pen cross, votes counted as tally
+  marks, a rubber stamp with the result when closed. New proposal is a sheet.
+- **Photos** — white-bordered prints that lean a little, months on masking
+  tape, album filters circled in pen; select mode ticks a box on each print.
+- **Calendar** — a hanging wall calendar with spiral binding; today circled in
+  red pen, the chosen day highlighted yellow. Day list: time in handwriting, a
+  coloured stroke per kind. Event form on lines (shared date/time pickers);
+  the screen was split into `components/calendar/*` and two hooks.
+- **Property** — issues are yellow job tickets torn off a pad (Open · In
+  progress · Resolved with the current step circled; resolved gets a stamp).
+  Condition log is an inspection sheet on a clipboard, verdicts circled in
+  their colour. Both forms are sheets. Status / category / room words are now
+  translated (`utils/propertyLabels.ts`).
+- **Profile** — a house member card on a lanyard (cover across the top,
+  passport photo, "Member of …" in handwriting). Spending summary on notebook
+  paper. Rows reuse `SettingsLine`; details and password open sheets.
+- **Spending** — the trend drawn on squared paper (your share hatched in
+  pencil, chosen month circled), the AI insight as a taped sticky note.
+- **Housemates** — a steel door buzzer panel, one name slip per person; the
+  invite code is a ticket with a perforated "Copy code" stub.
+- **Settings sub-pages** — Notifications, Calendar, Members, Categories, Terms
+  and Privacy match the Settings page: Fraunces sections, ruled lines, on/off
+  as an ink tick box (`InkTickBox`) instead of a phone switch.
+
+New shared pieces: `PageSheet` + `SheetButton` (standard bottom sheet and its
+blue button), `InkTickBox`. Emoji were removed from empty-state texts.
 
 ## 8. Working setup (for the next session)
 
