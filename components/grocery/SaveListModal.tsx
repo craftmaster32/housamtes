@@ -1,15 +1,7 @@
 import { useState, useCallback } from 'react';
-import {
-  View,
-  Modal,
-  Pressable,
-  TextInput,
-  StyleSheet,
-  Switch,
-  ActivityIndicator,
-  type ViewStyle,
-} from 'react-native';
+import { View, Modal, Pressable, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
+import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -149,25 +141,35 @@ export function SaveListModal({
                 accessibilityState={{ disabled: false }}
               />
 
-              <View style={styles.privateRow}>
-                <View>
+              {/* Keep private, as a box ticked in pen. */}
+              <Pressable
+                style={styles.privateRow}
+                onPress={() => setIsPrivate((v) => !v)}
+                accessible
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isPrivate }}
+                accessibilityLabel={t('grocery.private_list')}
+                accessibilityHint={t('grocery.keep_private_hint')}
+              >
+                <View style={styles.tickBox}>
+                  {isPrivate && (
+                    <Svg width={ms(24)} height={ms(24)} viewBox="0 0 26 26" style={styles.tick}>
+                      <Path
+                        d="M4 13 L10.5 20 L23 3"
+                        stroke={C.primary}
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </Svg>
+                  )}
+                </View>
+                <View style={styles.privateText}>
                   <Text style={styles.privateLabel}>{t('grocery.keep_private')}</Text>
                   <Text style={styles.privateSub}>{t('grocery.keep_private_hint')}</Text>
                 </View>
-                <Switch
-                  value={isPrivate}
-                  onValueChange={setIsPrivate}
-                  trackColor={{ false: C.border, true: C.primary }}
-                  thumbColor="#fff"
-                  activeThumbColor="#fff"
-                  style={styles.switchLtr}
-                  accessible
-                  accessibilityRole="switch"
-                  accessibilityLabel={t('grocery.private_list')}
-                  accessibilityHint={t('grocery.keep_private_hint')}
-                  accessibilityState={{ checked: isPrivate }}
-                />
-              </View>
+              </Pressable>
 
               {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -215,8 +217,6 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       padding: ms(24),
     },
-    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
-    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     box: {
       width: '100%',
       maxWidth: 380,
@@ -248,12 +248,17 @@ function makeStyles(C: ColorTokens) {
       ...font.regular,
       color: C.textPrimary,
     },
-    privateRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: ms(6),
+    privateRow: { flexDirection: 'row', alignItems: 'center', gap: ms(12), minHeight: 48 },
+    privateText: { flex: 1 },
+    tickBox: {
+      width: ms(22),
+      height: ms(22),
+      borderWidth: 2.2,
+      borderColor: C.textSecondary,
+      borderRadius: ms(4),
+      transform: [{ rotate: '-2deg' }],
     },
+    tick: { position: 'absolute', left: 0, top: -ms(9) },
     privateLabel: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
     privateSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
     errorText: { fontSize: mf(13), color: C.danger },

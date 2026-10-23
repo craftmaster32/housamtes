@@ -7,23 +7,25 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { useHousematesStore } from '@stores/housematesStore';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { SheetHeader } from '@components/bills/recurring/SheetHeader';
 import { type GroceryItem } from '@stores/groceryStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 
 import { mf, ms } from '@utils/responsive';
 
-const REMOVE_RED = '#D94F4F';
 export interface GroceryItemDetailModalProps {
   item: GroceryItem | null;
   visible: boolean;
@@ -48,7 +50,9 @@ export function GroceryItemDetailModal({
   const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeModalStyles(), []);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
+  const overlay = C === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
   const housemate = useHousematesStore((st) => st.housemates.find((h) => h.id === item?.addedBy));
 
   const [comment, setComment] = useState('');
@@ -116,6 +120,8 @@ export function GroceryItemDetailModal({
     ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: dateFnsLocale })
     : '';
 
+  const qtyShown = !canEdit && !!item?.quantity && item.quantity !== '1';
+
   return (
     <Modal
       visible={visible}
@@ -125,139 +131,123 @@ export function GroceryItemDetailModal({
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        style={s.overlay}
+        style={[s.overlay, { backgroundColor: overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable style={s.backdrop} onPress={onClose} accessible={false} />
-        <View style={[s.sheet, { backgroundColor: C.background }]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('grocery.close_details')}
+        />
+        <View style={[s.sheet, { backgroundColor: C.background }]} accessibilityViewIsModal>
           {item && (
             <>
-              <View style={[s.handle, { backgroundColor: C.border }]} />
-              <View style={s.header}>
-                <Text style={[s.title, headingFont, { color: C.textPrimary }]}>
-                  {t('grocery.item_details')}
-                </Text>
-                <Pressable
-                  onPress={onClose}
-                  style={s.closeBtn}
-                  hitSlop={{ top: ms(7), bottom: ms(7), left: ms(7), right: ms(7) }}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('grocery.close_details')}
-                >
-                  <Ionicons name="close" size={22} color={C.textSecondary} />
-                </Pressable>
-              </View>
+              <SheetHeader
+                eyebrow={t('nav.grocery')}
+                title={t('grocery.item_details')}
+                onClose={onClose}
+              />
+              <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+                {/* The item on a slip of the bag's brown paper. */}
+                <View style={[s.slip, { backgroundColor: C.kraft }]}>
+                  {canEdit ? (
+                    <View style={s.editRow}>
+                      <TextInput
+                        value={name}
+                        onChangeText={setName}
+                        placeholder={t('grocery.item_name_placeholder')}
+                        placeholderTextColor={C.kraftMuted}
+                        style={[
+                          s.nameInput,
+                          headingFont,
+                          { color: C.kraftInk, borderBottomColor: C.kraftRule },
+                          noWebOutline,
+                        ]}
+                        accessibilityLabel={t('grocery.item_name_edit')}
+                        accessibilityHint={t('grocery.item_name_edit_hint')}
+                      />
+                      <TextInput
+                        value={quantity}
+                        onChangeText={setQuantity}
+                        placeholder={t('grocery.qty_edit_placeholder')}
+                        placeholderTextColor={C.kraftMuted}
+                        style={[s.qtyInput, hand, { borderBottomColor: C.kraftRule }, noWebOutline]}
+                        accessibilityLabel={t('grocery.qty_edit')}
+                        accessibilityHint={t('grocery.qty_edit_hint')}
+                      />
+                    </View>
+                  ) : (
+                    <View style={s.nameRow}>
+                      <Text
+                        style={[
+                          s.itemName,
+                          headingFont,
+                          { color: C.kraftInk },
+                          item.isChecked && s.done,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      {qtyShown && <Text style={[s.qty, hand]}>{item.quantity}</Text>}
+                    </View>
+                  )}
+                  <View style={s.meta}>
+                    <UserAvatar userId={item.addedBy} size={20} />
+                    <Text style={[s.metaText, { color: C.kraftMuted }]}>
+                      {t('grocery.added_by_meta', { name: addedByName, time: timeAgo })}
+                    </Text>
+                  </View>
+                </View>
 
-              {canEdit ? (
-                <View style={s.editRow}>
+                {/* The note, on a yellow sticky note. */}
+                <View style={s.note}>
                   <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder={t('grocery.item_name_placeholder')}
-                    placeholderTextColor={C.textSecondary}
-                    style={[
-                      s.editInput,
-                      s.editName,
-                      { color: C.textPrimary, backgroundColor: C.surface },
-                    ]}
-                    accessibilityLabel={t('grocery.item_name_edit')}
-                    accessibilityHint={t('grocery.item_name_edit_hint')}
-                  />
-                  <TextInput
-                    value={quantity}
-                    onChangeText={setQuantity}
-                    placeholder={t('grocery.qty_edit_placeholder')}
-                    placeholderTextColor={C.textSecondary}
-                    style={[
-                      s.editInput,
-                      s.editQty,
-                      { color: C.textPrimary, backgroundColor: C.surface },
-                    ]}
-                    accessibilityLabel={t('grocery.qty_edit')}
-                    accessibilityHint={t('grocery.qty_edit_hint')}
+                    value={comment}
+                    onChangeText={handleCommentChange}
+                    placeholder={t('grocery.add_note_placeholder')}
+                    placeholderTextColor="#8A7A55"
+                    style={[s.noteInput, hand, noWebOutline]}
+                    multiline
+                    numberOfLines={3}
+                    maxLength={200}
+                    textAlignVertical="top"
+                    accessible
+                    accessibilityRole="text"
+                    accessibilityLabel={t('grocery.item_note')}
+                    accessibilityHint={t('grocery.item_note_hint')}
                   />
                 </View>
-              ) : (
-                <Text
-                  style={[s.itemName, { color: C.textPrimary }, item.isChecked && s.itemNameDone]}
-                >
-                  {item.name}
-                </Text>
-              )}
+                {!!saveError && <Text style={[s.saveError, { color: C.danger }]}>{saveError}</Text>}
 
-              <View style={s.meta}>
-                {!!item.quantity && item.quantity !== '1' && (
-                  <View style={[s.qtyBadge, { backgroundColor: C.secondary }]}>
-                    <Text style={[s.qtyText, { color: C.textSecondary }]}>{item.quantity}</Text>
-                  </View>
-                )}
-                <UserAvatar userId={item.addedBy} size={20} />
-                <Text style={[s.metaText, { color: C.textSecondary }]}>
-                  {t('grocery.added_by_meta', { name: addedByName, time: timeAgo })}
-                </Text>
-              </View>
-
-              <View style={[s.commentBox, { backgroundColor: C.surface, borderColor: C.border }]}>
-                <TextInput
-                  value={comment}
-                  onChangeText={handleCommentChange}
-                  placeholder={t('grocery.add_note_placeholder')}
-                  placeholderTextColor={C.textSecondary}
-                  style={[s.commentInput, { color: C.textPrimary }]}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={200}
-                  textAlignVertical="top"
-                  accessible
-                  accessibilityRole="text"
-                  accessibilityLabel={t('grocery.item_note')}
-                  accessibilityHint={t('grocery.item_note_hint')}
-                />
-              </View>
-              {!!saveError && <Text style={s.saveError}>{saveError}</Text>}
-
-              <View style={s.actions}>
-                <Pressable
-                  onPress={onClose}
-                  style={[s.btn, { borderColor: C.border }]}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.cancel')}
-                >
-                  <Text style={[s.btnText, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
-                </Pressable>
                 <Pressable
                   onPress={handleSave}
                   disabled={isSaving}
-                  style={[
-                    s.btn,
-                    s.btnPrimary,
+                  style={({ pressed }) => [
+                    s.primary,
                     { backgroundColor: C.primary },
-                    isSaving && s.btnOff,
+                    (isSaving || pressed) && s.dim,
                   ]}
                   accessible
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSaving }}
                   accessibilityLabel={isSaving ? t('grocery.saving') : saveLabel}
                 >
-                  <Text style={[s.btnText, s.btnPrimaryText]}>
-                    {isSaving ? t('grocery.saving') : saveLabel}
+                  <Text style={s.primaryText}>{isSaving ? t('grocery.saving') : saveLabel}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleDelete}
+                  style={({ pressed }) => [s.remove, pressed && s.dim]}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
+                  accessibilityHint={t('grocery.remove_item_hint')}
+                >
+                  <Text style={[s.removeText, { color: C.negative }]}>
+                    {t('grocery.remove_from_list')}
                   </Text>
                 </Pressable>
-              </View>
-
-              <Pressable
-                onPress={handleDelete}
-                style={s.removeBtn}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
-                accessibilityHint={t('grocery.remove_item_hint')}
-              >
-                <Ionicons name="trash-outline" size={17} color={REMOVE_RED} />
-                <Text style={s.removeBtnText}>{t('grocery.remove_from_list')}</Text>
-              </Pressable>
+              </ScrollView>
             </>
           )}
         </View>
@@ -266,92 +256,83 @@ export function GroceryItemDetailModal({
   );
 }
 
+// The browser draws its own focus box around inputs; the lines are enough.
+const noWebOutline = (Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) as ViewStyle;
+
 function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end' },
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(34,32,29,0.42)' },
     sheet: {
       borderTopLeftRadius: ms(26),
       borderTopRightRadius: ms(26),
-      padding: ms(22),
-      paddingBottom: ms(40),
-      gap: ms(14),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(-4) },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      elevation: 10,
-    },
-    handle: {
-      width: ms(40),
-      height: ms(4),
-      borderRadius: ms(2),
+      maxHeight: '92%',
+      width: '100%',
+      maxWidth: 560,
       alignSelf: 'center',
-      marginBottom: ms(2),
     },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    title: { fontSize: mf(21), letterSpacing: -0.3 },
-    closeBtn: {
-      width: ms(30),
-      height: ms(30),
-      borderRadius: ms(15),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    itemName: { fontSize: mf(22), ...font.bold, lineHeight: mf(30) },
-    itemNameDone: { textDecorationLine: 'line-through', opacity: 0.5 },
-    editRow: { flexDirection: 'row', gap: ms(8) },
-    editInput: {
-      height: ms(48),
-      borderRadius: ms(14),
-      paddingHorizontal: ms(12),
-      fontSize: mf(17),
-      ...font.semibold,
-    },
-    editName: { flex: 1, minWidth: 0 },
-    editQty: { width: ms(76), textAlign: 'center' },
-    meta: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexWrap: 'wrap' },
-    qtyBadge: { paddingHorizontal: ms(8), paddingVertical: ms(3), borderRadius: ms(6) },
-    qtyText: { fontSize: mf(13), ...font.bold },
-    metaText: { fontSize: mf(13), ...font.regular },
-    commentBox: { borderRadius: ms(12), borderWidth: 1, padding: ms(12) },
-    commentInput: {
-      fontSize: mf(15),
-      ...font.regular,
-      minHeight: ms(72),
-      // The box around this field already shows focus; drop the browser's own ring.
-      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
-    },
-    saveError: { fontSize: mf(12), color: REMOVE_RED },
-    actions: { flexDirection: 'row', gap: ms(10), marginTop: ms(2) },
-    btn: {
-      flex: 1,
-      height: ms(50),
-      borderRadius: ms(14),
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1.5,
-    },
-    btnPrimary: {
-      borderWidth: 0,
-      shadowColor: '#3B6FBF',
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.28,
-      shadowRadius: 16,
-      elevation: 6,
-    },
-    btnOff: { opacity: 0.5 },
-    btnText: { fontSize: mf(15), ...font.bold },
-    btnPrimaryText: { color: '#FFFFFF' },
-    removeBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      minHeight: ms(44),
-      alignSelf: 'center',
+    body: { padding: ms(20), paddingTop: ms(8), paddingBottom: ms(36), gap: ms(16) },
+    slip: {
+      borderRadius: ms(4),
       paddingHorizontal: ms(16),
+      paddingVertical: ms(14),
+      gap: ms(8),
+      transform: [{ rotate: '-0.4deg' }],
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: ms(5) },
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
+      elevation: 3,
     },
-    removeBtnText: { fontSize: mf(14), ...font.bold, color: REMOVE_RED },
+    nameRow: { flexDirection: 'row', alignItems: 'baseline', gap: ms(8), flexWrap: 'wrap' },
+    itemName: { fontSize: mf(26), lineHeight: mf(33), letterSpacing: -0.3 },
+    done: { textDecorationLine: 'line-through', opacity: 0.6 },
+    qty: { fontSize: mf(24), color: '#3B6FBF', writingDirection: 'ltr' },
+    editRow: { flexDirection: 'row', alignItems: 'flex-end', gap: ms(12) },
+    nameInput: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: mf(22),
+      paddingVertical: ms(6),
+      borderBottomWidth: 2,
+    },
+    qtyInput: {
+      width: ms(84),
+      fontSize: mf(22),
+      color: '#3B6FBF',
+      paddingVertical: ms(6),
+      borderBottomWidth: 2,
+      textAlign: 'center',
+    },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: ms(7) },
+    metaText: { fontSize: mf(13), ...font.medium },
+    note: {
+      backgroundColor: '#FCE9A8',
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(10),
+      transform: [{ rotate: '0.6deg' }],
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: ms(3) },
+      shadowOpacity: 0.1,
+      shadowRadius: 5,
+      elevation: 2,
+    },
+    noteInput: {
+      minHeight: ms(70),
+      fontSize: mf(20),
+      lineHeight: mf(24),
+      color: '#3A3221',
+      padding: 0,
+    },
+    saveError: { fontSize: mf(13) },
+    primary: {
+      minHeight: 52,
+      borderRadius: ms(17),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    primaryText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
+    remove: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    removeText: { fontSize: mf(15), ...font.semibold },
+    dim: { opacity: 0.5 },
   });
 }
