@@ -4,7 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { Mate } from '@components/shared/Mate';
+import { asWord } from '@utils/asWord';
 import { font } from '@constants/typography';
 import { useMemberName } from '@hooks/useMemberName';
 import { useAuthStore } from '@stores/authStore';
@@ -57,6 +61,9 @@ export function ActivityPopup({
   const memberName = useMemberName();
   const myId = useAuthStore((s) => s.profile?.id) ?? '';
   const insets = useSafeAreaInsets();
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
+  const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
   const entries = useHouseActivity();
   const actionItems = useActionItems();
 
@@ -122,7 +129,7 @@ export function ActivityPopup({
       >
         <View style={styles.avatarWrap}>
           <UserAvatar userId={e.actorId} size={46} />
-          <View style={[styles.typeBadge, { backgroundColor: color, borderColor: c.surface }]}>
+          <View style={[styles.typeBadge, { backgroundColor: color, borderColor: c.background }]}>
             <Ionicons name={e.icon} size={11} color="#fff" />
           </View>
         </View>
@@ -132,11 +139,11 @@ export function ActivityPopup({
             {!!e.detail && <Text style={font.semibold}> {e.detail}</Text>}
           </Text>
           {needsYou ? (
-            <View style={[styles.actionTag, { backgroundColor: color + '22' }]}>
-              <Text style={[styles.actionTagText, { color }]}>{t('activity.tap_to_act')}</Text>
-            </View>
+            <Text style={[styles.hand, hand, { color }]}>{t('activity.tap_to_act')}</Text>
           ) : (
-            <Text style={[styles.time, { color: c.textTertiary }]}>{timeAgo(e.createdAt, t)}</Text>
+            <Text style={[styles.hand, hand, { color: c.textSecondary }]}>
+              {timeAgo(e.createdAt, t)}
+            </Text>
           )}
         </View>
         {unread && <View style={[styles.unreadDot, { backgroundColor: c.primary }]} />}
@@ -147,21 +154,26 @@ export function ActivityPopup({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
-        style={[styles.backdrop, { paddingTop: topPad, paddingBottom: bottomPad }]}
+        style={[
+          styles.backdrop,
+          { paddingTop: topPad, paddingBottom: bottomPad, backgroundColor: overlay },
+        ]}
         onPress={onClose}
         accessibilityRole="button"
         accessibilityLabel={t('common.close')}
       >
         <Pressable
-          style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
+          style={[styles.panel, { backgroundColor: c.background }]}
           onPress={() => {}}
           accessible={false}
         >
-          <Text style={[styles.title, { color: c.textPrimary }]}>{t('activity.title')}</Text>
+          <Text style={[styles.title, heading, { color: c.textPrimary }]}>
+            {t('activity.title')}
+          </Text>
 
           {sections.length === 0 && actionItems.length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons name="notifications-off-outline" size={26} color={c.textTertiary} />
+              <Mate size={ms(72)} />
               <Text style={[styles.emptyText, { color: c.textSecondary }]}>
                 {t('activity.empty')}
               </Text>
@@ -170,15 +182,17 @@ export function ActivityPopup({
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {actionItems.length > 0 && (
                 <View>
-                  <Text style={[styles.sectionHeader, { color: c.primary }]}>
-                    {t('activity.needs_you')}
+                  <Text style={[styles.sectionHeader, heading, { color: c.primary }]}>
+                    {asWord(t('activity.needs_you'))}
                   </Text>
                   {actionItems.map((e) => renderRow(e, { needsYou: true }))}
                 </View>
               )}
               {sections.map((s) => (
                 <View key={s.key}>
-                  <Text style={[styles.sectionHeader, { color: c.textSecondary }]}>{s.title}</Text>
+                  <Text style={[styles.sectionHeader, heading, { color: c.textPrimary }]}>
+                    {asWord(s.title)}
+                  </Text>
                   {s.data.map((e) => renderRow(e))}
                 </View>
               ))}
@@ -193,7 +207,6 @@ export function ActivityPopup({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     paddingHorizontal: ms(12),
     alignItems: 'center',
   },
@@ -204,9 +217,8 @@ const styles = StyleSheet.create({
     // the inner list scrolls rather than the panel overflowing the screen.
     flexShrink: 1,
     minHeight: 0,
-    borderRadius: ms(22),
+    borderRadius: ms(26),
     overflow: 'hidden',
-    borderWidth: 1,
     paddingHorizontal: ms(16),
     paddingTop: ms(18),
     paddingBottom: ms(10),
@@ -216,18 +228,11 @@ const styles = StyleSheet.create({
     shadowRadius: 34,
     elevation: 14,
   },
-  title: { fontSize: mf(22), ...font.extrabold, marginBottom: ms(6), letterSpacing: -0.5 },
+  title: { fontSize: mf(26), lineHeight: mf(33), marginBottom: ms(4), letterSpacing: -0.4 },
   // flexShrink lets the list give up height so the panel fits; minHeight:0 is
   // required for that shrink to work on web (default min-height:auto blocks it).
   list: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
-  sectionHeader: {
-    fontSize: mf(12),
-    ...font.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: ms(12),
-    marginBottom: ms(2),
-  },
+  sectionHeader: { fontSize: mf(17), lineHeight: mf(23), marginTop: ms(12), marginBottom: ms(2) },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,15 +255,7 @@ const styles = StyleSheet.create({
   },
   rowBody: { flex: 1, minWidth: 0 },
   rowText: { fontSize: mf(15), ...font.regular, lineHeight: mf(20) },
-  time: { fontSize: mf(12.5), ...font.medium, marginTop: ms(3) },
-  actionTag: {
-    alignSelf: 'flex-start',
-    marginTop: ms(4),
-    paddingHorizontal: ms(8),
-    paddingVertical: ms(2),
-    borderRadius: 9999,
-  },
-  actionTagText: { fontSize: mf(11), ...font.bold, letterSpacing: 0.2 },
+  hand: { fontSize: mf(17), lineHeight: mf(20), marginTop: ms(2) },
   unreadDot: {
     width: ms(9),
     height: ms(9),

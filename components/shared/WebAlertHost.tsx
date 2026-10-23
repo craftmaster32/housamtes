@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 import {
@@ -18,6 +19,8 @@ export function WebAlertHost(): React.JSX.Element | null {
   const pending = useSyncExternalStore(subscribeWebAlert, getWebAlertSnapshot, () => null);
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(), []);
+  const heading = useHeadingFont('semibold');
+  const overlay = C === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
 
   const handlePress = useCallback((button: AlertButton): void => {
     clearWebAlert();
@@ -35,14 +38,14 @@ export function WebAlertHost(): React.JSX.Element | null {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={handleRequestClose}>
       <Pressable
-        style={s.backdrop}
+        style={[s.backdrop, { backgroundColor: overlay }]}
         onPress={handleRequestClose}
         accessible={false}
         accessibilityElementsHidden
       />
       <View style={s.centerer} pointerEvents="box-none">
-        <View style={[s.sheet, { backgroundColor: C.surface }]}>
-          <Text style={[s.title, { color: C.textPrimary }]}>{pending.title}</Text>
+        <View style={[s.sheet, { backgroundColor: C.background }]}>
+          <Text style={[s.title, heading, { color: C.textPrimary }]}>{pending.title}</Text>
           {!!pending.message && (
             <Text style={[s.message, { color: C.textSecondary }]}>{pending.message}</Text>
           )}
@@ -58,7 +61,7 @@ export function WebAlertHost(): React.JSX.Element | null {
               <Text
                 style={[
                   s.btnText,
-                  { color: C.textPrimary },
+                  { color: C.primary },
                   button.style === 'destructive' && { color: C.danger },
                   button.style === 'cancel' && { color: C.textSecondary },
                 ]}
@@ -75,23 +78,25 @@ export function WebAlertHost(): React.JSX.Element | null {
 
 function makeStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+    backdrop: { ...StyleSheet.absoluteFillObject },
     centerer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: ms(24) },
     sheet: {
       width: '100%',
       maxWidth: ms(400),
-      borderRadius: ms(16),
-      padding: ms(20),
-      gap: ms(4),
+      borderRadius: ms(26),
+      paddingHorizontal: ms(22),
+      paddingTop: ms(22),
+      paddingBottom: ms(8),
+      gap: ms(2),
     },
-    title: { fontSize: mf(17), ...font.bold, marginBottom: ms(4) },
-    message: { fontSize: mf(14), ...font.regular, marginBottom: ms(12) },
+    title: { fontSize: mf(22), lineHeight: mf(28), marginBottom: ms(4) },
+    message: { fontSize: mf(14.5), lineHeight: mf(21), ...font.regular, marginBottom: ms(12) },
     btn: {
       minHeight: ms(48),
       justifyContent: 'center',
       paddingHorizontal: ms(4),
       borderTopWidth: StyleSheet.hairlineWidth,
     },
-    btnText: { fontSize: mf(15), ...font.medium },
+    btnText: { fontSize: mf(15.5), ...font.semibold },
   });
 }
