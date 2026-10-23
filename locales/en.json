@@ -1477,8 +1477,8 @@
   },
   "photos": {
     "title": "Photos",
-    "no_photos": "No photos yet — does this house even exist? 📸",
-    "no_photos_hint": "Tap the camera icon above to prove you live here. 📸",
+    "no_photos": "No photos yet — does this house even exist?",
+    "no_photos_hint": "Tap the camera icon above to prove you live here.",
     "add_photo": "Add photo",
     "take_photo": "Take photo",
     "choose_from_library": "Choose from library",
@@ -1489,6 +1489,7 @@
     "delete_confirm": "Remove this photo for everyone?",
     "delete_error": "Could not delete the photo. Please try again.",
     "limit_title": "Photo limit reached",
+    "uploading": "Uploading…",
     "upload_failed": "Upload failed. Try again.",
     "permission_denied": "Permission denied",
     "pick_failed": "Could not add photos. Please try again.",
