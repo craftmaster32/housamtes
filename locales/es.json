@@ -1860,7 +1860,8 @@
     "notify_appliance_done": "Máquina terminada",
     "notify_appliance_done_sub": "Cuando termina un ciclo de lavadora, secadora o lavavajillas",
     "notify_grocery_stale": "Artículos que esperan demasiado",
-    "notify_grocery_stale_sub": "Cuando algo lleva 3+ días en la lista"
+    "notify_grocery_stale_sub": "Cuando algo lleva 3+ días en la lista",
+    "notifications_footer": "Los cambios se guardan al instante. Las notificaciones solo llegan a un teléfono con la app instalada."
   },
   "members": {
     "title": "Permisos de miembros",

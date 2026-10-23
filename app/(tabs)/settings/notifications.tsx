@@ -1,160 +1,44 @@
 import { useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Switch, Pressable, type ViewStyle } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import {
   useNotificationStore,
   type BillDueDays,
   type EventReminderDays,
+  type NotificationPrefs,
 } from '@stores/notificationStore';
 import { useAuthStore } from '@stores/authStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { sizes } from '@constants/sizes';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
 import { useWebPushToggle } from '@hooks/useWebPushToggle';
-
+import { BackLink } from '@components/shared/BackLink';
+import { InkTickBox } from '@components/shared/InkTickBox';
+import { SettingsLine } from '@components/settings/SettingsLine';
+import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { mf, ms } from '@utils/responsive';
+
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 const EVENT_DAYS_OPTIONS: EventReminderDays[] = [0, 1, 2, 3, 7];
 
-const makeStyles = (C: ColorTokens) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-    scroll: { padding: sizes.lg, gap: sizes.md, paddingBottom: ms(60) },
-    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
-    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
+type BoolPref = {
+  [K in keyof NotificationPrefs]: NotificationPrefs[K] extends boolean ? K : never;
+}[keyof NotificationPrefs];
 
-    header: { gap: ms(4), marginBottom: sizes.xs },
-    backBtn: { alignSelf: 'flex-start', marginBottom: sizes.sm },
-    backText: { color: C.primary, fontSize: mf(15), ...font.semibold },
-    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    subheading: { fontSize: mf(14), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
-
-    sectionTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(6),
-      marginTop: sizes.xs,
-    },
-    sectionTitle: {
-      fontSize: mf(13),
-      ...font.semibold,
-      color: C.textSecondary,
-      letterSpacing: 0.5,
-    },
-    card: {
-      backgroundColor: C.surface,
-      borderRadius: ms(14),
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: sizes.md,
-      paddingVertical: ms(14),
-      gap: sizes.md,
-    },
-    rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
-    rowText: { flex: 1 },
-    rowLabel: { fontSize: mf(15), ...font.medium, color: C.textPrimary },
-    rowDesc: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
-    pushRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: sizes.md,
-      paddingVertical: ms(14),
-      gap: sizes.md,
-    },
-    pushIcon: {
-      width: ms(36),
-      height: ms(36),
-      borderRadius: sizes.borderRadiusSm,
-      backgroundColor: C.background,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-
-    daysRow: {
-      paddingHorizontal: sizes.md,
-      paddingBottom: sizes.md,
-      gap: sizes.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: C.border,
-      paddingTop: sizes.sm,
-    },
-    daysLabel: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
-    daysOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    dayChip: {
-      paddingVertical: ms(7),
-      paddingHorizontal: sizes.sm,
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1.5,
-      borderColor: C.border,
-      backgroundColor: C.surface,
-    },
-    dayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    dayChipText: { fontSize: mf(13), ...font.medium, color: C.textPrimary },
-    dayChipTextActive: { color: '#fff' },
-
-    footer: {
-      fontSize: mf(12),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      marginTop: sizes.sm,
-      lineHeight: mf(18),
-    },
-  });
-
-interface ToggleRowProps {
+interface Toggle {
+  key: BoolPref;
   label: string;
-  description?: string;
-  value: boolean;
-  onToggle: (v: boolean) => void;
-  isLast?: boolean;
+  sub: string;
 }
 
-function ToggleRow({
-  label,
-  description,
-  value,
-  onToggle,
-  isLast,
-}: ToggleRowProps): React.JSX.Element {
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  return (
-    <View style={[styles.row, !isLast && styles.rowBorder]}>
-      <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {description ? <Text style={styles.rowDesc}>{description}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        accessible
-        accessibilityRole="switch"
-        accessibilityLabel={label}
-        accessibilityHint={description}
-        accessibilityState={{ checked: value }}
-        trackColor={{ false: C.border, true: C.primary + '80' }}
-        thumbColor={value ? C.primary : C.surface}
-        activeThumbColor={C.primary}
-        style={styles.switchLtr}
-      />
-    </View>
-  );
+interface Group {
+  title: string;
+  toggles: Toggle[];
+  /** Extra line under the group, e.g. how many days ahead. */
+  extra?: React.ReactNode;
 }
 
 export default function NotificationSettingsScreen(): React.JSX.Element {
@@ -163,307 +47,270 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
   const updatePrefs = useNotificationStore((s) => s.update);
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
-
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
-
+  const c = useThemedColors();
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
   const { webPushOn, webPushStatus, handleToggleWebPush } = useWebPushToggle();
 
   const save = useCallback(
-    (changes: Parameters<typeof updatePrefs>[2]) => {
+    (changes: Parameters<typeof updatePrefs>[2]): void => {
       if (!user?.id || !houseId) return;
       updatePrefs(user.id, houseId, changes);
     },
     [user, houseId, updatePrefs]
   );
 
-  const handleBack = useCallback((): void => {
-    goBack();
-  }, []);
-  const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
-  const handleSelectEventDay = useCallback(
-    (d: EventReminderDays) => save({ eventReminderDaysBefore: d }),
-    [save]
+  const billDays = useMemo<ChoiceWord<string>[]>(
+    () =>
+      DAYS_OPTIONS.map((d) => ({
+        value: String(d),
+        label: `${t('common.day', { count: d })} ${t('settings.before_due')}`,
+      })),
+    [t]
   );
-  const eventDayLabel = useCallback(
-    (d: EventReminderDays): string =>
-      d === 0
-        ? t('settings.event_on_day')
-        : `${t('common.day', { count: d })} ${t('settings.before_event')}`,
+  const eventDays = useMemo<ChoiceWord<string>[]>(
+    () =>
+      EVENT_DAYS_OPTIONS.map((d) => ({
+        value: String(d),
+        label:
+          d === 0
+            ? t('settings.event_on_day')
+            : `${t('common.day', { count: d })} ${t('settings.before_event')}`,
+      })),
     [t]
   );
 
-  return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.header}>
-            <Pressable
-              onPress={handleBack}
-              style={styles.backBtn}
-              hitSlop={12}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('common.back')}
-            >
-              <Text style={styles.backText}>{t('common.back')}</Text>
-            </Pressable>
-            <Text style={[styles.heading, headingFont]}>{t('nav.settings')}</Text>
-            <Text style={styles.subheading}>{t('settings.notifications_section')}</Text>
-          </View>
+  const remindMe = (
+    words: ChoiceWord<string>[],
+    selected: number,
+    onPick: (v: string) => void
+  ): React.JSX.Element => (
+    <View style={styles.extra}>
+      <Text style={[styles.extraLabel, { color: c.textSecondary }]}>{t('settings.remind_me')}</Text>
+      <ChoiceWords
+        options={words}
+        selected={String(selected)}
+        onSelect={onPick}
+        groupLabel={t('settings.remind_me')}
+      />
+    </View>
+  );
 
-          {webPushStatus !== 'unavailable' && (
-            <View style={styles.card}>
-              <View style={styles.pushRow}>
-                <View style={styles.pushIcon}>
-                  <Ionicons name="notifications-outline" size={18} color={C.primary} />
-                </View>
-                <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>{t('settings.browser_notifications')}</Text>
-                  <Text style={styles.rowDesc}>
-                    {webPushStatus === 'denied'
-                      ? t('settings.notifications_blocked')
-                      : webPushOn
-                        ? t('settings.notifications_enabled')
-                        : t('settings.notifications_tap_enable')}
-                  </Text>
-                </View>
-                <Switch
-                  value={webPushOn}
-                  onValueChange={handleToggleWebPush}
+  const groups: Group[] = [
+    {
+      title: t('nav.bills'),
+      toggles: [
+        {
+          key: 'notifyBillAdded',
+          label: t('settings.notify_bill_added'),
+          sub: t('settings.notify_bill_added_sub'),
+        },
+        {
+          key: 'notifyBillSettled',
+          label: t('settings.notify_bill_settled'),
+          sub: t('settings.notify_bill_settled_sub'),
+        },
+        {
+          key: 'notifyBillDue',
+          label: t('settings.notify_bill_due'),
+          sub: t('settings.notify_bill_due_sub'),
+        },
+      ],
+      extra: prefs.notifyBillDue
+        ? remindMe(billDays, prefs.billDueDaysBefore, (v) =>
+            save({ billDueDaysBefore: Number(v) as BillDueDays })
+          )
+        : null,
+    },
+    {
+      title: t('nav.parking'),
+      toggles: [
+        {
+          key: 'notifyParkingClaimed',
+          label: t('settings.notify_parking_claimed'),
+          sub: t('settings.notify_parking_claimed_sub'),
+        },
+        {
+          key: 'notifyParkingReservation',
+          label: t('settings.notify_parking_reservation'),
+          sub: t('settings.notify_parking_reservation_sub'),
+        },
+      ],
+    },
+    {
+      title: t('nav.machines'),
+      toggles: [
+        {
+          key: 'notifyApplianceDone',
+          label: t('settings.notify_appliance_done'),
+          sub: t('settings.notify_appliance_done_sub'),
+        },
+      ],
+    },
+    {
+      title: t('nav.grocery'),
+      toggles: [
+        {
+          key: 'notifyGroceryStale',
+          label: t('settings.notify_grocery_stale'),
+          sub: t('settings.notify_grocery_stale_sub'),
+        },
+      ],
+    },
+    {
+      title: t('nav.chores'),
+      toggles: [
+        {
+          key: 'notifyChoreOverdue',
+          label: t('settings.notify_chore'),
+          sub: t('settings.notify_chore_sub'),
+        },
+      ],
+    },
+    {
+      title: t('nav.calendar'),
+      toggles: [
+        {
+          key: 'notifyEventAdded',
+          label: t('settings.notify_event_added'),
+          sub: t('settings.notify_event_added_sub'),
+        },
+        {
+          key: 'notifyEventReminder',
+          label: t('settings.notify_event_reminder'),
+          sub: t('settings.notify_event_reminder_sub'),
+        },
+      ],
+      extra: prefs.notifyEventReminder
+        ? remindMe(eventDays, prefs.eventReminderDaysBefore, (v) =>
+            save({ eventReminderDaysBefore: Number(v) as EventReminderDays })
+          )
+        : null,
+    },
+    {
+      title: t('nav.tasks'),
+      toggles: [
+        {
+          key: 'notifyTaskAssigned',
+          label: t('settings.notify_task_assigned'),
+          sub: t('settings.notify_task_assigned_sub'),
+        },
+      ],
+    },
+    {
+      title: t('nav.chat'),
+      toggles: [
+        {
+          key: 'notifyChatMessage',
+          label: t('settings.notify_chat'),
+          sub: t('settings.notify_chat_sub'),
+        },
+      ],
+    },
+    {
+      title: t('settings.fun_section'),
+      toggles: [
+        {
+          key: 'notifyDailyJoke',
+          label: t('settings.notify_daily_joke'),
+          sub: t('settings.notify_daily_joke_sub'),
+        },
+      ],
+    },
+  ];
+
+  const card = [styles.card, { backgroundColor: c.surface }];
+  const section = [styles.section, heading, { color: c.textPrimary }];
+
+  return (
+    <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
+      <View style={styles.backRow}>
+        <BackLink label={t('nav.settings')} />
+      </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={[styles.title, heading, { color: c.textPrimary }]} accessibilityRole="header">
+          {t('settings.menu_notifications')}
+        </Text>
+
+        {webPushStatus !== 'unavailable' && (
+          <View style={[card, styles.first]}>
+            <SettingsLine
+              label={t('settings.browser_notifications')}
+              sub={
+                webPushStatus === 'denied'
+                  ? t('settings.notifications_blocked')
+                  : webPushOn
+                    ? t('settings.notifications_enabled')
+                    : t('settings.notifications_tap_enable')
+              }
+              right={
+                <InkTickBox
+                  checked={webPushOn}
+                  onChange={handleToggleWebPush}
                   disabled={webPushStatus === 'denied'}
-                  accessible
-                  accessibilityRole="switch"
                   accessibilityLabel={t('settings.browser_notifications')}
                   accessibilityHint={
                     webPushOn
                       ? t('settings.notifications_hint_disable')
                       : t('settings.notifications_hint_enable')
                   }
-                  accessibilityState={{ checked: webPushOn, disabled: webPushStatus === 'denied' }}
-                  trackColor={{ false: C.border, true: C.primary + '80' }}
-                  thumbColor={webPushOn ? C.primary : C.surface}
-                  activeThumbColor={C.primary}
-                  style={styles.switchLtr}
                 />
-              </View>
+              }
+              last
+            />
+          </View>
+        )}
+
+        {groups.map((g) => (
+          <View key={g.title}>
+            <Text style={section} accessibilityRole="header">
+              {g.title}
+            </Text>
+            <View style={card}>
+              {g.toggles.map((tg, i) => (
+                <SettingsLine
+                  key={tg.key}
+                  label={tg.label}
+                  sub={tg.sub}
+                  last={i === g.toggles.length - 1 && !g.extra}
+                  right={
+                    <InkTickBox
+                      checked={prefs[tg.key]}
+                      onChange={(v) => save({ [tg.key]: v })}
+                      accessibilityLabel={tg.label}
+                      accessibilityHint={tg.sub}
+                    />
+                  }
+                />
+              ))}
+              {g.extra}
             </View>
-          )}
+          </View>
+        ))}
 
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="cash-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.bills')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_bill_added')}
-              description={t('settings.notify_bill_added_sub')}
-              value={prefs.notifyBillAdded}
-              onToggle={(v) => save({ notifyBillAdded: v })}
-            />
-            <ToggleRow
-              label={t('settings.notify_bill_settled')}
-              description={t('settings.notify_bill_settled_sub')}
-              value={prefs.notifyBillSettled}
-              onToggle={(v) => save({ notifyBillSettled: v })}
-            />
-            <ToggleRow
-              label={t('settings.notify_bill_due')}
-              description={t('settings.notify_bill_due_sub')}
-              value={prefs.notifyBillDue}
-              onToggle={(v) => save({ notifyBillDue: v })}
-              isLast={!prefs.notifyBillDue}
-            />
-            {prefs.notifyBillDue && (
-              <View style={styles.daysRow}>
-                <Text style={styles.daysLabel}>{t('settings.remind_me')}</Text>
-                <View style={styles.daysOptions}>
-                  {DAYS_OPTIONS.map((d) => (
-                    <Pressable
-                      key={d}
-                      style={[
-                        styles.dayChip,
-                        prefs.billDueDaysBefore === d && styles.dayChipActive,
-                      ]}
-                      onPress={() => handleSelectDay(d)}
-                      accessible
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: prefs.billDueDaysBefore === d }}
-                    >
-                      <Text
-                        style={[
-                          styles.dayChipText,
-                          prefs.billDueDaysBefore === d && styles.dayChipTextActive,
-                        ]}
-                      >
-                        {t('common.day', { count: d })} {t('settings.before_due')}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="car-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.parking')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_parking_claimed')}
-              description={t('settings.notify_parking_claimed_sub')}
-              value={prefs.notifyParkingClaimed}
-              onToggle={(v) => save({ notifyParkingClaimed: v })}
-            />
-            <ToggleRow
-              label={t('settings.notify_parking_reservation')}
-              description={t('settings.notify_parking_reservation_sub')}
-              value={prefs.notifyParkingReservation}
-              onToggle={(v) => save({ notifyParkingReservation: v })}
-              isLast
-            />
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="sync-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.machines')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_appliance_done')}
-              description={t('settings.notify_appliance_done_sub')}
-              value={prefs.notifyApplianceDone}
-              onToggle={(v) => save({ notifyApplianceDone: v })}
-              isLast
-            />
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="cart-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.grocery')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_grocery_stale')}
-              description={t('settings.notify_grocery_stale_sub')}
-              value={prefs.notifyGroceryStale}
-              onToggle={(v) => save({ notifyGroceryStale: v })}
-              isLast
-            />
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="sparkles-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.chores')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_chore')}
-              description={t('settings.notify_chore_sub')}
-              value={prefs.notifyChoreOverdue}
-              onToggle={(v) => save({ notifyChoreOverdue: v })}
-              isLast
-            />
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="calendar-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.calendar')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_event_added')}
-              description={t('settings.notify_event_added_sub')}
-              value={prefs.notifyEventAdded}
-              onToggle={(v) => save({ notifyEventAdded: v })}
-            />
-            <ToggleRow
-              label={t('settings.notify_event_reminder')}
-              description={t('settings.notify_event_reminder_sub')}
-              value={prefs.notifyEventReminder}
-              onToggle={(v) => save({ notifyEventReminder: v })}
-              isLast={!prefs.notifyEventReminder}
-            />
-            {prefs.notifyEventReminder && (
-              <View style={styles.daysRow}>
-                <Text style={styles.daysLabel}>{t('settings.remind_me')}</Text>
-                <View style={styles.daysOptions}>
-                  {EVENT_DAYS_OPTIONS.map((d) => (
-                    <Pressable
-                      key={d}
-                      style={[
-                        styles.dayChip,
-                        prefs.eventReminderDaysBefore === d && styles.dayChipActive,
-                      ]}
-                      onPress={() => handleSelectEventDay(d)}
-                      accessible
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: prefs.eventReminderDaysBefore === d }}
-                    >
-                      <Text
-                        style={[
-                          styles.dayChipText,
-                          prefs.eventReminderDaysBefore === d && styles.dayChipTextActive,
-                        ]}
-                      >
-                        {eventDayLabel(d)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="list-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.tasks')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_task_assigned')}
-              description={t('settings.notify_task_assigned_sub')}
-              value={prefs.notifyTaskAssigned}
-              onToggle={(v) => save({ notifyTaskAssigned: v })}
-              isLast
-            />
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('nav.chat')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_chat')}
-              description={t('settings.notify_chat_sub')}
-              value={prefs.notifyChatMessage}
-              onToggle={(v) => save({ notifyChatMessage: v })}
-              isLast
-            />
-          </View>
-
-          <View style={styles.sectionTitleRow}>
-            <Ionicons name="happy-outline" size={15} color={C.textSecondary} />
-            <Text style={styles.sectionTitle}>{t('settings.fun_section')}</Text>
-          </View>
-          <View style={styles.card}>
-            <ToggleRow
-              label={t('settings.notify_daily_joke')}
-              description={t('settings.notify_daily_joke_sub')}
-              value={prefs.notifyDailyJoke}
-              onToggle={(v) => save({ notifyDailyJoke: v })}
-              isLast
-            />
-          </View>
-
-          <Text style={styles.footer}>
-            Changes save instantly. Notifications only work on a real device build, not in Expo Go.
-          </Text>
-        </ScrollView>
-      </View>
+        <Text style={[styles.footer, hand, { color: c.textSecondary }]}>
+          {t('settings.notifications_footer')}
+        </Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  backRow: { paddingHorizontal: ms(20), paddingTop: ms(8) },
+  scroll: { paddingHorizontal: ms(20), paddingBottom: ms(80) },
+  title: {
+    fontSize: mf(36),
+    lineHeight: mf(46),
+    paddingBottom: ms(2),
+    letterSpacing: -0.5,
+    marginTop: ms(4),
+  },
+  first: { marginTop: ms(16) },
+  section: { fontSize: mf(22), lineHeight: mf(29), marginTop: ms(26), marginBottom: ms(10) },
+  card: { borderRadius: ms(22), paddingHorizontal: ms(18), paddingVertical: ms(2) },
+  extra: { paddingVertical: ms(10), gap: ms(2) },
+  extraLabel: { fontSize: mf(13), ...font.semibold },
+  footer: { fontSize: mf(19), lineHeight: mf(23), textAlign: 'center', marginTop: ms(24) },
+});

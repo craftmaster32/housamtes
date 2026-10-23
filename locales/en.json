@@ -1825,7 +1825,8 @@
     "notify_appliance_done": "Machine finished",
     "notify_appliance_done_sub": "When a washer, dryer or dishwasher cycle ends",
     "notify_grocery_stale": "Items waiting too long",
-    "notify_grocery_stale_sub": "When something has been on the list for 3+ days"
+    "notify_grocery_stale_sub": "When something has been on the list for 3+ days",
+    "notifications_footer": "Changes save straight away. Notifications only reach a phone with the app installed."
   },
   "members": {
     "title": "Member Permissions",

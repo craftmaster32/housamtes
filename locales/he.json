@@ -1825,7 +1825,8 @@
     "notify_appliance_done": "המכונה סיימה",
     "notify_appliance_done_sub": "כשמחזור של כביסה, מייבש או מדיח מסתיים",
     "notify_grocery_stale": "פריטים שמחכים יותר מדי",
-    "notify_grocery_stale_sub": "כשמשהו נמצא ברשימה 3 ימים ומעלה"
+    "notify_grocery_stale_sub": "כשמשהו נמצא ברשימה 3 ימים ומעלה",
+    "notifications_footer": "השינויים נשמרים מיד. התראות מגיעות רק לטלפון שבו האפליקציה מותקנת."
   },
   "members": {
     "title": "הרשאות חברים",
