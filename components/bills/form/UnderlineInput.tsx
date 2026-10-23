@@ -6,6 +6,7 @@ import {
   TextInput,
   type KeyboardTypeOptions,
   type ReturnKeyTypeOptions,
+  type TextInputProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -29,6 +30,9 @@ interface UnderlineInputProps {
   returnKeyType?: ReturnKeyTypeOptions;
   /** Called when the keyboard's return / done key is pressed. */
   onSubmitEditing?: () => void;
+  secureTextEntry?: boolean;
+  autoCapitalize?: TextInputProps['autoCapitalize'];
+  autoComplete?: TextInputProps['autoComplete'];
 }
 
 /** A form field written on a line, like filling in a paper form. */
@@ -45,6 +49,9 @@ export function UnderlineInput({
   style,
   returnKeyType,
   onSubmitEditing,
+  secureTextEntry,
+  autoCapitalize,
+  autoComplete,
 }: UnderlineInputProps): React.JSX.Element {
   const c = useThemedColors();
   const [focused, setFocused] = useState(false);
@@ -67,6 +74,9 @@ export function UnderlineInput({
           multiline={multiline}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          secureTextEntry={secureTextEntry}
+          autoCapitalize={autoCapitalize}
+          autoComplete={autoComplete}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           underlineColorAndroid="transparent"

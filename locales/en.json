@@ -1669,7 +1669,12 @@
     "use_photo": "Use Photo",
     "uploading": "Uploading…",
     "you_label": "You",
-    "your_house": "Your House"
+    "your_house": "Your House",
+    "payouts_title": "Payouts & refunds",
+    "history_title": "Expense history",
+    "history_sub": "Monthly breakdown and trends",
+    "app_settings_title": "App settings",
+    "member_of": "Member of {{house}}"
   },
   "housemates": {
     "title": "Housemates",

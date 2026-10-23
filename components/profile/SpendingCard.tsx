@@ -1,15 +1,16 @@
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useThemedColors } from '@constants/colors';
+import { lightColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { sizes } from '@constants/sizes';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { monthNameFromKey } from '@utils/dates';
@@ -21,6 +22,9 @@ interface Props {
   userName: string;
 }
 
+// The notebook page keeps its light inks in both themes.
+const P = lightColors;
+
 function fmt(n: number, sym: string): string {
   if (n >= 1000) return `${sym}${(n / 1000).toFixed(1)}k`;
   return `${sym}${n.toFixed(0)}`;
@@ -28,7 +32,8 @@ function fmt(n: number, sym: string): string {
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const c = useThemedColors();
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const months = useSpendingStore((s) => s.months);
@@ -54,199 +59,90 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   const current = months[0];
   const monthName = current ? monthNameFromKey(current.month, i18n.language) : '';
-
-  if (isLoading) {
-    return (
-      <View
-        style={[styles.card, { shadowColor: c.spendShadow, backgroundColor: c.spendGradient[0] }]}
-      >
-        <View pointerEvents="none" style={styles.clip}>
-          <LinearGradient
-            colors={c.spendGradient}
-            start={{ x: 0.1, y: 0 }}
-            end={{ x: 0.9, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.decoCircle} />
-        </View>
-        <View style={styles.pad}>
-          <Text style={styles.label}>
-            {monthName
-              ? t('spending.month_spending_header', { month: monthName })
-              : t('spending.spending_label')}
-          </Text>
-          <ActivityIndicator color="#fff" size="small" style={styles.loadingIndicator} />
-        </View>
-      </View>
-    );
-  }
-
+  const header = monthName
+    ? t('spending.month_spending_header', { month: monthName })
+    : t('spending.spending_label');
   const houseTotal = current?.houseTotal ?? 0;
   const myShare = current?.total ?? 0;
   const sharePct = houseTotal > 0 ? Math.round((myShare / houseTotal) * 100) : 0;
 
   return (
     <Pressable
-      style={[styles.card, { shadowColor: c.spendShadow, backgroundColor: c.spendGradient[0] }]}
       onPress={handleOpen}
-      accessible
+      disabled={isLoading}
       accessibilityRole="button"
       accessibilityLabel={t('spending.view_spending')}
+      style={({ pressed }) => pressed && styles.pressed}
     >
-      <View pointerEvents="none" style={styles.clip}>
-        <LinearGradient
-          colors={c.spendGradient}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.decoCircle} />
-        <View style={styles.decoCircleSm} />
-        <View style={styles.highlight} />
-      </View>
+      <NotebookPaper contentStyle={styles.pad}>
+        <Text style={[styles.label, hand]}>{header}</Text>
+        {isLoading ? (
+          <ActivityIndicator color={P.paperMuted} size="small" style={styles.loading} />
+        ) : (
+          <>
+            <View style={styles.totalsRow}>
+              <View style={styles.totalBlock}>
+                <CountUpText
+                  style={[styles.totalAmt, heading]}
+                  value={houseTotal}
+                  format={(n) => fmt(n, currency)}
+                />
+                <Text style={styles.totalSub}>{t('spending.house_total')}</Text>
+              </View>
+              <View style={styles.totalBlock}>
+                <CountUpText
+                  style={[styles.totalAmt, heading, styles.mine]}
+                  value={myShare}
+                  format={(n) => fmt(n, currency)}
+                />
+                <Text style={styles.totalSub}>
+                  {sharePct > 0
+                    ? t('spending.your_share_with_pct', { percent: sharePct })
+                    : t('spending.your_share')}
+                </Text>
+              </View>
+            </View>
 
-      <View style={styles.pad}>
-        {/* Header */}
-        <Text style={styles.label}>
-          {monthName
-            ? t('spending.month_spending_header', { month: monthName })
-            : t('spending.spending_label')}
-        </Text>
-
-        {/* House total */}
-        <View style={styles.totalsRow}>
-          <View style={styles.totalBlock}>
-            <CountUpText
-              style={styles.totalAmt}
-              value={houseTotal}
-              format={(n) => fmt(n, currency)}
-            />
-            <Text style={styles.totalSub}>{t('spending.house_total')}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.totalBlock}>
-            <CountUpText style={styles.totalAmt} value={myShare} format={(n) => fmt(n, currency)} />
-            <Text style={styles.totalSub}>
-              {sharePct > 0
-                ? t('spending.your_share_with_pct', { percent: sharePct })
-                : t('spending.your_share')}
-            </Text>
-          </View>
-        </View>
-
-        {/* AI insight */}
-        <View style={styles.insightRow}>
-          {insightLoading ? (
-            <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
-          ) : insight ? (
-            <>
-              <Ionicons name="sparkles" size={14} color="#fff" style={styles.insightIcon} />
-              <Text style={styles.insightText} numberOfLines={2}>
+            {/* The AI note, written in the margin in pencil. */}
+            {insightLoading ? (
+              <ActivityIndicator color={P.paperMuted} size="small" style={styles.loading} />
+            ) : insight ? (
+              <Text style={[styles.insight, hand]} numberOfLines={3}>
                 {insight}
               </Text>
-            </>
-          ) : insightError ? (
-            <>
-              <Ionicons name="warning-outline" size={14} color="rgba(255,255,255,0.74)" />
-              <Text style={styles.insightText} numberOfLines={1}>
+            ) : insightError ? (
+              <Text style={[styles.insightMuted, hand]} numberOfLines={1}>
                 {t('spending.ai_unavailable')}
               </Text>
-            </>
-          ) : null}
-        </View>
+            ) : null}
 
-        {/* CTA */}
-        <View style={styles.ctaRow}>
-          <Text style={styles.ctaText}>{t('spending.full_analysis')}</Text>
-          <Ionicons
-            name={rtl ? 'chevron-back' : 'chevron-forward'}
-            size={14}
-            color="rgba(255,255,255,0.80)"
-          />
-        </View>
-      </View>
+            <View style={styles.ctaRow}>
+              <Text style={styles.ctaText}>{t('spending.full_analysis')}</Text>
+              <Ionicons
+                name={rtl ? 'chevron-back' : 'chevron-forward'}
+                size={14}
+                color={P.primary}
+              />
+            </View>
+          </>
+        )}
+      </NotebookPaper>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: sizes.borderRadiusXl,
-    // No overflow:'hidden' here — it would clip the iOS shadow. The gradient +
-    // decorations are clipped by the inner `clip` layer instead.
-    shadowOffset: { width: 0, height: ms(12) },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  clip: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: sizes.borderRadiusXl,
-    overflow: 'hidden',
-  },
-  decoCircle: {
-    position: 'absolute',
-    top: ms(-36),
-    end: ms(-18),
-    width: ms(140),
-    height: ms(140),
-    borderRadius: ms(70),
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  decoCircleSm: {
-    position: 'absolute',
-    bottom: ms(-40),
-    end: ms(22),
-    width: ms(100),
-    height: ms(100),
-    borderRadius: ms(50),
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  highlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: ms(1),
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  pad: { padding: ms(22), gap: ms(16) },
-  loadingIndicator: { marginTop: ms(8) },
-
-  label: {
-    fontSize: mf(11),
-    ...font.extrabold,
-    color: '#fff',
-    letterSpacing: 1.1,
-    opacity: 0.88,
-  },
-
-  totalsRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
-  totalBlock: { flex: 1, gap: ms(2) },
-  totalAmt: { fontSize: mf(28), ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
-  totalSub: { fontSize: mf(12), ...font.regular, color: 'rgba(255,255,255,0.72)' },
-  divider: { width: ms(1), height: ms(36), backgroundColor: 'rgba(255,255,255,0.20)' },
-
-  insightRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: ms(6),
-    minHeight: ms(34),
-  },
-  insightIcon: { fontSize: mf(14), marginTop: ms(1) },
-  insightText: {
-    flex: 1,
-    fontSize: mf(13),
-    ...font.regular,
-    color: 'rgba(255,255,255,0.88)',
-    lineHeight: mf(18),
-  },
-
-  ctaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(4),
-    alignSelf: 'flex-end',
-  },
-  ctaText: { fontSize: mf(13), ...font.semibold, color: 'rgba(255,255,255,0.80)' },
+  pressed: { opacity: 0.85 },
+  pad: { gap: ms(10) },
+  loading: { alignSelf: 'flex-start', marginVertical: ms(6) },
+  label: { fontSize: mf(20), lineHeight: mf(24), color: P.paperMuted },
+  totalsRow: { flexDirection: 'row', gap: ms(16) },
+  totalBlock: { flex: 1, gap: ms(1) },
+  totalAmt: { fontSize: mf(30), lineHeight: mf(38), color: P.paperInk, letterSpacing: -0.6 },
+  mine: { color: P.primary },
+  totalSub: { fontSize: mf(12.5), ...font.medium, color: P.paperMuted },
+  insight: { fontSize: mf(18), lineHeight: mf(22), color: P.paperInk },
+  insightMuted: { fontSize: mf(17), color: P.paperMuted },
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4), alignSelf: 'flex-end' },
+  ctaText: { fontSize: mf(13.5), ...font.semibold, color: P.primary },
 });
