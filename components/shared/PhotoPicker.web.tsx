@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useThemedColors } from '@constants/colors';
 
 import { mf, ms } from '@utils/responsive';
 interface PhotoPickerProps {
@@ -40,6 +41,7 @@ export function PhotoPicker({
   maxPhotos = 6,
 }: PhotoPickerProps): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -92,7 +94,7 @@ export function PhotoPicker({
                   height: ms(80),
                   objectFit: 'cover',
                   borderRadius: ms(8),
-                  border: '1px solid #e5e7eb',
+                  border: `1px solid ${c.border}`,
                   cursor: 'pointer',
                   display: 'block',
                 }}
@@ -109,7 +111,7 @@ export function PhotoPicker({
                   padding: ms(11),
                   boxSizing: 'content-box',
                   borderRadius: ms(22),
-                  backgroundColor: '#ef4444',
+                  backgroundColor: c.danger,
                   border: 'none',
                   color: 'white',
                   fontSize: mf(12),
@@ -150,13 +152,13 @@ export function PhotoPicker({
             gap: '6px',
             padding: '8px 14px',
             minHeight: '44px',
-            border: '2px dashed #e5e7eb',
+            border: `2px dashed ${c.border}`,
             borderRadius: ms(10),
             cursor: loading ? 'default' : 'pointer',
-            color: loading ? '#9ca3af' : '#6366f1',
+            color: loading ? c.textTertiary : c.primary,
             fontWeight: '600',
             fontSize: mf(14),
-            backgroundColor: 'white',
+            backgroundColor: c.surface,
             userSelect: 'none',
             width: 'fit-content',
           }}
