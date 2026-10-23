@@ -1227,7 +1227,7 @@
     "cancel": "Cancel",
     "edited": "edited",
     "author_you": "You",
-    "empty": "The board's blank — pin something worth remembering. 📌",
+    "empty": "The board's blank — pin something worth remembering.",
     "empty_hint": "Pin the WiFi password, bin day, or anything the house keeps forgetting.",
     "cap_hint": "The board keeps the {{count}} newest notes — older ones drop off automatically."
   },

@@ -1227,7 +1227,7 @@
     "cancel": "Cancelar",
     "edited": "editada",
     "author_you": "Tú",
-    "empty": "El tablón está en blanco — fija algo que valga la pena recordar. 📌",
+    "empty": "El tablón está en blanco — fija algo que valga la pena recordar.",
     "empty_hint": "Fija la clave del WiFi, el día de la basura o cualquier cosa que la casa siempre olvida.",
     "cap_hint": "El tablón guarda las {{count}} notas más recientes; las más antiguas se archivan solas."
   },

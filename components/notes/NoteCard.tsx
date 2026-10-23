@@ -1,36 +1,46 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { Announcement } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { lightColors, useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHandFont } from '@hooks/useHandFont';
 import { getErrorMessage } from '@utils/errors';
-
+import { PushPin } from '@components/notes/PushPin';
 import { mf, ms } from '@utils/responsive';
+
+// Each housemate's notes are on their own colour of paper; ink stays dark on all.
+const PAPERS = ['#FCF6E3', '#FCE9A8', '#F6D8D2', '#D9E6F5', '#DCEBD3'];
+const INK = lightColors.paperInk;
+const MUTED = lightColors.paperMuted;
+
 interface NoteCardProps {
   note: Announcement;
   myId: string;
   canDelete: boolean;
+  /** Alternates the tilt so the board doesn't look machine-stacked. */
+  index: number;
   onEdit: (id: string, text: string) => Promise<void>;
   onDelete: (id: string) => void;
 }
 
+/** A note pinned to the cork board: paper slip, push pin, signed in handwriting. */
 export function NoteCard({
   note,
   myId,
   canDelete,
+  index,
   onEdit,
   onDelete,
 }: NoteCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const c = useThemedColors();
+  const hand = useHandFont();
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(note.text);
@@ -39,14 +49,16 @@ export function NoteCard({
 
   const authorName =
     note.author === myId ? t('notes.author_you') : resolveName(note.author, housemates);
-  const author = housemates.find((h) => h.id === note.author);
-  const authorColor = author?.color ?? C.primary;
-  const authorInitial = (authorName || '?').trim().charAt(0).toUpperCase();
+  const authorIndex = housemates.findIndex((h) => h.id === note.author);
+  const author = authorIndex >= 0 ? housemates[authorIndex] : undefined;
+  const paper = PAPERS[(authorIndex + 1) % PAPERS.length];
+  const pinColor = author?.color ?? c.primary;
   const postedDate = new Date(note.createdAt).toLocaleDateString(i18n.language, {
     day: 'numeric',
     month: 'short',
   });
   const wasEdited = note.updatedAt !== note.createdAt;
+  const tilt = index % 2 === 0 ? styles.tiltLeft : styles.tiltRight;
 
   const startEdit = useCallback((): void => {
     setDraft(note.text);
@@ -73,38 +85,46 @@ export function NoteCard({
     }
   }, [draft, isSaving, onEdit, note.id, t]);
 
+  const saveOff = !draft.trim() || isSaving;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.slip, { backgroundColor: paper }, !isEditing && tilt]}>
+      <View style={styles.pin} pointerEvents="none">
+        <PushPin color={pinColor} />
+      </View>
+
       {isEditing ? (
         <View style={styles.editWrap}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            style={styles.editInput}
+            style={[styles.editInput, { borderBottomColor: MUTED }]}
             multiline
             autoFocus
             accessibilityLabel={t('notes.note_label')}
             accessibilityHint={t('notes.note_hint')}
           />
-          {!!editError && <Text style={styles.errorText}>{editError}</Text>}
+          {!!editError && <Text style={[styles.error, { color: c.danger }]}>{editError}</Text>}
           <View style={styles.editActions}>
             <Pressable
               onPress={cancelEdit}
-              style={styles.editBtn}
-              accessible
+              style={styles.textBtn}
               accessibilityRole="button"
               accessibilityLabel={t('notes.cancel')}
             >
-              <Text style={styles.cancelText}>{t('notes.cancel')}</Text>
+              <Text style={[styles.textBtnLabel, { color: MUTED }]}>{t('notes.cancel')}</Text>
             </Pressable>
             <Pressable
               onPress={saveEdit}
-              disabled={!draft.trim() || isSaving}
-              style={[styles.editBtn, styles.saveBtn, (!draft.trim() || isSaving) && styles.btnOff]}
-              accessible
+              disabled={saveOff}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { backgroundColor: lightColors.primary },
+                (saveOff || pressed) && styles.dim,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t('notes.save')}
-              accessibilityState={{ disabled: !draft.trim() || isSaving }}
+              accessibilityState={{ disabled: saveOff }}
             >
               <Text style={styles.saveText}>{isSaving ? t('notes.saving') : t('notes.save')}</Text>
             </Pressable>
@@ -112,129 +132,95 @@ export function NoteCard({
         </View>
       ) : (
         <>
-          <View style={[styles.accent, { backgroundColor: authorColor }]} pointerEvents="none" />
-          <View style={styles.metaRow}>
-            <View style={[styles.avatar, { backgroundColor: authorColor }]}>
-              {author?.avatarUrl ? (
-                <Image
-                  source={{ uri: author.avatarUrl }}
-                  style={styles.avatarImg}
-                  contentFit="cover"
-                  accessible
-                  accessibilityLabel={authorName}
-                />
-              ) : (
-                <Text style={styles.avatarText}>{authorInitial}</Text>
-              )}
-            </View>
-            <View style={styles.metaTextWrap}>
-              <Text style={styles.authorName}>{authorName}</Text>
-              <Text style={styles.metaText}>
-                {postedDate}
-                {wasEdited ? ` · ${t('notes.edited')}` : ''}
-              </Text>
-            </View>
-            <View style={styles.actions}>
+          <View style={styles.actions}>
+            <Pressable
+              onPress={startEdit}
+              style={styles.iconBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('notes.edit_note')}
+            >
+              <Ionicons name="pencil-outline" size={16} color={MUTED} />
+            </Pressable>
+            {canDelete && (
               <Pressable
-                onPress={startEdit}
+                onPress={() => onDelete(note.id)}
                 style={styles.iconBtn}
-                hitSlop={8}
-                accessible
                 accessibilityRole="button"
-                accessibilityLabel={t('notes.edit_note')}
+                accessibilityLabel={t('notes.delete_note')}
               >
-                <Ionicons name="pencil-outline" size={16} color={C.textSecondary} />
+                <Ionicons name="trash-outline" size={16} color={MUTED} />
               </Pressable>
-              {canDelete && (
-                <Pressable
-                  onPress={() => onDelete(note.id)}
-                  style={styles.iconBtn}
-                  hitSlop={8}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('notes.delete_note')}
-                >
-                  <Ionicons name="trash-outline" size={16} color={C.textSecondary} />
-                </Pressable>
-              )}
-            </View>
+            )}
           </View>
-          <Text style={styles.noteText}>{note.text}</Text>
+          <Text style={styles.text}>{note.text}</Text>
+          <Text style={[styles.sign, hand]}>
+            — {authorName}, {postedDate}
+            {wasEdited ? ` · ${t('notes.edited')}` : ''}
+          </Text>
         </>
       )}
     </View>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    card: {
-      position: 'relative',
-      backgroundColor: C.surface,
-      borderRadius: ms(16),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingVertical: ms(14),
-      paddingEnd: ms(14),
-      paddingStart: ms(16),
-      gap: ms(10),
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    accent: { position: 'absolute', start: 0, top: 0, bottom: 0, width: ms(4) },
-    noteText: { fontSize: mf(14.5), ...font.regular, color: C.textPrimary, lineHeight: mf(21) },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(9) },
-    avatar: {
-      width: ms(28),
-      height: ms(28),
-      borderRadius: ms(14),
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    avatarImg: { width: ms(28), height: ms(28) },
-    avatarText: { fontSize: mf(12), ...font.extrabold, color: '#fff' },
-    metaTextWrap: { flex: 1 },
-    authorName: { fontSize: mf(13), ...font.bold, color: C.textPrimary },
-    metaText: { fontSize: mf(11.5), ...font.medium, color: C.textTertiary, marginTop: ms(1) },
-    actions: { flexDirection: 'row', gap: ms(4) },
-    iconBtn: {
-      minWidth: ms(44),
-      minHeight: ms(44),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-
-    editWrap: { gap: ms(10) },
-    editInput: {
-      minHeight: ms(64),
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(10),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingHorizontal: ms(13),
-      paddingVertical: ms(10),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-      textAlignVertical: 'top',
-    },
-    editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: ms(8) },
-    editBtn: {
-      minHeight: ms(44),
-      paddingHorizontal: ms(16),
-      borderRadius: ms(10),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    saveBtn: { backgroundColor: C.primary },
-    btnOff: { backgroundColor: C.textDisabled },
-    cancelText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
-    saveText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
-    errorText: { fontSize: mf(13), ...font.regular, color: C.danger },
-  });
-}
+const styles = StyleSheet.create({
+  slip: {
+    borderRadius: ms(3),
+    paddingTop: ms(18),
+    paddingBottom: ms(12),
+    paddingHorizontal: ms(16),
+    shadowColor: '#3A2410',
+    shadowOffset: { width: 0, height: ms(3) },
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  tiltLeft: { transform: [{ rotate: '-0.8deg' }] },
+  tiltRight: { transform: [{ rotate: '0.7deg' }] },
+  pin: { position: 'absolute', top: ms(-8), alignSelf: 'center' },
+  actions: {
+    position: 'absolute',
+    top: 0,
+    end: 0,
+    flexDirection: 'row',
+  },
+  iconBtn: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
+  text: {
+    fontSize: mf(15.5),
+    lineHeight: mf(23),
+    ...font.regular,
+    color: INK,
+    marginTop: ms(8),
+    paddingEnd: ms(44),
+  },
+  sign: { fontSize: mf(19), color: MUTED, marginTop: ms(8), alignSelf: 'flex-end' },
+  editWrap: { gap: ms(10), marginTop: ms(6) },
+  editInput: {
+    minHeight: ms(64),
+    borderBottomWidth: 1.5,
+    paddingVertical: ms(6),
+    fontSize: mf(15.5),
+    lineHeight: mf(23),
+    ...font.regular,
+    color: INK,
+    textAlignVertical: 'top',
+  },
+  error: { fontSize: mf(13), ...font.regular },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: ms(6),
+  },
+  textBtn: { minHeight: 44, paddingHorizontal: ms(12), justifyContent: 'center' },
+  textBtnLabel: { fontSize: mf(14.5), ...font.semibold },
+  saveBtn: {
+    minHeight: 44,
+    paddingHorizontal: ms(20),
+    borderRadius: ms(14),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveText: { fontSize: mf(14.5), ...font.semibold, color: '#FFFFFF' },
+  dim: { opacity: 0.5 },
+});
