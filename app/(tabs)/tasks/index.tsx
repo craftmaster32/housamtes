@@ -1,59 +1,85 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { AnimatedListItem } from '@components/shared/AnimatedListItem';
-import { LoadingSpinner } from '@components/shared/LoadingSpinner';
-import { BackLink } from '@components/shared/BackLink';
+import { View, StyleSheet, FlatList, Platform, type ListRenderItemInfo } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { BackLink } from '@components/shared/BackLink';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { Mate } from '@components/shared/Mate';
+import { BillTabs } from '@components/bills/BillTabs';
+import { PadSlice } from '@components/tasks/PadSlice';
+import { TaskForm } from '@components/tasks/TaskForm';
+import { TaskLine } from '@components/tasks/TaskLine';
+import { TasksGlance } from '@components/tasks/TasksGlance';
+import { useThemedColors } from '@constants/colors';
+import { sizes } from '@constants/sizes';
+import { font } from '@constants/typography';
+import { useHandFont } from '@hooks/useHandFont';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Alert } from '@lib/alert';
+import { useAuthStore } from '@stores/authStore';
+import { useBadgeStore } from '@stores/badgeStore';
 import {
   useTasksStore,
   type HouseTask,
   type NewTaskInput,
   type TaskFilter,
 } from '@stores/tasksStore';
-import { useAuthStore } from '@stores/authStore';
-import { Alert } from '@lib/alert';
 import { getErrorMessage } from '@utils/errors';
-import { TaskRow } from '@components/tasks/TaskRow';
-import { AddTaskForm } from '@components/tasks/AddTaskForm';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { font } from '@constants/typography';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-
 import { mf, ms } from '@utils/responsive';
+
 const FILTERS: TaskFilter[] = ['all', 'active', 'completed'];
 
+// Rows of the to-do pad: tasks, and the handwritten "3 done" before the done ones.
+type PadItem = { _k: 'task'; task: HouseTask } | { _k: 'done-header'; count: number };
+
+/**
+ * Tasks — the house's one to-do list (Chores were merged in, Oct 2026): one-off
+ * jobs and weekly / monthly repeating ones, on a to-do pad.
+ */
 export default function TasksScreen(): React.JSX.Element {
   const { t } = useTranslation();
-
+  const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
+  const markSeen = useBadgeStore((s) => s.markSeen);
   const tasks = useTasksStore((s) => s.tasks);
   const isLoading = useTasksStore((s) => s.isLoading);
   const storeError = useTasksStore((s) => s.error);
   const addTask = useTasksStore((s) => s.addTask);
   const toggleTask = useTasksStore((s) => s.toggleTask);
+  const assignTask = useTasksStore((s) => s.assignTask);
   const deleteTask = useTasksStore((s) => s.deleteTask);
+  const resetRepeating = useTasksStore((s) => s.resetRepeating);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
-
-  const C = useThemedColors();
-  const headingFont = useHeadingFont();
-  const styles = useMemo(() => makeStyles(C), [C]);
-
   const myId = profile?.id ?? '';
   const isAdmin = role === 'owner' || role === 'admin';
   const [filter, setFilter] = useState<TaskFilter>('all');
 
-  const visibleTasks = useMemo(() => {
-    if (filter === 'active') return tasks.filter((task) => !task.isComplete);
-    if (filter === 'completed') return tasks.filter((task) => task.isComplete);
-    return tasks;
-  }, [tasks, filter]);
+  // The menu badge for this list (still keyed 'chores') clears when you look.
+  useFocusEffect(
+    useCallback((): void => {
+      markSeen('chores').catch(() => {});
+    }, [markSeen])
+  );
 
-  const activeCount = useMemo(() => tasks.filter((task) => !task.isComplete).length, [tasks]);
+  const active = useMemo(() => tasks.filter((tk) => !tk.isComplete), [tasks]);
+  const done = useMemo(() => tasks.filter((tk) => tk.isComplete), [tasks]);
+  const canReset = isAdmin && done.some((tk) => tk.recurrence !== 'once');
+
+  const listData = useMemo((): PadItem[] => {
+    const rows = (list: HouseTask[]): PadItem[] => list.map((task) => ({ _k: 'task', task }));
+    if (filter === 'active') return rows(active);
+    if (filter === 'completed') return rows(done);
+    return [
+      ...rows(active),
+      ...(done.length > 0 ? [{ _k: 'done-header' as const, count: done.length }] : []),
+      ...rows(done),
+    ];
+  }, [filter, active, done]);
 
   const handleAdd = useCallback(
     async (input: NewTaskInput): Promise<void> => {
@@ -72,6 +98,15 @@ export default function TasksScreen(): React.JSX.Element {
     [toggleTask, t]
   );
 
+  const handleAssign = useCallback(
+    (id: string, userId: string | null): void => {
+      assignTask(id, userId).catch((err) => {
+        Alert.alert(t('common.error'), getErrorMessage(err, t('tasks.failed_update')));
+      });
+    },
+    [assignTask, t]
+  );
+
   const handleDelete = useCallback(
     (id: string): void => {
       deleteTask(id).catch((err) => {
@@ -81,177 +116,169 @@ export default function TasksScreen(): React.JSX.Element {
     [deleteTask, t]
   );
 
-  const renderTask = useCallback(
-    ({ item, index }: { item: HouseTask; index: number }): React.JSX.Element => (
-      <AnimatedListItem index={index}>
-        <TaskRow
-          task={item}
-          myId={myId}
-          canDelete={isAdmin || item.createdBy === myId}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-        />
-      </AnimatedListItem>
-    ),
-    [myId, isAdmin, handleToggle, handleDelete]
+  // Un-ticks the weekly / monthly tasks for a new round. Confirm first.
+  const handleResetRepeating = useCallback((): void => {
+    if (!houseId) return;
+    Alert.alert(t('tasks.reset_repeating_title'), t('tasks.reset_repeating_body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('tasks.reset_repeating'),
+        style: 'destructive',
+        onPress: (): void => {
+          resetRepeating(houseId).catch((err) => {
+            Alert.alert(t('common.error'), getErrorMessage(err, t('tasks.reset_failed')));
+          });
+        },
+      },
+    ]);
+  }, [houseId, resetRepeating, t]);
+
+  const keyExtractor = useCallback(
+    (item: PadItem): string => (item._k === 'done-header' ? 'done-header' : item.task.id),
+    []
   );
 
+  // Every row is a slice of one to-do pad: the first carries the glued edge,
+  // tasks that follow another get a dashed rule.
+  const renderItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<PadItem>): React.JSX.Element => {
+      const isFirst = index === 0;
+      const isLast = index === listData.length - 1;
+      if (item._k === 'done-header') {
+        return (
+          <PadSlice isFirst={isFirst} isLast={isLast}>
+            <Text style={[styles.doneHeader, hand, { color: c.receiptMuted }]}>
+              {t('tasks.done', { count: item.count })}
+            </Text>
+          </PadSlice>
+        );
+      }
+      return (
+        <PadSlice isFirst={isFirst} isLast={isLast} dashedTop={listData[index - 1]?._k === 'task'}>
+          <TaskLine
+            task={item.task}
+            myId={myId}
+            canDelete={isAdmin || item.task.createdBy === myId}
+            onToggle={handleToggle}
+            onAssign={handleAssign}
+            onDelete={handleDelete}
+          />
+        </PadSlice>
+      );
+    },
+    [listData, myId, isAdmin, handleToggle, handleAssign, handleDelete, hand, c, t]
+  );
+
+  const tabs = useMemo(() => FILTERS.map((f) => ({ key: f, label: t(`tasks.filter_${f}`) })), [t]);
+
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View entering={FadeIn.duration(300)} style={styles.flex}>
-        <FlatList
-          data={visibleTasks}
-          keyExtractor={(item) => item.id}
-          renderItem={renderTask}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListHeaderComponent={
-            <View>
-              <BackLink label={t('common.home')} />
-              <View style={styles.heroCard}>
-                <View style={styles.heroCopy}>
-                  <Text style={[styles.titleHero, headingFont]}>{t('tasks.title')}</Text>
-                  <Text style={styles.textBase}>{t('tasks.subtitle')}</Text>
-                </View>
-                <AddTaskForm onAdd={handleAdd} />
-              </View>
+    <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
+      <FlatList
+        data={listData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View>
+            <BackLink label={t('common.home')} />
+            <Text
+              style={[styles.pageTitle, headingFont, { color: c.textPrimary }]}
+              numberOfLines={1}
+              accessibilityRole="header"
+            >
+              {t('tasks.title')}
+            </Text>
 
-              {isLoading && tasks.length === 0 && (
-                <LoadingSpinner size={64} style={styles.loadingIndicator} />
-              )}
-              {!!storeError && (
-                <View style={styles.storeErrorBox}>
-                  <Text style={styles.storeErrorText}>{storeError}</Text>
-                </View>
-              )}
+            <TasksGlance
+              done={done.length}
+              total={tasks.length}
+              onResetRepeating={canReset ? handleResetRepeating : undefined}
+            />
 
-              {tasks.length > 0 && (
-                <View style={styles.filterRow}>
-                  {FILTERS.map((f) => (
-                    <Pressable
-                      key={f}
-                      style={[styles.filterChip, filter === f && styles.filterChipActive]}
-                      onPress={() => setFilter(f)}
-                      accessible
-                      accessibilityRole="radio"
-                      accessibilityLabel={t(`tasks.filter_${f}`)}
-                      accessibilityState={{ selected: filter === f }}
-                    >
-                      <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                        {t(`tasks.filter_${f}`)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                  <View style={styles.countPill}>
-                    <Text style={styles.countPillText}>
-                      {t('tasks.active_count', { count: activeCount })}
-                    </Text>
-                  </View>
+            <TaskForm onAdd={handleAdd} myId={myId} />
+
+            {isLoading && tasks.length === 0 && <LoadingSpinner size={64} style={styles.loading} />}
+            {!!storeError && (
+              <Text style={[styles.storeError, { color: c.danger }]} accessibilityRole="alert">
+                {storeError}
+              </Text>
+            )}
+
+            {tasks.length > 0 && (
+              <View style={styles.tabsRow}>
+                <View style={styles.tabs}>
+                  <BillTabs tabs={tabs} selected={filter} onSelect={setFilter} role="radio" />
                 </View>
-              )}
-            </View>
-          }
-          ListEmptyComponent={
-            !isLoading ? (
-              <View style={styles.emptyWrap}>
-                <View style={styles.emptyIconWrap}>
-                  <Ionicons name="list-outline" size={36} color={C.textSecondary} />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {filter === 'completed' ? t('tasks.no_completed') : t('tasks.no_tasks')}
+                <Text style={[styles.count, hand, { color: c.textSecondary }]}>
+                  {t('tasks.active_count', { count: active.length })}
                 </Text>
-                <Text style={styles.emptyText}>{t('tasks.no_tasks_hint')}</Text>
               </View>
-            ) : null
-          }
-        />
-      </Animated.View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? null : (
+            // Mate keeps the empty pad company — the one Mate on this screen.
+            <View style={styles.emptyWrap}>
+              <PadSlice isFirst isLast>
+                <View style={styles.empty}>
+                  {filter !== 'completed' && <Mate size={ms(80)} />}
+                  <Text style={[styles.emptyTitle, headingFont, { color: c.receiptInk }]}>
+                    {filter === 'completed' ? t('tasks.no_completed') : t('tasks.no_tasks')}
+                  </Text>
+                  <Text style={[styles.emptyText, { color: c.receiptMuted }]}>
+                    {t('tasks.no_tasks_hint')}
+                  </Text>
+                </View>
+              </PadSlice>
+            </View>
+          )
+        }
+      />
     </SafeAreaView>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
-    sep: { height: ms(8) },
-
-    heroCard: {
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: ms(20),
-      gap: ms(14),
-      marginBottom: ms(24),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    heroCopy: { gap: ms(6) },
-    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
-
-    filterRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      marginBottom: ms(14),
-      paddingHorizontal: ms(4),
-    },
-    filterChip: {
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(10),
-      minHeight: ms(44),
-      justifyContent: 'center',
-      borderRadius: 9999,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-    },
-    filterChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    filterText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    filterTextActive: { color: '#fff' },
-    countPill: {
-      minHeight: ms(22),
-      paddingHorizontal: ms(8),
-      borderRadius: 9999,
-      backgroundColor: C.secondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginStart: 'auto',
-    },
-    countPillText: { fontSize: mf(11), ...font.bold, color: C.secondaryForeground },
-
-    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(12) },
-    emptyIconWrap: {
-      width: ms(72),
-      height: ms(72),
-      borderRadius: ms(36),
-      backgroundColor: C.surfaceSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
-    emptyText: {
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(20),
-    },
-
-    loadingIndicator: { marginBottom: ms(8) },
-    storeErrorBox: {
-      backgroundColor: C.danger + '15',
-      borderRadius: ms(10),
-      padding: ms(12),
-      marginBottom: ms(8),
-    },
-    storeErrorText: { fontSize: mf(13), color: C.danger },
-  });
-}
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  list: {
+    paddingHorizontal: ms(16),
+    paddingTop: ms(4),
+    // On web the tab bar floats over the page, so leave its full height free
+    // (as Bills does) — otherwise the last rows hide behind it.
+    paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
+  },
+  pageTitle: {
+    fontSize: mf(36),
+    // Tall enough for the descenders (the "g" in Parking was being clipped).
+    lineHeight: mf(46),
+    paddingBottom: ms(2),
+    letterSpacing: -1,
+    marginTop: ms(6),
+    marginBottom: ms(14),
+  },
+  loading: { alignSelf: 'center', marginTop: ms(24) },
+  storeError: { fontSize: mf(14), ...font.medium, marginTop: ms(12) },
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: ms(8),
+    marginTop: ms(24),
+    marginBottom: ms(12),
+  },
+  tabs: { flex: 1, minWidth: 0 },
+  count: { fontSize: mf(19), paddingBottom: ms(10) },
+  doneHeader: { fontSize: mf(20), paddingHorizontal: ms(16), paddingTop: ms(10) },
+  emptyWrap: { marginTop: ms(24) },
+  empty: {
+    alignItems: 'center',
+    paddingTop: ms(26),
+    paddingBottom: ms(30),
+    paddingHorizontal: ms(24),
+    gap: ms(6),
+  },
+  emptyTitle: { fontSize: mf(19), textAlign: 'center', marginTop: ms(8) },
+  emptyText: { fontSize: mf(14), ...font.medium, textAlign: 'center', lineHeight: mf(20) },
+});

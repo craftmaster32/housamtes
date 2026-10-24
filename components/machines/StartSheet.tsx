@@ -1,12 +1,25 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Modal, TextInput, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  Modal,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { sizes } from '@constants/sizes';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
 import { mf, ms } from '@utils/responsive';
+import { SheetHeader } from '@components/bills/recurring/SheetHeader';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
 import type { ApplianceKind, AppliancePreset } from '@stores/appliancesStore';
 import { MACHINE_META, DEFAULT_PRESET_MINUTES, formatDuration } from '@components/machines/meta';
 
@@ -37,7 +50,9 @@ function StartSheetComponent({
 }: StartSheetProps): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
-  const styles = useMemo(() => makeStyles(c), [c]);
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
+  const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
 
   const [hours, setHours] = useState('1');
   const [minutes, setMinutes] = useState('0');
@@ -103,298 +118,224 @@ function StartSheetComponent({
     setMinutes(Math.min(parseInt(digits, 10), 59).toString());
   }, []);
 
-  return (
-    <Modal visible={kind !== null} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.backdrop} onPress={handleClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.handle} />
-          {meta && (
-            <View style={styles.titleRow}>
-              <View style={[styles.titleChip, { backgroundColor: meta.color + '1F' }]}>
-                <Ionicons name={meta.icon} size={18} color={meta.color} />
-              </View>
-              <Text style={styles.title}>
-                {t('machines.start_title', { name: t(meta.labelKey) })}
-              </Text>
-            </View>
-          )}
+  const machineName = meta ? t(meta.labelKey) : '';
+  const startDisabled = busy || customMinutes <= 0;
 
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {/* Saved / default presets — tap one to load its time below, then
-                the member presses Start. Tapping no longer starts on its own. */}
-            <Text style={styles.sectionLabel}>{t('machines.presets_label')}</Text>
-            <Text style={styles.presetHint}>{t('machines.preset_tap_hint')}</Text>
-            <View style={styles.chips}>
-              {presets.length > 0
-                ? presets.map((p) => (
-                    <View key={p.id} style={styles.presetWrap}>
-                      <Pressable
-                        style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-                        onPress={() => handleUsePreset(p.durationMinutes, p.name)}
-                        accessibilityRole="button"
+  return (
+    <Modal
+      visible={kind !== null}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+      statusBarTranslucent
+    >
+      <KeyboardAvoidingView
+        style={[styles.overlay, { backgroundColor: overlay }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+        <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
+          <SheetHeader
+            eyebrow={machineName}
+            title={t('machines.start_title', { name: machineName })}
+            onClose={handleClose}
+          />
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.body}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Presets as paper tags. Tapping one fills in the time below; it
+                doesn't start the machine on its own. */}
+            <View>
+              <Text style={[styles.label, { color: c.textSecondary }]}>
+                {t('machines.presets_label')}
+              </Text>
+              <Text style={[styles.hint, { color: c.textSecondary }]}>
+                {t('machines.preset_tap_hint')}
+              </Text>
+              <View style={styles.tags}>
+                {presets.length > 0
+                  ? presets.map((p) => (
+                      <View
+                        key={p.id}
+                        style={styles.preset}
+                        accessible={false}
                         accessibilityLabel={t('machines.use_preset', {
                           name: p.name,
                           time: formatDuration(p.durationMinutes),
                         })}
                       >
-                        <Text style={styles.chipName} numberOfLines={1}>
-                          {p.name}
-                        </Text>
-                        <Text style={styles.chipTime}>{formatDuration(p.durationMinutes)}</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.presetDelete}
-                        onPress={() => onDeletePreset(p.id)}
-                        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('machines.delete_preset', { name: p.name })}
-                      >
-                        <Ionicons name="close-circle" size={18} color={c.textTertiary} />
-                      </Pressable>
-                    </View>
-                  ))
-                : DEFAULT_PRESET_MINUTES.map((min) => (
-                    <Pressable
-                      key={min}
-                      style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-                      onPress={() => handleUsePreset(min, '')}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('machines.use_time', { time: formatDuration(min) })}
-                    >
-                      <Text style={styles.chipTime}>{formatDuration(min)}</Text>
-                    </Pressable>
-                  ))}
-            </View>
-
-            {/* Custom duration — a caption over each box makes it unmistakable
-                which is hours and which is minutes, with a colon reading HH:MM. */}
-            <Text style={styles.sectionLabel}>{t('machines.custom_time')}</Text>
-            <View style={styles.timeRow}>
-              <View style={styles.timeField}>
-                <Text style={styles.timeCaption}>{t('machines.hours_full')}</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  value={hours}
-                  onChangeText={handleHoursChange}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  accessibilityLabel={t('machines.hours_full')}
-                  accessibilityHint={t('machines.hours_hint')}
-                />
-              </View>
-              <Text style={styles.timeColon}>:</Text>
-              <View style={styles.timeField}>
-                <Text style={styles.timeCaption}>{t('machines.minutes_full')}</Text>
-                <TextInput
-                  style={styles.timeInput}
-                  value={minutes}
-                  onChangeText={handleMinutesChange}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  accessibilityLabel={t('machines.minutes_full')}
-                  accessibilityHint={t('machines.minutes_hint')}
-                />
+                        <PaperTag
+                          label={`${p.name} · ${formatDuration(p.durationMinutes)}`}
+                          onPress={() => handleUsePreset(p.durationMinutes, p.name)}
+                        />
+                        <Pressable
+                          style={styles.remove}
+                          onPress={() => onDeletePreset(p.id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('machines.delete_preset', { name: p.name })}
+                        >
+                          <Ionicons name="close" size={16} color={c.textSecondary} />
+                        </Pressable>
+                      </View>
+                    ))
+                  : DEFAULT_PRESET_MINUTES.map((min) => (
+                      <PaperTag
+                        key={min}
+                        label={formatDuration(min)}
+                        onPress={() => handleUsePreset(min, '')}
+                      />
+                    ))}
               </View>
             </View>
 
-            <TextInput
-              style={styles.nameInput}
-              value={name}
-              onChangeText={setName}
-              placeholder={t('machines.name_placeholder')}
-              placeholderTextColor={c.textTertiary}
-              maxLength={40}
-              accessibilityLabel={t('machines.name_placeholder')}
-              accessibilityHint={t('machines.name_hint')}
-            />
+            {/* How long, as two big numbers written on lines: hours : minutes. */}
+            <View>
+              <Text style={[styles.label, { color: c.textSecondary }]}>
+                {t('machines.custom_time')}
+              </Text>
+              <View style={styles.timeRow}>
+                <View style={styles.timeField}>
+                  <TextInput
+                    style={[
+                      styles.timeInput,
+                      heading,
+                      { color: c.textPrimary, borderBottomColor: c.border },
+                    ]}
+                    value={hours}
+                    onChangeText={handleHoursChange}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    accessibilityLabel={t('machines.hours_full')}
+                    accessibilityHint={t('machines.hours_hint')}
+                  />
+                  <Text style={[styles.timeCaption, { color: c.textSecondary }]}>
+                    {t('machines.hours_full')}
+                  </Text>
+                </View>
+                <Text style={[styles.colon, heading, { color: c.textSecondary }]}>:</Text>
+                <View style={styles.timeField}>
+                  <TextInput
+                    style={[
+                      styles.timeInput,
+                      heading,
+                      { color: c.textPrimary, borderBottomColor: c.border },
+                    ]}
+                    value={minutes}
+                    onChangeText={handleMinutesChange}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    accessibilityLabel={t('machines.minutes_full')}
+                    accessibilityHint={t('machines.minutes_hint')}
+                  />
+                  <Text style={[styles.timeCaption, { color: c.textSecondary }]}>
+                    {t('machines.minutes_full')}
+                  </Text>
+                </View>
+              </View>
+            </View>
 
-            {/* Explicit save — tapping this actually stores the preset (it shows
-                up as a chip above), separate from starting the machine. */}
+            <View>
+              <UnderlineInput
+                value={name}
+                onChangeText={setName}
+                placeholder={t('machines.name_placeholder')}
+                accessibilityLabel={t('machines.name_placeholder')}
+                accessibilityHint={t('machines.name_hint')}
+              />
+              {/* Saving is separate from starting: the preset shows up as a tag above. */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.saveLink,
+                  (!canSavePreset || isSaving || pressed) && styles.dim,
+                ]}
+                onPress={handleSavePreset}
+                disabled={!canSavePreset || isSaving}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSavePreset || isSaving }}
+                accessibilityLabel={t('machines.save_as_preset')}
+              >
+                <Text style={[styles.saveText, hand, { color: c.primary }]}>
+                  {t('machines.save_as_preset')}
+                </Text>
+              </Pressable>
+              {customMinutes > 0 && !name.trim() && (
+                <Text style={[styles.hint, { color: c.textSecondary }]}>
+                  {t('machines.save_needs_name')}
+                </Text>
+              )}
+            </View>
+
             <Pressable
               style={({ pressed }) => [
-                styles.saveBtn,
-                { borderColor: c.border },
-                (!canSavePreset || isSaving) && styles.disabled,
-                pressed && styles.pressed,
-              ]}
-              onPress={handleSavePreset}
-              disabled={!canSavePreset || isSaving}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canSavePreset || isSaving }}
-              accessibilityLabel={t('machines.save_as_preset')}
-            >
-              <Ionicons name="bookmark-outline" size={16} color={c.textPrimary} />
-              <Text style={styles.saveBtnText}>{t('machines.save_as_preset')}</Text>
-            </Pressable>
-            {customMinutes > 0 && !name.trim() && (
-              <Text style={styles.saveHint}>{t('machines.save_needs_name')}</Text>
-            )}
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.startBtn,
-                { backgroundColor: meta?.color ?? c.primary },
-                (busy || customMinutes <= 0) && styles.disabled,
-                pressed && styles.pressed,
+                styles.submit,
+                { backgroundColor: c.primary },
+                (startDisabled || pressed) && styles.dim,
               ]}
               onPress={handleStartCustom}
-              disabled={busy || customMinutes <= 0}
-              accessible
+              disabled={startDisabled}
               accessibilityRole="button"
-              accessibilityState={{ disabled: busy || customMinutes <= 0 }}
+              accessibilityState={{ disabled: startDisabled }}
               accessibilityLabel={t('machines.start')}
             >
-              <Ionicons name="play" size={16} color="#fff" />
-              <Text style={styles.startText}>
+              <Text style={styles.submitText} numberOfLines={1}>
                 {customMinutes > 0
                   ? t('machines.start_for', { time: formatDuration(customMinutes) })
                   : t('machines.start')}
               </Text>
             </Pressable>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 export const StartSheet = React.memo(StartSheetComponent);
 
-const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
-  StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    sheet: {
-      backgroundColor: c.background,
-      borderTopLeftRadius: ms(22),
-      borderTopRightRadius: ms(22),
-      padding: sizes.lg,
-      paddingBottom: sizes.xxl,
-      maxHeight: '86%',
-    },
-    handle: {
-      width: ms(38),
-      height: ms(4),
-      borderRadius: ms(2),
-      backgroundColor: c.border,
-      alignSelf: 'center',
-      marginBottom: ms(14),
-    },
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10), marginBottom: ms(14) },
-    titleChip: {
-      width: ms(34),
-      height: ms(34),
-      borderRadius: ms(11),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    title: { flex: 1, fontSize: mf(18), ...font.bold, color: c.textPrimary },
-    sectionLabel: {
-      fontSize: mf(11),
-      ...font.bold,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-      color: c.textSecondary,
-      marginBottom: ms(9),
-      marginTop: ms(6),
-    },
-    presetHint: {
-      fontSize: mf(12.5),
-      ...font.regular,
-      color: c.textSecondary,
-      marginTop: ms(-4),
-      marginBottom: ms(10),
-    },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(9) },
-    presetWrap: { position: 'relative' },
-    chip: {
-      minWidth: ms(74),
-      minHeight: sizes.touchTarget,
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(10),
-      borderRadius: ms(13),
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(1),
-    },
-    chipName: { fontSize: mf(13.5), ...font.semibold, color: c.textPrimary, maxWidth: ms(120) },
-    chipTime: { fontSize: mf(12.5), ...font.bold, color: c.textSecondary },
-    presetDelete: {
-      position: 'absolute',
-      top: ms(-6),
-      right: ms(-6),
-      backgroundColor: c.background,
-      borderRadius: ms(9),
-    },
-    timeRow: { flexDirection: 'row', gap: ms(10), alignItems: 'flex-end' },
-    timeField: { flex: 1, gap: ms(6) },
-    timeCaption: {
-      fontSize: mf(12.5),
-      ...font.semibold,
-      color: c.textSecondary,
-      textAlign: 'center',
-    },
-    timeInput: {
-      backgroundColor: c.surface,
-      borderRadius: ms(13),
-      borderWidth: 1,
-      borderColor: c.border,
-      paddingVertical: ms(14),
-      fontSize: mf(22),
-      ...font.bold,
-      color: c.textPrimary,
-      textAlign: 'center',
-    },
-    timeColon: {
-      fontSize: mf(22),
-      ...font.bold,
-      color: c.textSecondary,
-      paddingBottom: ms(12),
-    },
-    nameInput: {
-      marginTop: ms(12),
-      backgroundColor: c.surface,
-      borderRadius: ms(13),
-      borderWidth: 1,
-      borderColor: c.border,
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(12),
-      fontSize: mf(15),
-      ...font.regular,
-      color: c.textPrimary,
-    },
-    saveBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(8),
-      paddingVertical: ms(13),
-      borderRadius: ms(14),
-      borderWidth: 1,
-      marginTop: ms(16),
-      minHeight: sizes.touchTarget,
-    },
-    saveBtnText: { fontSize: mf(14.5), ...font.semibold, color: c.textPrimary },
-    saveHint: {
-      fontSize: mf(12),
-      ...font.regular,
-      color: c.textTertiary,
-      textAlign: 'center',
-      marginTop: ms(7),
-    },
-    startBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(8),
-      paddingVertical: ms(14),
-      borderRadius: ms(14),
-      marginTop: ms(18),
-    },
-    startText: { fontSize: mf(15), ...font.bold, color: '#fff' },
-    pressed: { opacity: 0.9 },
-    disabled: { opacity: 0.5 },
-  });
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    borderTopLeftRadius: ms(26),
+    borderTopRightRadius: ms(26),
+    maxHeight: '92%',
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  body: { padding: ms(20), paddingTop: ms(8), paddingBottom: ms(36), gap: ms(22) },
+  label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(2) },
+  hint: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(10), marginTop: ms(10) },
+  preset: { flexDirection: 'row', alignItems: 'center' },
+  remove: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
+  timeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(14), marginTop: ms(4) },
+  timeField: { flex: 1, alignItems: 'center' },
+  timeInput: {
+    alignSelf: 'stretch',
+    fontSize: mf(44),
+    lineHeight: mf(54),
+    textAlign: 'center',
+    borderBottomWidth: 2,
+    paddingVertical: ms(2),
+  },
+  timeCaption: { fontSize: mf(12.5), ...font.semibold, marginTop: ms(6) },
+  colon: { fontSize: mf(40), lineHeight: mf(54), paddingTop: ms(2) },
+  saveLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  saveText: { fontSize: mf(21) },
+  submit: {
+    minHeight: 52,
+    borderRadius: ms(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: ms(16),
+  },
+  submitText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
+  dim: { opacity: 0.5 },
+});

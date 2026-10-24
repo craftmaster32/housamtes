@@ -21,6 +21,8 @@ export interface ItemAgeMetaProps {
   isChecked: boolean;
   /** Amber pill for 3+ day old items. Off where a separate nudge already says so. */
   highlightStale?: boolean;
+  /** Text colour when the line sits on paper (e.g. the grocery bag). */
+  color?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ export function ItemAgeMeta({
   showName,
   isChecked,
   highlightStale = true,
+  color,
 }: ItemAgeMetaProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -49,7 +52,7 @@ export function ItemAgeMeta({
   return (
     <View style={s.row}>
       {showName && (
-        <Text style={s.text} numberOfLines={1}>
+        <Text style={[s.text, color ? { color } : null]} numberOfLines={1}>
           {name}
           <Text style={s.dot}>{'  ·  '}</Text>
         </Text>
@@ -62,7 +65,7 @@ export function ItemAgeMeta({
           </Text>
         </View>
       ) : (
-        <Text style={s.text} numberOfLines={1}>
+        <Text style={[s.text, color ? { color } : null]} numberOfLines={1}>
           {age}
         </Text>
       )}

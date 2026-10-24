@@ -16,6 +16,7 @@ import {
 } from '@stores/expenseCategoriesStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { mf, ms } from '@utils/responsive';
 
@@ -40,6 +41,7 @@ export function QuickAddCategoryModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('semibold');
   const houseId = useAuthStore((s) => s.houseId);
   const add = useExpenseCategoriesStore((s) => s.add);
 
@@ -95,7 +97,7 @@ export function QuickAddCategoryModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <Pressable style={styles.overlay} onPress={handleClose}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>{t('categories.new_category')}</Text>
+          <Text style={[styles.title, headingFont]}>{t('categories.new_category')}</Text>
 
           <View style={styles.formRow}>
             <Pressable
@@ -213,8 +215,8 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     card: {
       width: '100%',
       maxWidth: ms(360),
-      backgroundColor: C.surface,
-      borderRadius: ms(24),
+      backgroundColor: C.background,
+      borderRadius: ms(26),
       padding: sizes.lg,
       gap: sizes.md,
       shadowColor: '#000',
@@ -223,71 +225,66 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       shadowRadius: 28,
       elevation: 10,
     },
-    title: { fontSize: mf(18), ...font.bold, color: C.textPrimary },
+    title: { fontSize: mf(24), letterSpacing: -0.4, color: C.textPrimary },
     formRow: { flexDirection: 'row', gap: ms(8) },
     iconPreviewBtn: {
-      width: ms(52),
-      height: ms(46),
-      borderRadius: ms(10),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: C.surface,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    iconPreviewBtnActive: { borderColor: C.primary, borderWidth: 2 },
+    iconPreviewBtnActive: { borderColor: C.primary, borderWidth: 2.5 },
     iconScroll: { maxHeight: ms(160) },
     iconPickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(6) },
     iconPickerItem: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(8),
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: C.surfaceSecondary,
+      backgroundColor: C.surface,
     },
-    iconPickerItemSelected: {
-      backgroundColor: C.primary + '25',
-      borderWidth: 2,
-      borderColor: C.primary,
-    },
+    iconPickerItemSelected: { borderWidth: 2.5, borderColor: C.primary },
+    // Written on a line, like the bill forms.
     nameInput: {
       flex: 1,
       minWidth: 0,
-      height: ms(46),
-      borderRadius: ms(10),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: ms(12),
-      fontSize: mf(15),
-      ...font.regular,
+      minHeight: 44,
+      borderBottomWidth: 1.5,
+      borderBottomColor: C.border,
+      paddingHorizontal: 0,
+      fontSize: mf(17),
+      ...font.semibold,
       color: C.textPrimary,
     },
     colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8) },
     colorDot: { width: ms(28), height: ms(28), borderRadius: ms(14) },
     colorDotSel: { borderWidth: 3, borderColor: C.textPrimary },
     error: { color: C.danger, fontSize: mf(13), ...font.regular },
-    actions: { flexDirection: 'row', gap: sizes.sm, marginTop: ms(2) },
+    actions: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      marginTop: ms(2),
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+    },
     cancelBtn: {
-      flex: 1,
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      borderRadius: ms(12),
-      backgroundColor: C.surfaceSecondary,
+      minHeight: 44,
+      paddingHorizontal: ms(16),
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cancelText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    cancelText: { fontSize: mf(16), ...font.bold, color: C.primary },
     saveBtn: {
-      flex: 1,
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      borderRadius: ms(12),
+      minHeight: ms(50),
+      paddingHorizontal: ms(26),
+      borderRadius: ms(16),
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     saveBtnOff: { opacity: 0.5 },
-    saveText: { fontSize: mf(15), ...font.semibold, color: C.white },
+    saveText: { fontSize: mf(16), ...font.bold, color: C.white },
   });

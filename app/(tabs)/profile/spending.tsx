@@ -1,64 +1,35 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
+import { View, StyleSheet, Pressable, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, Link } from 'expo-router';
-import { goBack } from '@stores/navigationStore';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
-import {
-  useSpendingStore,
-  type CategorySpend,
-  type MonthSpend,
-  type DrillDownItem,
-} from '@stores/spendingStore';
+import { useSpendingStore, type CategorySpend } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { sizes } from '@constants/sizes';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
-import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
-import { CountUpText } from '@components/shared/CountUpText';
+import { useHandFont } from '@hooks/useHandFont';
+import { localizedMonthLabel } from '@utils/dates';
+import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
-import { localizeCategoryName } from '@utils/categoryName';
-
+import { Mate } from '@components/shared/Mate';
+import { BillTabs, type BillTab } from '@components/bills/BillTabs';
+import { ContributionCards } from '@components/bills/recurring/ContributionCards';
+import { GraphChart } from '@components/spending/GraphChart';
+import { InsightNote } from '@components/spending/InsightNote';
+import { OverviewBlock } from '@components/spending/OverviewBlock';
+import { CategoryLine } from '@components/spending/CategoryLine';
+import {
+  fmtFull,
+  type CategoryRowItem,
+  type SpendingView,
+} from '@components/spending/spendingFormat';
 import { mf, ms } from '@utils/responsive';
-// ── Constants ──────────────────────────────────────────────────────────────────
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const BAR_MAX_H = 56;
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function fmtFull(n: number, sym: string): string {
-  return `${sym}${n.toFixed(2)}`;
-}
-
-function fmtShort(n: number, sym: string): string {
-  if (n >= 1000) return `${sym}${(n / 1000).toFixed(1)}k`;
-  return `${sym}${n.toFixed(0)}`;
-}
-
-function pctChange(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type ViewMode = 'house' | 'personal';
-
-interface CategoryRowItem {
-  cat: CategorySpend;
-  myAmount: number;
-  prevHouseAmount: number;
-  sectionTotal: number;
-  drillDownItems: DrillDownItem[];
-}
 
 interface SpendingSection {
   title: string;
@@ -67,454 +38,12 @@ interface SpendingSection {
   data: CategoryRowItem[];
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-interface InsightCardProps {
-  insight: string | null;
-  error: string | null;
-  isLoading: boolean;
-  onRefresh: () => void;
-}
-
-function InsightCard({
-  insight,
-  error,
-  isLoading,
-  onRefresh,
-}: InsightCardProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  return (
-    <View style={styles.insightCard}>
-      <View style={styles.insightCardDeco} />
-      <View style={styles.insightCardPad}>
-        <View style={styles.insightCardHeader}>
-          <View style={styles.insightCardLabelRow}>
-            <Ionicons name="sparkles" size={13} color="#fff" style={styles.insightCardLabelIcon} />
-            <Text style={styles.insightCardLabel}>{t('spending.ai_insight')}</Text>
-          </View>
-          <Pressable
-            onPress={onRefresh}
-            disabled={isLoading}
-            style={styles.refreshBtn}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('spending.refresh_insight')}
-            accessibilityState={{ disabled: isLoading }}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
-            ) : (
-              <Ionicons name="refresh-outline" size={16} color="rgba(255,255,255,0.70)" />
-            )}
-          </Pressable>
-        </View>
-        {insight ? (
-          <Text style={styles.insightCardText}>{insight}</Text>
-        ) : (
-          <Text style={[styles.insightCardEmpty, error ? styles.insightCardError : null]}>
-            {isLoading ? t('spending.generating_insight') : (error ?? t('spending.no_insight_yet'))}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-interface OverviewCardProps {
-  current: MonthSpend;
-  previous: MonthSpend | undefined;
-  currency: string;
-  viewMode: ViewMode;
-}
-
-function OverviewCard({
-  current,
-  previous,
-  currency,
-  viewMode,
-}: OverviewCardProps): React.JSX.Element {
-  const { t, i18n } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const isPersonal = viewMode === 'personal';
-  const houseDiff = previous ? current.houseTotal - previous.houseTotal : null;
-  const housePct = previous ? pctChange(current.houseTotal, previous.houseTotal) : null;
-  const personalDiff = previous ? current.total - previous.total : null;
-  const personalPct = previous ? pctChange(current.total, previous.total) : null;
-  const sharePct =
-    current.houseTotal > 0 ? Math.round((current.total / current.houseTotal) * 100) : 0;
-
-  const primaryDiff = isPersonal ? personalDiff : houseDiff;
-  const primaryPct = isPersonal ? personalPct : housePct;
-  const isUp = primaryDiff !== null && primaryDiff > 0;
-
-  return (
-    <View style={styles.overviewCard}>
-      <Text style={styles.overviewMonth}>{localizedMonthLabel(current.month, i18n.language)}</Text>
-      <View style={styles.overviewRow}>
-        <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>
-            {isPersonal ? t('spending.my_spending') : t('spending.house_total')}
-          </Text>
-          <CountUpText
-            style={styles.overviewAmt}
-            value={isPersonal ? current.total : current.houseTotal}
-            format={(n) => fmtFull(n, currency)}
-          />
-          {primaryDiff !== null && (
-            <View
-              style={[
-                styles.overviewBadge,
-                { backgroundColor: isUp ? C.danger + '18' : C.positive + '18' },
-              ]}
-            >
-              <Ionicons
-                name={isUp ? 'arrow-up' : 'arrow-down'}
-                size={13}
-                color={isUp ? C.danger : C.positive}
-              />
-              <Text style={[styles.overviewBadgeText, { color: isUp ? C.danger : C.positive }]}>
-                {fmtShort(Math.abs(primaryDiff), currency)}
-                {primaryPct !== null ? ` · ${Math.abs(primaryPct)}%` : ''}
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.overviewDivider} />
-        <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>
-            {isPersonal ? t('spending.house_total') : t('spending.your_share')}
-          </Text>
-          <CountUpText
-            style={styles.overviewAmt}
-            value={isPersonal ? current.houseTotal : current.total}
-            format={(n) => fmtFull(n, currency)}
-          />
-          {sharePct > 0 && (
-            <View style={[styles.overviewBadge, { backgroundColor: C.primary + '12' }]}>
-              <Text style={[styles.overviewBadgeText, { color: C.primary }]}>
-                {t('spending.pct_of_house', { pct: sharePct })}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-      {previous && (
-        <Text style={styles.overviewCompare}>
-          {isPersonal
-            ? t('spending.compare_personal', {
-                month: localizedMonthLabel(previous.month, i18n.language),
-                spent: fmtShort(previous.total, currency),
-                house: fmtShort(previous.houseTotal, currency),
-              })
-            : t('spending.compare_house', {
-                month: localizedMonthLabel(previous.month, i18n.language),
-                house: fmtShort(previous.houseTotal, currency),
-                share: fmtShort(previous.total, currency),
-              })}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-interface MonthlyChartProps {
-  months: MonthSpend[];
-  currency: string;
-  selectedIdx: number;
-  onSelectMonth: (idx: number) => void;
-  viewMode: ViewMode;
-  onSetHouseView: () => void;
-  onSetPersonalView: () => void;
-}
-
-function MonthlyChart({
-  months,
-  currency,
-  selectedIdx,
-  onSelectMonth,
-  viewMode,
-  onSetHouseView,
-  onSetPersonalView,
-}: MonthlyChartProps): React.JSX.Element {
-  const { t, i18n } = useTranslation();
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const chartData = months.slice(0, 6).reverse();
-  const isPersonal = viewMode === 'personal';
-  const maxVal = Math.max(...chartData.map((m) => (isPersonal ? m.total : m.houseTotal)), 1);
-
-  return (
-    <View style={styles.chartCard}>
-      <View style={styles.chartCardDeco} />
-      <View style={styles.chartPad}>
-        {/* Segment control */}
-        <View style={styles.chartSegment}>
-          <Pressable
-            style={[styles.chartSegBtn, !isPersonal && styles.chartSegBtnActive]}
-            onPress={onSetHouseView}
-            accessible
-            accessibilityRole="tab"
-            accessibilityState={{ selected: !isPersonal }}
-            accessibilityLabel={t('spending.show_house_spending')}
-          >
-            <Ionicons
-              name="home-outline"
-              size={14}
-              color={!isPersonal ? C.primary : 'rgba(255,255,255,0.70)'}
-            />
-            <Text style={[styles.chartSegText, !isPersonal && styles.chartSegTextActive]}>
-              {t('spending.house_label')}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.chartSegBtn, isPersonal && styles.chartSegBtnActive]}
-            onPress={onSetPersonalView}
-            accessible
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isPersonal }}
-            accessibilityLabel={t('spending.show_personal_spending')}
-          >
-            <Ionicons
-              name="person-outline"
-              size={14}
-              color={isPersonal ? C.primary : 'rgba(255,255,255,0.70)'}
-            />
-            <Text style={[styles.chartSegText, isPersonal && styles.chartSegTextActive]}>
-              {t('spending.personal_label')}
-            </Text>
-          </Pressable>
-        </View>
-        <Text style={styles.chartTitle}>{t('spending.monthly_trend')}</Text>
-        <View style={styles.barsRow}>
-          {chartData.map((m, i) => {
-            const monthsIdx = chartData.length - 1 - i;
-            const isSelected = monthsIdx === selectedIdx;
-            const mainVal = isPersonal ? m.total : m.houseTotal;
-            const barH = Math.max((mainVal / maxVal) * BAR_MAX_H, mainVal > 0 ? 4 : 2);
-            const shareBarH =
-              !isPersonal && m.houseTotal > 0 ? Math.round(barH * (m.total / m.houseTotal)) : 0;
-
-            return (
-              <Pressable
-                key={m.month}
-                style={styles.barCol}
-                onPress={() => onSelectMonth(monthsIdx)}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('spending.view_month', {
-                  month: localizedMonthLabel(m.month, i18n.language),
-                })}
-                accessibilityState={{ selected: isSelected }}
-              >
-                <Text style={[styles.barAmt, isSelected && styles.barAmtSelected]}>
-                  {mainVal > 0 ? fmtShort(mainVal, currency) : ''}
-                </Text>
-                <View style={[styles.barTrack, isSelected && styles.barTrackSelected]}>
-                  <View
-                    style={[styles.barFill, { height: barH }, isSelected && styles.barFillSelected]}
-                  />
-                  {shareBarH > 0 && <View style={[styles.barShareFill, { height: shareBarH }]} />}
-                </View>
-                <Text style={[styles.barLbl, isSelected && styles.barLblSelected]}>
-                  {monthNameFromKey(m.month, i18n.language)}
-                </Text>
-                {isSelected && <View style={styles.barSelDot} />}
-              </Pressable>
-            );
-          })}
-        </View>
-        <View style={styles.chartLegend}>
-          {isPersonal ? (
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#fff' }]} />
-              <Text style={styles.legendText}>{t('spending.personal_label')}</Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#fff' }]} />
-                <Text style={styles.legendText}>{t('spending.house_label')}</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.38)' }]} />
-                <Text style={styles.legendText}>{t('spending.your_share')}</Text>
-              </View>
-            </>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-interface CategoryRowProps {
-  item: CategoryRowItem;
-  currency: string;
-  isExpanded: boolean;
-  onToggle: (name: string) => void;
-}
-
-function CategoryRow({
-  item,
-  currency,
-  isExpanded,
-  onToggle,
-}: CategoryRowProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems } = item;
-  const pct = pctChange(cat.amount, prevHouseAmount);
-  const isUp = pct !== null && pct > 0;
-  const barPct = sectionTotal > 0 ? Math.round((cat.amount / sectionTotal) * 100) : 0;
-  const canExpand = drillDownItems.length > 0;
-  const displayName = localizeCategoryName(cat.name, t);
-
-  const handlePress = useCallback(() => {
-    if (canExpand) onToggle(cat.name);
-  }, [canExpand, onToggle, cat.name]);
-
-  return (
-    <Pressable
-      style={styles.catRow}
-      onPress={canExpand ? handlePress : undefined}
-      accessible
-      accessibilityRole={canExpand ? 'button' : 'none'}
-      accessibilityLabel={`${displayName}, ${fmtFull(cat.amount, currency)}${canExpand ? `, ${t('spending.tap_details')}` : ''}`}
-      accessibilityState={canExpand ? { expanded: isExpanded } : undefined}
-    >
-      <View style={[styles.catIcon, { backgroundColor: cat.color + '18' }]}>
-        <Ionicons name={cat.icon} size={18} color={cat.color} />
-      </View>
-      <View style={styles.catInfo}>
-        <View style={styles.catTopRow}>
-          <Text style={styles.catName}>{displayName}</Text>
-          <View style={styles.catAmtGroup}>
-            <Text style={styles.catAmt}>{fmtFull(cat.amount, currency)}</Text>
-            {pct !== null && (
-              <View style={styles.catPctRow}>
-                <Ionicons
-                  name={isUp ? 'arrow-up' : 'arrow-down'}
-                  size={11}
-                  color={isUp ? C.danger : C.positive}
-                />
-                <Text style={[styles.catPct, { color: isUp ? C.danger : C.positive }]}>
-                  {Math.abs(pct)}%
-                </Text>
-              </View>
-            )}
-          </View>
-          {canExpand && (
-            <Ionicons
-              name={isExpanded ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={C.textSecondary}
-              style={styles.catChevron}
-            />
-          )}
-        </View>
-        <View style={styles.catBarTrack}>
-          <View
-            style={[
-              styles.catBarFill,
-              { width: `${barPct}%` as `${number}%`, backgroundColor: cat.color },
-            ]}
-          />
-        </View>
-        {myAmount > 0 && (
-          <Text style={styles.catMyShare}>
-            {t('spending.your_share')}: {fmtFull(myAmount, currency)}
-          </Text>
-        )}
-        {isExpanded && drillDownItems.length > 0 && (
-          <View style={styles.drillDown}>
-            {drillDownItems.map((d) =>
-              d.type === 'bill' ? (
-                <Link
-                  key={d.id}
-                  href={{ pathname: '/(tabs)/bills/[id]', params: { id: d.id } }}
-                  asChild
-                >
-                  <Pressable
-                    style={styles.drillDownRow}
-                    hitSlop={{ top: ms(4), bottom: ms(4), left: ms(8), right: ms(8) }}
-                    accessible
-                    accessibilityRole="link"
-                    accessibilityLabel={t('spending.open_bill', {
-                      title: d.title,
-                      amount: fmtFull(d.amount, currency),
-                    })}
-                  >
-                    <Text style={styles.drillDownType}>·</Text>
-                    <Text style={styles.drillDownTitle} numberOfLines={1}>
-                      {d.title}
-                    </Text>
-                    <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
-                    <Ionicons
-                      name={rtl ? 'chevron-back' : 'chevron-forward'}
-                      size={12}
-                      color={C.textSecondary}
-                    />
-                  </Pressable>
-                </Link>
-              ) : (
-                <View key={d.id} style={styles.drillDownRow} accessible accessibilityRole="none">
-                  <View style={styles.drillDownType}>
-                    <Ionicons name="repeat" size={12} color={C.textSecondary} />
-                  </View>
-                  <Text style={styles.drillDownTitle} numberOfLines={1}>
-                    {d.title}
-                  </Text>
-                  <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
-                </View>
-              )
-            )}
-          </View>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
-interface SectionHeaderProps {
-  title: string;
-  icon: IoniconName;
-  total: number;
-  currency: string;
-}
-
-function SpendingSectionHeader({
-  title,
-  icon,
-  total,
-  currency,
-}: SectionHeaderProps): React.JSX.Element {
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  return (
-    <View style={styles.sectionHeader}>
-      <Ionicons name={icon} size={15} color={C.textSecondary} style={styles.sectionHeaderIcon} />
-      <Text style={styles.sectionHeaderTitle}>{title}</Text>
-      <Text style={styles.sectionHeaderTotal}>{fmtFull(total, currency)}</Text>
-    </View>
-  );
-}
-
-// ── Main screen ────────────────────────────────────────────────────────────────
-
 export default function SpendingScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('house');
+  const [viewMode, setViewMode] = useState<SpendingView>('house');
 
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const months = useSpendingStore((s) => s.months);
@@ -529,7 +58,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
 
   const userName = profile?.name ?? '';
 
@@ -543,10 +72,6 @@ export default function SpendingScreen(): React.JSX.Element {
   useEffect(() => {
     if (months.length && houseId) fetchInsight(houseId, userName, currency);
   }, [months, houseId, userName, currency, fetchInsight]);
-
-  const handleBack = useCallback(() => {
-    goBack();
-  }, []);
 
   const handleRefreshInsight = useCallback(() => {
     if (!houseId) return;
@@ -563,13 +88,8 @@ export default function SpendingScreen(): React.JSX.Element {
     setExpandedCategory((prev) => (prev === name ? null : name));
   }, []);
 
-  const handleSetHouseView = useCallback((): void => {
-    setViewMode('house');
-    setExpandedCategory(null);
-  }, []);
-
-  const handleSetPersonalView = useCallback((): void => {
-    setViewMode('personal');
+  const handleView = useCallback((v: SpendingView): void => {
+    setViewMode(v);
     setExpandedCategory(null);
   }, []);
 
@@ -619,12 +139,30 @@ export default function SpendingScreen(): React.JSX.Element {
     return result;
   }, [selectedMonth, previousMonth, viewMode, t]);
 
+  const hand = useHandFont();
+
+  const viewTabs = useMemo<BillTab<SpendingView>[]>(
+    () => [
+      {
+        key: 'house',
+        label: t('spending.house_label'),
+        a11yLabel: t('spending.show_house_spending'),
+      },
+      {
+        key: 'personal',
+        label: t('spending.personal_label'),
+        a11yLabel: t('spending.show_personal_spending'),
+      },
+    ],
+    [t]
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: CategoryRowItem }) => (
-      <CategoryRow
+    ({ item }: { item: CategoryRowItem }): React.JSX.Element => (
+      <CategoryLine
         item={item}
         currency={currency}
-        isExpanded={expandedCategory === item.cat.name}
+        expanded={expandedCategory === item.cat.name}
         onToggle={handleToggleCategory}
       />
     ),
@@ -632,44 +170,34 @@ export default function SpendingScreen(): React.JSX.Element {
   );
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: SpendingSection }) => (
-      <SpendingSectionHeader
-        title={section.title}
-        icon={section.icon}
-        total={section.total}
-        currency={currency}
-      />
+    ({ section }: { section: SpendingSection }): React.JSX.Element => (
+      <View style={styles.sectionHead}>
+        <Ionicons name={section.icon} size={16} color={C.textSecondary} />
+        <Text style={[styles.sectionTitle, headingFont]}>{section.title}</Text>
+        <Text style={styles.sectionTotal}>{fmtFull(section.total, currency)}</Text>
+      </View>
     ),
-    [currency]
+    [currency, styles, headingFont, C]
   );
 
-  const keyExtractor = useCallback((item: CategoryRowItem) => item.cat.name, []);
+  const keyExtractor = useCallback((item: CategoryRowItem): string => item.cat.name, []);
 
-  const handleRetry = useCallback(() => {
+  const handleRetry = useCallback((): void => {
     if (houseId && userName) void load(houseId, userName);
   }, [houseId, userName, load]);
 
-  const handleJumpToCurrent = useCallback(() => setSelectedIdx(0), []);
+  const handleJumpToCurrent = useCallback((): void => setSelectedIdx(0), []);
 
   const pageHeader = (
     <View style={styles.header}>
-      <Pressable
-        onPress={handleBack}
-        style={styles.backBtn}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={t('common.back')}
-      >
-        <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
-      </Pressable>
+      <BackLink label={t('nav.profile')} />
       <Text style={[styles.title, headingFont]}>{t('spending.spending_analysis')}</Text>
-      <View style={styles.backBtn} />
     </View>
   );
 
   if (isLoading && months.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.root} edges={['top']}>
         {pageHeader}
         <View style={styles.centered}>
           <LoadingSpinner size={140} />
@@ -680,75 +208,66 @@ export default function SpendingScreen(): React.JSX.Element {
 
   if (error && months.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.root} edges={['top']}>
         {pageHeader}
         <View style={styles.centered}>
-          <Text style={styles.errorTitle}>{t('spending.could_not_load')}</Text>
-          <Text style={styles.errorText}>{t('common.failed_try_again')}</Text>
+          <Text style={[styles.errorTitle, headingFont]}>{t('spending.could_not_load')}</Text>
+          <Text style={styles.muted}>{t('common.failed_try_again')}</Text>
           <Pressable
-            style={styles.retryBtn}
+            style={styles.retry}
             onPress={handleRetry}
-            accessible
             accessibilityRole="button"
             accessibilityLabel={t('bills.retry')}
           >
-            <Text style={styles.retryBtnText}>{t('bills.retry')}</Text>
+            <Text style={styles.retryText}>{t('bills.retry')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
+  const hasTrend = months.some((m) => (viewMode === 'house' ? m.houseTotal : m.total) > 0);
   const listHeader = (
-    <View style={styles.listHeaderWrap}>
-      <InsightCard
+    <View style={styles.listHeader}>
+      <BillTabs tabs={viewTabs} selected={viewMode} onSelect={handleView} />
+      <InsightNote
         insight={insight}
         error={insightError}
         isLoading={insightLoading}
         onRefresh={handleRefreshInsight}
       />
-
-      {months.some((m) => (viewMode === 'house' ? m.houseTotal : m.total) > 0) && (
-        <MonthlyChart
+      {hasTrend && (
+        <GraphChart
           months={months}
           currency={currency}
           selectedIdx={selectedIdx}
+          view={viewMode}
           onSelectMonth={handleSelectMonth}
-          viewMode={viewMode}
-          onSetHouseView={handleSetHouseView}
-          onSetPersonalView={handleSetPersonalView}
         />
       )}
-
       {selectedIdx > 0 && (
         <Pressable
-          style={styles.jumpBtn}
+          style={styles.jump}
           onPress={handleJumpToCurrent}
-          accessible
           accessibilityRole="button"
           accessibilityLabel={t('spending.jump_to_current')}
         >
-          <Ionicons
-            name={rtl ? 'arrow-back-circle-outline' : 'arrow-forward-circle-outline'}
-            size={16}
-            color={C.primary}
-          />
-          <Text style={styles.jumpBtnText}>{t('spending.jump_to_current')}</Text>
+          <Text style={[styles.jumpText, hand]}>{t('spending.jump_to_current')}</Text>
         </Pressable>
       )}
-
       {selectedMonth &&
         (viewMode === 'house' ? selectedMonth.houseTotal : selectedMonth.total) > 0 && (
-          <OverviewCard
+          <OverviewBlock
             current={selectedMonth}
             previous={previousMonth}
             currency={currency}
-            viewMode={viewMode}
+            view={viewMode}
           />
         )}
-
+      {/* Who has been paying the recurring household bills. */}
+      <ContributionCards />
       {sections.length > 0 && (
-        <Text style={styles.breakdownTitle}>
+        <Text style={[styles.breakdown, headingFont]}>
           {t('spending.breakdown_title', {
             month: selectedMonth ? localizedMonthLabel(selectedMonth.month, i18n.language) : '',
           })}
@@ -758,354 +277,93 @@ export default function SpendingScreen(): React.JSX.Element {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.flex}>
-        {pageHeader}
-        <SectionList<CategoryRowItem, SpendingSection>
-          sections={sections}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          renderSectionHeader={renderSectionHeader}
-          contentContainerStyle={styles.scroll}
-          stickySectionHeadersEnabled={false}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={
-            !isLoading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>{t('spending.no_spending_yet')}</Text>
-                <Text style={styles.emptyText}>
-                  {selectedIdx === 0
-                    ? t('spending.add_bills_hint')
-                    : t('spending.no_spending_for', {
-                        month: selectedMonth
-                          ? localizedMonthLabel(selectedMonth.month, i18n.language)
-                          : t('spending.this_month'),
-                      })}
-                </Text>
-              </View>
-            ) : null
-          }
-        />
-      </View>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      {pageHeader}
+      <SectionList<CategoryRowItem, SpendingSection>
+        sections={sections}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        contentContainerStyle={styles.scroll}
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.empty}>
+              <Mate size={ms(80)} />
+              <Text style={[styles.emptyTitle, hand]}>{t('spending.no_spending_yet')}</Text>
+              <Text style={styles.muted}>
+                {selectedIdx === 0
+                  ? t('spending.add_bills_hint')
+                  : t('spending.no_spending_for', {
+                      month: selectedMonth
+                        ? localizedMonthLabel(selectedMonth.month, i18n.language)
+                        : t('spending.this_month'),
+                    })}
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
-
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
-    flex: { flex: 1 },
-    container: { flex: 1, backgroundColor: C.background },
-
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: sizes.md,
-      paddingVertical: sizes.sm,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: C.border,
+    root: { flex: 1, backgroundColor: C.background },
+    header: { paddingHorizontal: ms(20), paddingTop: ms(8) },
+    title: {
+      fontSize: mf(36),
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
+      color: C.textPrimary,
     },
-    backBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
-    title: { fontSize: mf(17), ...font.bold, color: C.textPrimary },
-
-    scroll: { padding: sizes.lg, paddingBottom: ms(60) },
-    listHeaderWrap: { gap: sizes.md, marginBottom: sizes.sm },
-
-    // AI Insight card
-    insightCard: {
-      backgroundColor: C.primary,
-      borderRadius: sizes.borderRadiusLg,
-      overflow: 'hidden',
-    },
-    insightCardDeco: {
-      position: 'absolute',
-      top: ms(-30),
-      end: ms(-16),
-      width: ms(120),
-      height: ms(120),
-      borderRadius: ms(60),
-      backgroundColor: 'rgba(255,255,255,0.09)',
-    },
-    insightCardPad: { padding: ms(20), gap: ms(10) },
-    insightCardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    insightCardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: ms(5), opacity: 0.88 },
-    insightCardLabelIcon: { marginTop: ms(-1) },
-    insightCardLabel: {
-      fontSize: mf(11),
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: 1.1,
-    },
-    refreshBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
-    insightCardText: { fontSize: mf(14), ...font.regular, color: '#fff', lineHeight: mf(21) },
-    insightCardEmpty: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: 'rgba(255,255,255,0.60)',
-      fontStyle: 'italic',
-    },
-    insightCardError: { color: 'rgba(255,255,255,0.84)', fontStyle: 'normal' },
-
-    // Overview card
-    overviewCard: {
-      backgroundColor: C.surface,
-      borderRadius: sizes.borderRadiusLg,
-      padding: ms(20),
-      gap: ms(14),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    overviewMonth: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    overviewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.md },
-    overviewBlock: { flex: 1, gap: ms(4) },
-    overviewLbl: {
-      fontSize: mf(11),
-      ...font.semibold,
-      color: C.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    overviewAmt: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.6 },
-    overviewBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(2),
-      alignSelf: 'flex-start',
-      borderRadius: ms(8),
-      paddingHorizontal: ms(8),
-      paddingVertical: ms(3),
-    },
-    overviewBadgeText: { fontSize: mf(12), ...font.bold },
-    overviewDivider: { width: ms(1), height: ms(56), backgroundColor: C.border, marginTop: ms(16) },
-    overviewCompare: {
-      fontSize: mf(12),
-      ...font.regular,
-      color: C.textSecondary,
-      lineHeight: mf(18),
-    },
-
-    // Monthly chart
-    chartCard: {
-      backgroundColor: C.primary,
-      borderRadius: sizes.borderRadiusLg,
-      overflow: 'hidden',
-    },
-    chartCardDeco: {
-      position: 'absolute',
-      bottom: ms(-44),
-      end: ms(16),
-      width: ms(110),
-      height: ms(110),
-      borderRadius: ms(55),
-      backgroundColor: 'rgba(255,255,255,0.06)',
-    },
-    chartPad: { padding: ms(20), gap: ms(14) },
-    chartTitle: {
-      fontSize: mf(11),
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: 1.1,
-      opacity: 0.88,
-    },
-    barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: ms(10), height: ms(100) },
-    barCol: {
-      flex: 1,
-      minWidth: ms(44),
-      alignItems: 'center',
-      gap: ms(5),
-      justifyContent: 'flex-end',
-    },
-    barAmt: { fontSize: mf(9), ...font.bold, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
-    barAmtSelected: { color: '#fff', fontSize: mf(10) },
-    barTrack: {
-      width: ms(18),
-      height: BAR_MAX_H,
-      borderRadius: ms(999),
-      backgroundColor: 'rgba(255,255,255,0.14)',
-      justifyContent: 'flex-end',
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    barTrackSelected: { backgroundColor: 'rgba(255,255,255,0.22)' },
-    barFill: { width: ms(18), borderRadius: ms(999), backgroundColor: 'rgba(255,255,255,0.30)' },
-    barFillSelected: { backgroundColor: '#fff' },
-    barShareFill: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: 'rgba(255,255,255,0.56)',
-      borderRadius: ms(999),
-    },
-    barLbl: { fontSize: mf(10), ...font.regular, color: 'rgba(255,255,255,0.70)' },
-    barLblSelected: { color: '#fff', ...font.bold },
-    barSelDot: {
-      width: ms(5),
-      height: ms(5),
-      borderRadius: ms(3),
-      backgroundColor: '#fff',
-    },
-    chartLegend: { flexDirection: 'row', gap: sizes.md },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
-    legendDot: { width: ms(8), height: ms(8), borderRadius: ms(4) },
-    legendText: { fontSize: mf(11), ...font.regular, color: 'rgba(255,255,255,0.80)' },
-
-    // Jump-to-current button
-    jumpBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(6),
-      alignSelf: 'flex-end',
-      paddingHorizontal: ms(16),
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      backgroundColor: C.primary + '12',
-      borderRadius: ms(22),
-    },
-    jumpBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
-
-    breakdownTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary, marginTop: ms(4) },
-    chartSegment: {
-      flexDirection: 'row',
-      backgroundColor: 'rgba(255,255,255,0.12)',
-      borderRadius: ms(12),
-      padding: ms(3),
-      marginBottom: ms(6),
-    },
-    chartSegBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(5),
-      paddingVertical: ms(10),
-      borderRadius: ms(10),
-      minHeight: ms(44),
-    },
-    chartSegBtnActive: { backgroundColor: '#fff' },
-    chartSegText: { fontSize: mf(13), ...font.semibold, color: 'rgba(255,255,255,0.75)' },
-    chartSegTextActive: { color: C.primary },
-
-    // Section headers
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingVertical: sizes.sm,
-      paddingHorizontal: ms(2),
-      marginTop: sizes.sm,
-    },
-    sectionHeaderIcon: { marginEnd: ms(2) },
-    sectionHeaderTitle: { flex: 1, fontSize: mf(14), ...font.bold, color: C.textPrimary },
-    sectionHeaderTotal: { fontSize: mf(14), ...font.bold, color: C.textSecondary },
-
-    // Category rows
-    catRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: sizes.sm,
-      backgroundColor: C.surface,
-      borderRadius: sizes.borderRadius,
-      padding: sizes.md,
-      marginBottom: sizes.xs,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    catIcon: {
-      width: ms(40),
-      height: ms(40),
-      borderRadius: ms(12),
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: ms(2),
-    },
-    catInfo: { flex: 1, gap: ms(4) },
-    catTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    catName: { fontSize: mf(14), ...font.semibold, color: C.textPrimary, flex: 1 },
-    catAmtGroup: { alignItems: 'flex-end', gap: ms(1) },
-    catPctRow: { flexDirection: 'row', alignItems: 'center', gap: ms(1) },
-    catAmt: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
-    catPct: { fontSize: mf(11), ...font.bold },
-    catBarTrack: {
-      height: ms(4),
-      borderRadius: ms(2),
-      backgroundColor: 'rgba(0,0,0,0.06)',
-      overflow: 'hidden',
-    },
-    catBarFill: { height: ms(4), borderRadius: ms(2) },
-    catMyShare: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
-    catChevron: { marginStart: ms(4) },
-
-    // Drill-down accordion
-    drillDown: {
-      marginTop: ms(8),
-      paddingTop: ms(8),
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: 'rgba(0,0,0,0.08)',
-      gap: ms(6),
-    },
-    drillDownRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      minHeight: ms(44),
-      paddingVertical: ms(4),
-    },
-    drillDownType: {
-      width: ms(14),
-      fontSize: mf(13),
-      color: C.textSecondary,
-      textAlign: 'center',
-      alignItems: 'center',
-    },
-    drillDownTitle: { flex: 1, fontSize: mf(13), ...font.regular, color: C.textSecondary },
-    drillDownAmt: { fontSize: mf(13), ...font.semibold, color: C.textPrimary },
-
-    // States
+    scroll: { paddingHorizontal: ms(20), paddingBottom: ms(60) },
+    listHeader: { gap: ms(20), paddingTop: ms(4), marginBottom: ms(4) },
     centered: {
       flex: 1,
-      justifyContent: 'center',
       alignItems: 'center',
-      gap: sizes.sm,
-      padding: sizes.lg,
+      justifyContent: 'center',
+      padding: ms(24),
+      gap: ms(8),
     },
-    emptyState: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
-    emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
-    emptyText: {
-      fontSize: sizes.fontSm,
+    errorTitle: { fontSize: mf(22), color: C.textPrimary, textAlign: 'center' },
+    muted: {
+      fontSize: mf(13.5),
+      lineHeight: mf(19),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
     },
-    errorTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary, textAlign: 'center' },
-    errorText: {
-      fontSize: sizes.fontSm,
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-    },
-    retryBtn: {
-      marginTop: sizes.sm,
+    retry: {
+      minHeight: 48,
+      paddingHorizontal: ms(28),
+      borderRadius: ms(16),
       backgroundColor: C.primary,
-      borderRadius: sizes.borderRadius,
-      paddingHorizontal: sizes.lg,
-      paddingVertical: sizes.sm,
-      minHeight: ms(44),
-      justifyContent: 'center',
       alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: ms(8),
     },
-    retryBtnText: { fontSize: sizes.fontSm, ...font.semibold, color: '#fff' },
+    retryText: { fontSize: mf(15), ...font.semibold, color: '#FFFFFF' },
+    jump: { minHeight: 40, justifyContent: 'center', alignSelf: 'center', marginTop: -ms(10) },
+    jumpText: { fontSize: mf(19), color: C.primary },
+    breakdown: { fontSize: mf(22), lineHeight: mf(29), color: C.textPrimary },
+    sectionHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(8),
+      paddingTop: ms(14),
+      paddingBottom: ms(4),
+      borderBottomWidth: 1.5,
+      borderBottomColor: C.border,
+    },
+    sectionTitle: { flex: 1, fontSize: mf(17), lineHeight: mf(23), color: C.textPrimary },
+    sectionTotal: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
+    empty: { alignItems: 'center', paddingVertical: ms(24), gap: ms(8) },
+    emptyTitle: { fontSize: mf(22), lineHeight: mf(26), color: C.textPrimary, textAlign: 'center' },
   });
 }

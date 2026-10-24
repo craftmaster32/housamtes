@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
-import { font } from '@constants/typography';
 import { getDateFnsLocale } from '@utils/dates';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { TimePicker } from '@components/shared/TimePicker';
+import { LineField } from '@components/parking/LineField';
+import { TimePickerModal } from '@components/parking/TimePickerModal';
 
 import { mf, ms } from '@utils/responsive';
 export interface ReminderDateTimeFieldProps {
@@ -85,30 +84,39 @@ export function ReminderDateTimeField({
   const openDatePicker = useCallback(() => setShowDatePicker(true), []);
   const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
 
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const openTimePicker = useCallback(() => setShowTimePicker(true), []);
+  const closeTimePicker = useCallback(() => setShowTimePicker(false), []);
+  const clearTime = useCallback(() => {
+    setTime('');
+    setShowTimePicker(false);
+  }, []);
+
+  // Date and time written on lines, like the Parking reserve form.
   return (
     <>
-      <View style={s.field}>
-        <Text style={[s.fieldLabel, { color: C.textSecondary }]}>{t('grocery.reminder_date')}</Text>
-        <Pressable
-          style={[s.dateTrigger, { backgroundColor: C.surfaceSecondary, borderColor: C.border }]}
-          onPress={openDatePicker}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.pick_date')}
-          accessibilityState={{ expanded: showDatePicker }}
-        >
-          <Ionicons name="calendar-outline" size={18} color={C.primary} />
-          <Text style={[s.dateTriggerText, { color: C.textPrimary }]}>{displayDate}</Text>
-          <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
-        </Pressable>
+      <View style={s.row}>
+        <View style={s.col}>
+          <LineField
+            label={t('grocery.reminder_date')}
+            value={displayDate}
+            icon="calendar-outline"
+            onPress={openDatePicker}
+            accessibilityHint={t('bills.pick_date')}
+          />
+        </View>
+        <View style={s.col}>
+          <LineField
+            label={t('grocery.reminder_time')}
+            value={time}
+            placeholder="--:--"
+            icon="time-outline"
+            onPress={openTimePicker}
+          />
+        </View>
       </View>
 
-      <View style={s.field}>
-        <Text style={[s.fieldLabel, { color: C.textSecondary }]}>{t('grocery.reminder_time')}</Text>
-        <TimePicker value={time} onChange={setTime} />
-      </View>
-
-      {!isFuture && !!time && (
+      {!isFuture && (
         <Text style={[s.errorText, { color: C.danger }]}>
           {t('grocery.reminder_must_be_future')}
         </Text>
@@ -120,29 +128,22 @@ export function ReminderDateTimeField({
         onSelect={setDate}
         onClose={closeDatePicker}
       />
+      <TimePickerModal
+        visible={showTimePicker}
+        title={t('grocery.reminder_time')}
+        value={time || nextRoundedDefault().time}
+        onSelect={setTime}
+        onClear={clearTime}
+        onClose={closeTimePicker}
+      />
     </>
   );
 }
 
 function makeStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
-    field: { gap: ms(8) },
-    fieldLabel: {
-      fontSize: mf(12),
-      ...font.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
-    },
-    dateTrigger: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      paddingHorizontal: ms(14),
-      minHeight: ms(48),
-    },
-    dateTriggerText: { flex: 1, fontSize: mf(15), ...font.medium },
-    errorText: { fontSize: mf(12) },
+    row: { flexDirection: 'row', gap: ms(16) },
+    col: { flex: 1 },
+    errorText: { fontSize: mf(12.5) },
   });
 }

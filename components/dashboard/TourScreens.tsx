@@ -3,9 +3,20 @@ import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import type { TFunction } from 'i18next';
-import { type ColorTokens } from '@constants/colors';
+import { lightColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import type { MonthSpend } from '@stores/spendingStore';
+import { NotebookPaper } from '@components/shared/NotebookPaper';
+import { DotLeader } from '@components/shared/DotLeader';
+import { ReceiptRoll } from '@components/bills/ReceiptRoll';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
+import { BagSlice } from '@components/grocery/BagSlice';
+import { GraphChart } from '@components/spending/GraphChart';
+import { WallCalendar, type DayMark } from '@components/calendar/WallCalendar';
+import { toYMD } from '@components/calendar/calendarMeta';
 
 export type TourScreenId = 'bills' | 'spending' | 'grocery' | 'calendar';
 export type BarHighlight = 'add' | 'more' | null;
@@ -124,8 +135,33 @@ interface ScreenProps {
   currency: string;
 }
 
-// ── Bills — sample expense rows; the spotlight is the bar's + (controller) ────
+// Paper objects keep their light inks in both themes, like the real pages.
+const P = lightColors;
+const noop = (): void => {};
+
+/** Fraunces page title with an optional grey line under it, like the real pages. */
+function PageTitle({
+  C,
+  title,
+  sub,
+}: {
+  C: ColorTokens;
+  title: string;
+  sub?: string;
+}): React.JSX.Element {
+  const heading = useHeadingFont('semibold');
+  return (
+    <View style={[styles.header, { opacity: DIM }]}>
+      <Text style={[styles.title, heading, { color: C.textPrimary }]}>{title}</Text>
+      {!!sub && <Text style={[styles.sub, { color: C.textSecondary }]}>{sub}</Text>}
+    </View>
+  );
+}
+
+// ── Bills — the notebook balance and receipt lines; the spotlight is the bar's + ──
 function BillsScreen({ C, t, currency }: ScreenProps): React.JSX.Element {
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
   const rows: Array<{
     icon: keyof typeof Ionicons.glyphMap;
     tint: string;
@@ -133,253 +169,193 @@ function BillsScreen({ C, t, currency }: ScreenProps): React.JSX.Element {
     amount: string;
     who: string;
   }> = [
-    { icon: 'flash', tint: '#E0912F', title: t('tour.demo_electricity'), amount: '84', who: 'S' },
-    { icon: 'wifi', tint: C.primary, title: t('tour.demo_internet'), amount: '39', who: 'D' },
-    { icon: 'water', tint: '#3FA0C9', title: t('tour.demo_water'), amount: '22', who: 'A' },
+    {
+      icon: 'flash-outline',
+      tint: '#E0912F',
+      title: t('tour.demo_electricity'),
+      amount: '84.00',
+      who: 'Sam',
+    },
+    {
+      icon: 'wifi-outline',
+      tint: P.primary,
+      title: t('tour.demo_internet'),
+      amount: '39.00',
+      who: 'Dana',
+    },
+    {
+      icon: 'water-outline',
+      tint: '#3FA0C9',
+      title: t('tour.demo_water'),
+      amount: '22.00',
+      who: 'Alex',
+    },
   ];
   return (
     <View style={styles.body}>
-      <View style={[styles.header, { opacity: DIM }]}>
-        <Text style={[styles.title, { color: C.textPrimary }]}>{t('bills.title')}</Text>
-        <Text style={[styles.sub, { color: C.textSecondary }]}>{t('bills.page_subtitle')}</Text>
-      </View>
-      <View style={[styles.rows, { opacity: DIM }]}>
-        {rows.map((r) => (
-          <View
-            key={r.title}
-            style={[styles.card, { backgroundColor: C.surface, borderColor: C.border }]}
-          >
-            <View style={[styles.chip, { backgroundColor: r.tint + '22' }]}>
-              <Ionicons name={r.icon} size={18} color={r.tint} />
+      <PageTitle C={C} title={t('bills.title')} sub={t('bills.page_subtitle')} />
+      <View style={[styles.gap, { opacity: DIM }]}>
+        <NotebookPaper>
+          <Text style={[styles.owedLbl, hand]}>{t('dashboard.balance_owed')}</Text>
+          <Text style={[styles.owedVal, heading]}>{currency}126.00</Text>
+        </NotebookPaper>
+        <ReceiptRoll>
+          {rows.map((r) => (
+            <View key={r.title} style={styles.line}>
+              <Ionicons name={r.icon} size={17} color={r.tint} />
+              <View style={styles.lineText}>
+                <Text style={styles.lineTitle}>{r.title}</Text>
+                <Text style={[styles.lineWho, hand]}>{r.who}</Text>
+              </View>
+              <DotLeader color="rgba(107,98,80,0.35)" />
+              <Text style={styles.lineAmt}>
+                {currency}
+                {r.amount}
+              </Text>
             </View>
-            <View style={styles.cardMeta}>
-              <Text style={[styles.rowTitle, { color: C.textPrimary }]}>{r.title}</Text>
-              <Text style={[styles.rowSub, { color: C.textSecondary }]}>{t('bills.paid_by')}</Text>
-            </View>
-            <Text style={[styles.amount, { color: C.textPrimary }]}>
-              {currency}
-              {r.amount}
-            </Text>
-            <View style={[styles.avatar, { backgroundColor: C.primary }]}>
-              <Text style={styles.avatarText}>{r.who}</Text>
-            </View>
-          </View>
-        ))}
+          ))}
+        </ReceiptRoll>
       </View>
     </View>
   );
 }
 
-// ── Spending — summary + monthly bar chart (the chart is the spotlight) ───────
+// ── Spending — the graph-paper trend is the spotlight ─────────────────────────
 function SpendingScreen({ C, t, currency }: ScreenProps): React.JSX.Element {
-  const bars = [40, 56, 44, 72, 50, 92];
-  const peak = Math.max(...bars);
   const now = new Date();
-  const months = Array.from({ length: 6 }, (_, i) =>
-    new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
-      .toLocaleDateString(undefined, { month: 'short' })
-      .slice(0, 3)
-  );
-  const summary = [
-    { label: t('spending.house_total'), value: `${currency}1,240` },
-    { label: t('spending.your_share'), value: `${currency}413` },
-  ];
+  const totals = [920, 1040, 870, 1310, 990, 1240];
+  const months: MonthSpend[] = totals
+    .map((house, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return {
+        month: key,
+        label: key,
+        total: Math.round(house / 3),
+        houseTotal: house,
+        categories: [],
+        houseCategories: [],
+        billsByCategory: {},
+      };
+    })
+    .reverse();
   return (
     <View style={styles.body}>
-      <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>
-        {t('spending.spending_analysis')}
-      </Text>
-      <View style={[styles.sumRow, { opacity: DIM }]}>
-        {summary.map((s) => (
-          <View
-            key={s.label}
-            style={[styles.sumCard, { backgroundColor: C.surface, borderColor: C.border }]}
-          >
-            <Text style={[styles.sumLabel, { color: C.textSecondary }]}>{s.label}</Text>
-            <Text style={[styles.sumValue, { color: C.textPrimary }]}>{s.value}</Text>
-          </View>
-        ))}
-      </View>
-      <Highlight C={C} radius={20}>
-        <View style={[styles.chartCard, { backgroundColor: C.surface, borderColor: C.border }]}>
-          <View style={[styles.seg, { backgroundColor: C.surfaceSecondary }]}>
-            <View style={[styles.segOn, { backgroundColor: C.primary }]}>
-              <Text style={styles.segOnText}>{t('spending.house_label')}</Text>
-            </View>
-            <Text style={[styles.segText, { color: C.textSecondary }]}>
-              {t('spending.personal_label')}
-            </Text>
-          </View>
-          <Text style={[styles.chartTitle, { color: C.textPrimary }]}>
-            {t('spending.monthly_trend')}
-          </Text>
-          <View style={styles.bars}>
-            {bars.map((h, i) => (
-              <View key={months[i]} style={styles.barCol}>
-                <View
-                  style={[
-                    styles.barFill,
-                    { height: `${h}%`, backgroundColor: h === peak ? C.primary : C.primary + '66' },
-                  ]}
-                />
-                <Text style={[styles.barLabel, { color: C.textSecondary }]}>{months[i]}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+      <PageTitle C={C} title={t('spending.spending_analysis')} />
+      <Highlight C={C} radius={8}>
+        <GraphChart
+          months={months}
+          currency={currency}
+          selectedIdx={0}
+          view="house"
+          onSelectMonth={noop}
+        />
       </Highlight>
     </View>
   );
 }
 
-// ── Groceries — the add row is the spotlight, with a real-looking list below ──
+// ── Groceries — the add strip is the spotlight, the bag below ─────────────────
 function GroceryScreen({ C, t }: ScreenProps): React.JSX.Element {
+  const hand = useHandFont();
   const items: Array<{ name: string; qty: string; done: boolean }> = [
-    { name: t('grocery.quick_add_milk'), qty: '×2', done: false },
+    { name: t('grocery.quick_add_milk'), qty: '2 L', done: false },
     { name: t('grocery.quick_add_bread'), qty: '', done: false },
     { name: t('grocery.quick_add_coffee'), qty: '', done: true },
   ];
   return (
     <View style={styles.body}>
-      <View style={[styles.header, { opacity: DIM }]}>
-        <Text style={[styles.title, { color: C.textPrimary }]}>
-          {t('grocery.shared_groceries')}
-        </Text>
-        <Text style={[styles.sub, { color: C.textSecondary }]}>{t('grocery.add_things_hint')}</Text>
-      </View>
+      <PageTitle C={C} title={t('nav.grocery')} />
       <Highlight C={C} radius={14}>
-        <View style={styles.addRow}>
-          <View style={[styles.addInput, { backgroundColor: C.surface, borderColor: C.border }]}>
-            <Text style={[styles.addInputText, { color: C.textTertiary }]}>
-              {t('grocery.item_placeholder')}
-            </Text>
+        <View style={styles.strip}>
+          <View style={styles.stripField}>
+            <Text style={styles.stripText}>{t('grocery.item_placeholder')}</Text>
+            <View style={styles.stripDashes}>
+              {Array.from({ length: 30 }, (_, i) => (
+                <View key={i} style={styles.stripDash} />
+              ))}
+            </View>
           </View>
-          <View style={[styles.addSquare, { backgroundColor: C.primary }]}>
+          <View style={[styles.plus, { backgroundColor: P.primary }]}>
             <Ionicons name="add" size={24} color="#fff" />
           </View>
         </View>
       </Highlight>
-      <View style={[styles.groceryList, { opacity: DIM }]}>
-        {items.map((it) => (
-          <View
-            key={it.name}
-            style={[styles.gRow, { backgroundColor: C.surface, borderColor: C.border }]}
-          >
-            <Ionicons
-              name={it.done ? 'checkmark-circle' : 'ellipse-outline'}
-              size={22}
-              color={it.done ? C.positive : C.textTertiary}
-            />
-            <Text
-              style={[
-                styles.gName,
-                { color: it.done ? C.textSecondary : C.textPrimary },
-                it.done && styles.gDone,
-              ]}
-            >
-              {it.name}
-            </Text>
-            {!!it.qty && <Text style={[styles.gQty, { color: C.textSecondary }]}>{it.qty}</Text>}
-          </View>
-        ))}
+      <View style={{ opacity: DIM }}>
+        <BagSlice isTop isBottom>
+          {items.map((it) => (
+            <View key={it.name} style={styles.gRow}>
+              <View style={styles.box}>
+                {it.done && (
+                  <Ionicons name="checkmark" size={20} color={P.primary} style={styles.tick} />
+                )}
+              </View>
+              <Text style={[styles.gName, it.done && styles.gDone]}>{it.name}</Text>
+              {!!it.qty && <Text style={[styles.gQty, hand]}>{it.qty}</Text>}
+            </View>
+          ))}
+        </BagSlice>
       </View>
     </View>
   );
 }
 
-// ── Calendar — real month grid with day numbers + a few event dots ───────────
+// ── Calendar — the wall calendar; the spotlight is the New event tag ──────────
 function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
-  const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  const events: Record<number, string[]> = {
-    8: [C.primary],
-    14: [C.positive, '#E0912F'],
-    22: ['#8B5CF6'],
+  const now = new Date();
+  const day = (d: number): string => toYMD(new Date(now.getFullYear(), now.getMonth(), d));
+  const marks: Record<string, DayMark[]> = {
+    [day(8)]: [{ title: t('tour.demo_internet'), color: P.primary }],
+    [day(14)]: [{ title: t('nav.grocery'), color: P.positive }],
+    [day(22)]: [{ title: t('tour.demo_water'), color: '#8B6BB8' }],
   };
-  const todayDay = 12;
-  const cells = Array.from({ length: 35 }, (_, i) => {
-    const day = i - 3;
-    return day >= 1 && day <= 30 ? day : null;
-  });
   return (
     <View style={styles.body}>
       <View style={styles.calHead}>
-        <View style={{ opacity: DIM }}>
-          <Text style={[styles.title, { color: C.textPrimary }]}>{t('calendar.title')}</Text>
-          <Text style={[styles.sub, { color: C.textSecondary }]}>
-            {t('calendar.house_schedule')}
-          </Text>
-        </View>
-        <Highlight C={C} radius={13}>
-          <View style={[styles.addPill, { backgroundColor: C.primary }]}>
-            <Ionicons name="add" size={16} color="#fff" />
-            <Text style={styles.addPillText}>{t('calendar.add_event')}</Text>
-          </View>
+        <PageTitle C={C} title={t('calendar.title')} />
+        <Highlight C={C} radius={10}>
+          <PaperTag label={t('calendar.add_event')} onPress={noop} />
         </Highlight>
       </View>
-      <View style={[styles.weekRow, { opacity: DIM }]}>
-        {weekdays.map((w, i) => (
-          <Text key={i} style={[styles.weekday, { color: C.textSecondary }]}>
-            {w}
-          </Text>
-        ))}
-      </View>
-      <View style={[styles.grid, { opacity: DIM }]}>
-        {cells.map((day, i) => {
-          const isToday = day === todayDay;
-          return (
-            <View
-              key={i}
-              style={[
-                styles.calCell,
-                { backgroundColor: isToday ? C.primary : C.surface, borderColor: C.border },
-              ]}
-            >
-              {day != null && (
-                <>
-                  <Text style={[styles.calDay, { color: isToday ? '#fff' : C.textPrimary }]}>
-                    {day}
-                  </Text>
-                  {!!events[day] && (
-                    <View style={styles.calDots}>
-                      {events[day].map((col, k) => (
-                        <View
-                          key={k}
-                          style={[styles.calDot, { backgroundColor: isToday ? '#fff' : col }]}
-                        />
-                      ))}
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
-          );
-        })}
+      <View style={{ opacity: DIM }} pointerEvents="none">
+        <WallCalendar
+          year={now.getFullYear()}
+          month={now.getMonth()}
+          selected={toYMD(now)}
+          today={toYMD(now)}
+          marks={marks}
+          rtl={false}
+          onSelect={noop}
+          onPrev={noop}
+          onNext={noop}
+        />
       </View>
     </View>
   );
 }
 
-// ── Welcome backdrop — a faint but populated dashboard ───────────────────────
+// ── Welcome backdrop — a faint Home with the notebook balance ─────────────────
 export function WelcomeBg({ C, t, currency }: ScreenProps): React.JSX.Element {
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
   return (
     <View style={[styles.body, { opacity: DIM }]}>
-      <Text style={[styles.title, { color: C.textPrimary }]}>HouseMates</Text>
-      <View style={[styles.owedCard, { backgroundColor: C.surface, borderColor: C.border }]}>
-        <Text style={[styles.owedLbl, { color: C.textSecondary }]}>
-          {t('dashboard.balance_owed')}
-        </Text>
-        <Text style={[styles.owedVal, { color: C.textPrimary }]}>{currency}126</Text>
-      </View>
+      <Text style={[styles.title, heading, { color: C.textPrimary }]}>HouseMates</Text>
+      <NotebookPaper>
+        <Text style={[styles.owedLbl, hand]}>{t('dashboard.balance_owed')}</Text>
+        <Text style={[styles.owedVal, heading]}>{currency}126.00</Text>
+      </NotebookPaper>
       <View style={styles.miniRow}>
-        <View style={[styles.miniTile, { backgroundColor: C.surface, borderColor: C.border }]} />
-        <View style={[styles.miniTile, { backgroundColor: C.surface, borderColor: C.border }]} />
+        <View style={[styles.miniTile, { backgroundColor: C.surface }]} />
+        <View style={[styles.miniTile, { backgroundColor: C.surface }]} />
       </View>
     </View>
   );
 }
 
-// ── Explore — the More menu opened, so people can see what's inside ──────────
-export function MoreMenuScreen({ C, t }: ScreenProps): React.JSX.Element {
+// ── Explore — the More menu as the notebook page it is in the app ─────────────
+export function MoreMenuScreen({ t }: ScreenProps): React.JSX.Element {
+  const heading = useHeadingFont('semibold');
   const tiles: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string; color: string }> = [
     { icon: 'cart-outline', label: t('nav.grocery'), color: '#E8892B' },
     { icon: 'calendar-outline', label: t('nav.calendar'), color: '#3B6FBF' },
@@ -391,24 +367,19 @@ export function MoreMenuScreen({ C, t }: ScreenProps): React.JSX.Element {
   ];
   return (
     <View style={styles.body}>
-      <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.border }]}>
-        <Text style={[styles.menuTitle, { color: C.textSecondary }]}>{t('nav.more')}</Text>
+      <NotebookPaper>
+        <Text style={[styles.menuTitle, heading]}>{t('nav.more')}</Text>
         <View style={styles.menuGrid}>
           {tiles.map((tile) => (
-            <View
-              key={tile.label}
-              style={[styles.menuTile, { backgroundColor: C.surfaceSecondary }]}
-            >
-              <View style={[styles.menuIcon, { backgroundColor: tile.color + '22' }]}>
-                <Ionicons name={tile.icon} size={20} color={tile.color} />
-              </View>
-              <Text style={[styles.menuLbl, { color: C.textPrimary }]} numberOfLines={1}>
+            <View key={tile.label} style={styles.menuItem}>
+              <Ionicons name={tile.icon} size={20} color={tile.color} />
+              <Text style={styles.menuLbl} numberOfLines={1}>
                 {tile.label}
               </Text>
             </View>
           ))}
         </View>
-      </View>
+      </NotebookPaper>
     </View>
   );
 }
@@ -442,56 +413,31 @@ const styles = StyleSheet.create({
   ring: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderWidth: 2 },
   ringStatic: { borderWidth: 2 },
   body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.lg },
-  header: { gap: 3 },
-  title: { fontSize: 26, ...font.extrabold, letterSpacing: -0.7 },
+  gap: { gap: sizes.md },
+  header: { gap: 2 },
+  title: { fontSize: 32, lineHeight: 41, letterSpacing: -0.5 },
   sub: { fontSize: 13, ...font.regular },
-  owedCard: { borderWidth: 1, borderRadius: 20, padding: 18 },
-  owedLbl: { fontSize: 12, ...font.semibold },
-  owedVal: { fontSize: 30, ...font.extrabold, marginTop: 4, fontVariant: ['tabular-nums'] },
+  owedLbl: { fontSize: 19, color: P.paperMuted },
+  owedVal: { fontSize: 32, lineHeight: 40, color: P.paperInk, letterSpacing: -0.5 },
   miniRow: { flexDirection: 'row', gap: 10 },
-  miniTile: { flex: 1, height: 64, borderRadius: 16, borderWidth: 1 },
-  // More menu (explore)
-  menuCard: { borderWidth: 1, borderRadius: 22, padding: 16 },
-  menuTitle: {
-    fontSize: 12,
-    ...font.extrabold,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  menuTile: { width: '31%', alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 14 },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuLbl: { fontSize: 11, ...font.semibold },
-  // Bills rows
-  rows: { gap: 10 },
-  card: {
+  miniTile: { flex: 1, height: 64, borderRadius: 18 },
+  // Bills receipt lines
+  line: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
+  lineText: { flexShrink: 1 },
+  lineTitle: { fontSize: 14.5, ...font.semibold, color: P.paperInk },
+  lineWho: { fontSize: 16, lineHeight: 18, color: P.paperMuted },
+  lineAmt: { fontSize: 14.5, ...font.semibold, color: P.paperInk },
+  // More menu
+  menuTitle: { fontSize: 22, lineHeight: 29, color: P.paperInk, marginBottom: 6 },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  menuItem: {
+    width: '50%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    gap: 8,
+    paddingVertical: 9,
   },
-  chip: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  cardMeta: { flex: 1, gap: 2 },
-  rowTitle: { fontSize: 14.5, ...font.bold },
-  rowSub: { fontSize: 11.5, ...font.regular },
-  amount: { fontSize: 15, ...font.extrabold, fontVariant: ['tabular-nums'] },
-  avatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: { fontSize: 11, ...font.bold, color: '#fff' },
+  menuLbl: { fontSize: 15, ...font.semibold, color: P.paperInk, flexShrink: 1 },
   // Bottom bar
   bar: {
     flexDirection: 'row',
@@ -517,88 +463,39 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
-  // Spending
-  sumRow: { flexDirection: 'row', gap: 10 },
-  sumCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, gap: 4 },
-  sumLabel: { fontSize: 11, ...font.semibold },
-  sumValue: { fontSize: 20, ...font.extrabold, fontVariant: ['tabular-nums'] },
-  chartCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
-  seg: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    padding: 3,
-    gap: 2,
-    marginBottom: 12,
-  },
-  segOn: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 5 },
-  segOnText: { fontSize: 11, ...font.bold, color: '#fff' },
-  segText: { fontSize: 11, ...font.bold, paddingHorizontal: 14, paddingVertical: 5 },
-  chartTitle: { fontSize: 13, ...font.bold, marginBottom: 12 },
-  bars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 74,
-    gap: 9,
-  },
-  barCol: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center', gap: 5 },
-  barFill: { width: '100%', maxWidth: 22, borderRadius: 6 },
-  barLabel: { fontSize: 9, ...font.medium },
   // Grocery
-  addRow: { flexDirection: 'row', gap: 9 },
-  addInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-    justifyContent: 'center',
-  },
-  addInputText: { fontSize: 14, ...font.regular },
-  addSquare: { width: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  groceryList: { gap: 8 },
-  gRow: {
+  strip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
+    gap: 12,
+    backgroundColor: P.paper,
+    borderRadius: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  gName: { flex: 1, fontSize: 14.5, ...font.semibold },
-  gDone: { textDecorationLine: 'line-through' },
-  gQty: { fontSize: 13, ...font.bold, fontVariant: ['tabular-nums'] },
+  stripField: { flex: 1, minWidth: 0 },
+  stripText: { fontSize: 16, ...font.semibold, color: P.paperMuted, paddingVertical: 6 },
+  stripDashes: { flexDirection: 'row', gap: 4, height: 2, overflow: 'hidden' },
+  stripDash: { width: 6, height: 2, backgroundColor: 'rgba(107,98,80,0.35)' },
+  plus: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  gRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  box: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderRadius: 4,
+    borderColor: '#2E2416',
+    transform: [{ rotate: '-2deg' }],
+  },
+  tick: { position: 'absolute', left: -1, top: -6 },
+  gName: { flex: 1, fontSize: 15, ...font.semibold, color: '#2E2416' },
+  gDone: { textDecorationLine: 'line-through', opacity: 0.6 },
+  gQty: { fontSize: 20, color: P.primary },
   // Calendar
   calHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
     gap: 10,
   },
-  addPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 13,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-  },
-  addPillText: { fontSize: 13, ...font.semibold, color: '#fff' },
-  weekRow: { flexDirection: 'row' },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 2,
-  },
-  calDay: { fontSize: 11, ...font.semibold },
-  calDots: { flexDirection: 'row', gap: 2 },
-  calDot: { width: 4, height: 4, borderRadius: 2 },
 });

@@ -242,6 +242,9 @@ export const houseTaskSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be a valid date')
     .nullable(),
+  // Repeating jobs (merged in from Chores): weekly → 'Sun'…'Sat', monthly → '1'…'31'.
+  recurrence: z.enum(['once', 'weekly', 'monthly']),
+  recurrenceDay: z.string().max(3).nullable(),
   houseId: z.string().min(1),
 });
 

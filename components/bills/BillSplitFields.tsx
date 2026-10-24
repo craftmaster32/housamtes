@@ -1,9 +1,13 @@
 import { useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { UserAvatar } from '@components/shared/UserAvatar';
+import { BillTabs } from '@components/bills/BillTabs';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
+import { PersonPicker } from '@components/bills/form/PersonPicker';
+import { SplitNote } from '@components/bills/form/SplitNote';
+import { useHandFont } from '@hooks/useHandFont';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { parseAmount } from '@utils/validation';
@@ -59,6 +63,7 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const handFont = useHandFont();
 
   const allIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
 
@@ -164,27 +169,14 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
       {/* Who paid */}
       <View style={styles.field}>
         <Text style={styles.label}>{t('bills.who_paid')}</Text>
-        <View style={styles.chipRow}>
-          {housemates.map((h) => {
-            const selected = paidBy === h.id;
-            return (
-              <Pressable
-                key={h.id}
-                style={[styles.pChip, selected && styles.pChipSelected]}
-                onPress={() => onPaidByChange(h.id)}
-                accessible
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-              >
-                <UserAvatar userId={h.id} size={24} />
-                <Text style={[styles.pChipText, selected && styles.pChipTextSelected]}>
-                  {h.name}
-                  {h.id === myId ? ` (${t('common.me')})` : ''}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <PersonPicker
+          people={housemates}
+          mode="single"
+          selected={[paidBy]}
+          onPress={onPaidByChange}
+          meId={myId}
+          meSuffix={` (${t('common.me')})`}
+        />
       </View>
 
       {/* Split between */}
@@ -201,28 +193,14 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
             <Text style={styles.selectAll}>{t('bills.select_all')}</Text>
           </Pressable>
         </View>
-        <View style={styles.chipRow}>
-          {housemates.map((h) => {
-            const checked = selectedPeople.includes(h.id);
-            return (
-              <Pressable
-                key={h.id}
-                style={[styles.pChip, checked && styles.pChipSelected]}
-                onPress={() => togglePerson(h.id)}
-                accessible
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked }}
-              >
-                <UserAvatar userId={h.id} size={24} />
-                <Text style={[styles.pChipText, checked && styles.pChipTextSelected]}>
-                  {h.name}
-                  {h.id === myId ? ` (${t('common.me')})` : ''}
-                </Text>
-                {checked && <Ionicons name="checkmark" size={15} color={C.primary} />}
-              </Pressable>
-            );
-          })}
-        </View>
+        <PersonPicker
+          people={housemates}
+          mode="multi"
+          selected={selectedPeople}
+          onPress={togglePerson}
+          meId={myId}
+          meSuffix={` (${t('common.me')})`}
+        />
         {selectedPeople.length > 0 && (
           <Text style={styles.splitCount}>
             {t('bills.selected', { count: selectedPeople.length })}
@@ -234,60 +212,32 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
       {selectedPeople.length > 0 && (
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.how_to_split')}</Text>
-          <View style={styles.segment} accessibilityRole="radiogroup">
-            <Pressable
-              style={[styles.segItem, splitType === 'equal' && styles.segItemOn]}
-              onPress={() => onSplitTypeChange('equal')}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={t('bills.equal')}
-              accessibilityState={{ selected: splitType === 'equal' }}
-            >
-              <Text style={[styles.segText, splitType === 'equal' && styles.segTextOn]}>
-                {t('bills.equal')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.segItem, splitType === 'custom' && styles.segItemOn]}
-              onPress={() => onSplitTypeChange('custom')}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={t('bills.custom_amounts')}
-              accessibilityState={{ selected: splitType === 'custom' }}
-            >
-              <Text
-                style={[styles.segText, splitType === 'custom' && styles.segTextOn]}
-                numberOfLines={1}
-              >
-                {t('bills.custom_short')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.segItem, splitType === 'percentage' && styles.segItemOn]}
-              onPress={() => onSplitTypeChange('percentage')}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={t('bills.by_percent')}
-              accessibilityState={{ selected: splitType === 'percentage' }}
-            >
-              <Text style={[styles.segText, splitType === 'percentage' && styles.segTextOn]}>
-                {t('bills.by_percent')}
-              </Text>
-            </Pressable>
-          </View>
+          <BillTabs<SplitType>
+            role="radio"
+            tabs={[
+              { key: 'equal', label: t('bills.equal') },
+              {
+                key: 'custom',
+                label: t('bills.custom_short'),
+                a11yLabel: t('bills.custom_amounts'),
+              },
+              { key: 'percentage', label: t('bills.by_percent') },
+            ]}
+            selected={splitType}
+            onSelect={onSplitTypeChange}
+          />
 
           {splitType === 'equal' && totalAmount > 0 && (
-            <View style={styles.previewBox}>
-              <Text style={styles.previewText}>
-                {equalSplitPreview.hasRange
+            <SplitNote>
+              {`${
+                equalSplitPreview.hasRange
                   ? `${formatFull(equalSplitPreview.low, currencyCode)} – ${formatFull(
                       equalSplitPreview.high,
                       currencyCode
                     )}`
-                  : formatFull(equalSplitPreview.high, currencyCode)}{' '}
-                {t('bills.per_person')}
-              </Text>
-            </View>
+                  : formatFull(equalSplitPreview.high, currencyCode)
+              } ${t('bills.per_person')}`}
+            </SplitNote>
           )}
 
           {splitType === 'custom' && (
@@ -297,16 +247,12 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
                 return (
                   <View key={id} style={styles.customRow}>
                     <Text style={styles.customName}>{name}</Text>
-                    <TextInput
+                    <UnderlineInput
                       value={customAmounts[id] ?? ''}
                       onChangeText={(v) => onCustomAmountChange(id, v)}
-                      mode="outlined"
                       style={styles.customInput}
                       keyboardType="decimal-pad"
                       placeholder="0.00"
-                      dense
-                      outlineColor={C.border}
-                      activeOutlineColor={C.primary}
                       accessibilityLabel={t('bills.amount_for', { name })}
                       accessibilityHint={t('bills.amount_for_hint')}
                     />
@@ -320,8 +266,10 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
                   accessibilityRole="button"
                   accessibilityLabel={t('bills.fill_remaining_equally')}
                 >
-                  <Ionicons name="git-branch-outline" size={13} color={C.primary} />
-                  <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
+                  <Ionicons name="git-branch-outline" size={15} color={C.primary} />
+                  <Text style={[styles.fillBtnText, handFont]}>
+                    {t('bills.fill_remaining_equally')}
+                  </Text>
                 </Pressable>
               )}
               <View style={styles.customTotal}>
@@ -373,22 +321,16 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
                 return (
                   <View key={id} style={styles.customRow}>
                     <Text style={styles.customName}>{name}</Text>
-                    <View style={styles.pctInputRow}>
-                      <TextInput
-                        value={percentAmounts[id] ?? ''}
-                        onChangeText={(v) => onPercentAmountChange(id, v)}
-                        mode="outlined"
-                        style={styles.customInput}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        dense
-                        outlineColor={C.border}
-                        activeOutlineColor={C.primary}
-                        accessibilityLabel={t('bills.pct_for', { name })}
-                        accessibilityHint={t('bills.pct_for_hint')}
-                      />
-                      <Text style={styles.pctSymbol}>%</Text>
-                    </View>
+                    <UnderlineInput
+                      value={percentAmounts[id] ?? ''}
+                      onChangeText={(v) => onPercentAmountChange(id, v)}
+                      style={styles.customInput}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      suffix="%"
+                      accessibilityLabel={t('bills.pct_for', { name })}
+                      accessibilityHint={t('bills.pct_for_hint')}
+                    />
                   </View>
                 );
               })}
@@ -399,8 +341,10 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
                   accessibilityRole="button"
                   accessibilityLabel={t('bills.fill_remaining_equally')}
                 >
-                  <Ionicons name="git-branch-outline" size={13} color={C.primary} />
-                  <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
+                  <Ionicons name="git-branch-outline" size={15} color={C.primary} />
+                  <Text style={[styles.fillBtnText, handFont]}>
+                    {t('bills.fill_remaining_equally')}
+                  </Text>
                 </Pressable>
               )}
               <View style={styles.customTotal}>
@@ -434,11 +378,7 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
                     : `${percentRemaining.toFixed(1)}%`}
                 </Text>
               </View>
-              {!!percentPreviewText && (
-                <View style={styles.previewBox}>
-                  <Text style={styles.previewText}>{percentPreviewText}</Text>
-                </View>
-              )}
+              {!!percentPreviewText && <SplitNote>{percentPreviewText}</SplitNote>}
             </View>
           )}
         </View>
@@ -449,76 +389,17 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
 
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
-    wrap: { gap: sizes.md },
-    field: { gap: sizes.xs },
-    label: { color: C.textPrimary, ...font.semibold, fontSize: mf(14) },
+    wrap: { gap: ms(22) },
+    field: { gap: ms(10) },
+    label: { color: C.textSecondary, ...font.bold, fontSize: mf(13.5) },
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    selectAll: { color: C.primary, fontSize: mf(13), ...font.semibold },
+    selectAll: { color: C.primary, fontSize: mf(14), ...font.bold },
     selectAllBtn: { minHeight: ms(44), justifyContent: 'center', paddingHorizontal: ms(4) },
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    pChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingVertical: ms(6),
-      paddingStart: ms(6),
-      paddingEnd: ms(13),
-      minHeight: ms(44),
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1.5,
-      borderColor: C.border,
-      backgroundColor: C.surface,
-    },
-    pChipSelected: { borderColor: C.primary, backgroundColor: C.primaryTint },
-    pChipText: { color: C.textPrimary, fontSize: mf(14), ...font.semibold },
-    pChipTextSelected: { color: C.primary },
-    splitCount: { color: C.textSecondary, fontSize: mf(12), ...font.regular, marginTop: ms(2) },
-    segment: {
-      flexDirection: 'row',
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(12),
-      padding: ms(4),
-      gap: ms(4),
-    },
-    segItem: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: ms(9),
-      minHeight: ms(44),
-      borderRadius: ms(9),
-    },
-    segItemOn: {
-      backgroundColor: C.primary,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.28,
-      shadowRadius: 6,
-      elevation: 2,
-    },
-    segText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    segTextOn: { color: '#fff' },
-    previewBox: {
-      backgroundColor: C.primaryTint,
-      borderRadius: ms(14),
-      paddingVertical: ms(12),
-      paddingHorizontal: sizes.md,
-      alignItems: 'center',
-      marginTop: sizes.sm,
-    },
-    previewText: { color: C.primary, ...font.bold, fontSize: mf(16) },
-    customBox: {
-      backgroundColor: C.surface,
-      borderRadius: ms(12),
-      padding: sizes.md,
-      gap: sizes.sm,
-      borderWidth: 1,
-      borderColor: C.border,
-      marginTop: sizes.xs,
-    },
+    splitCount: { color: C.textSecondary, fontSize: mf(12.5), ...font.medium },
+    customBox: { gap: ms(6), marginTop: ms(8) },
     customRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
     customName: { flex: 1, color: C.textPrimary, fontSize: mf(15), ...font.medium },
-    customInput: { width: ms(110), backgroundColor: C.surface },
+    customInput: { width: ms(110) },
     customTotal: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -533,20 +414,12 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'space-between',
       paddingTop: ms(4),
     },
-    pctInputRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
-    pctSymbol: { fontSize: mf(16), ...font.semibold, color: C.textPrimary },
     fillBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: ms(6),
       alignSelf: 'flex-start',
-      paddingVertical: ms(6),
-      paddingHorizontal: ms(10),
-      borderRadius: ms(8),
-      borderWidth: 1,
-      borderColor: C.primary + '40',
-      backgroundColor: C.primary + '08',
-      minHeight: ms(44),
+      minHeight: 44,
     },
-    fillBtnText: { color: C.primary, fontSize: mf(13), ...font.semibold },
+    fillBtnText: { color: C.primary, fontSize: mf(20) },
   });

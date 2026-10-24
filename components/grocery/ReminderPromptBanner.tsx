@@ -3,8 +3,8 @@ import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet } from 're
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHandFont } from '@hooks/useHandFont';
 
 import { mf, ms } from '@utils/responsive';
 export interface ReminderPromptBannerProps {
@@ -22,8 +22,8 @@ export function ReminderPromptBanner({
   onDismiss,
 }: ReminderPromptBannerProps): React.JSX.Element | null {
   const { t } = useTranslation();
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
+  const hand = useHandFont();
+  const s = useMemo(() => makeStyles(), []);
   const opacity = useRef(new Animated.Value(0)).current;
   const [displayName, setDisplayName] = useState<string | null>(null);
 
@@ -51,14 +51,15 @@ export function ReminderPromptBanner({
 
   if (!displayName) return null;
 
+  // A pink paper strip, like the reminder tag clipped to the bag.
   return (
     <Animated.View
-      style={[s.banner, { opacity, backgroundColor: C.surface, borderColor: C.border }]}
+      style={[s.banner, { opacity }]}
       pointerEvents="box-none"
       accessibilityLiveRegion="polite"
     >
-      <Ionicons name="alarm-outline" size={16} color={C.primary} />
-      <Text style={[s.text, { color: C.textPrimary }]} numberOfLines={1}>
+      <Ionicons name="notifications-outline" size={17} color={TAG_INK} />
+      <Text style={s.text} numberOfLines={1}>
         {t('grocery.reminder_prompt_added', { name: displayName })}
       </Text>
       <Pressable
@@ -68,7 +69,7 @@ export function ReminderPromptBanner({
         accessibilityRole="button"
         accessibilityLabel={t('grocery.reminder_prompt_a11y', { name: displayName })}
       >
-        <Text style={[s.setBtnText, { color: C.primary }]}>{t('grocery.set_reminder_short')}</Text>
+        <Text style={[s.setBtnText, hand]}>{t('grocery.set_reminder_short')}</Text>
       </Pressable>
       <Pressable
         onPress={onDismiss}
@@ -77,37 +78,36 @@ export function ReminderPromptBanner({
         accessibilityRole="button"
         accessibilityLabel={t('common.close')}
       >
-        <Ionicons name="close" size={16} color={C.textSecondary} />
+        <Ionicons name="close" size={17} color={TAG_INK} />
       </Pressable>
     </Animated.View>
   );
 }
 
-function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
+const TAG = '#F6D8D2';
+const TAG_INK = '#8E2F28';
+
+function makeStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: ms(8),
-      borderRadius: ms(14),
-      borderWidth: 1,
-      paddingLeft: ms(14),
-      paddingRight: ms(6),
-      minHeight: ms(44),
-      shadowColor: C.textPrimary,
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.12,
+      backgroundColor: TAG,
+      borderRadius: ms(4),
+      paddingStart: ms(14),
+      paddingEnd: ms(4),
+      minHeight: 48,
+      transform: [{ rotate: '-0.6deg' }],
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: ms(4) },
+      shadowOpacity: 0.14,
       shadowRadius: 8,
       elevation: 4,
     },
-    text: { flex: 1, fontSize: mf(13), ...font.medium },
-    setBtn: { minHeight: ms(44), minWidth: ms(44), justifyContent: 'center', alignItems: 'center' },
-    setBtnText: { fontSize: mf(13), ...font.bold },
-    dismissBtn: {
-      minHeight: ms(44),
-      minWidth: ms(44),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+    text: { flex: 1, fontSize: mf(13.5), ...font.semibold, color: TAG_INK },
+    setBtn: { minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: ms(4) },
+    setBtnText: { fontSize: mf(19), color: '#3B6FBF' },
+    dismissBtn: { minHeight: 44, minWidth: 40, justifyContent: 'center', alignItems: 'center' },
   });
 }

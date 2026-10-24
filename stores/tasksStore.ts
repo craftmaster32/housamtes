@@ -10,9 +10,12 @@ import type { HouseTaskRow } from '../types/database';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskFilter = 'all' | 'active' | 'completed';
+/** How often a task repeats (the Chores "Repeat" setting, merged into Tasks). */
+export type TaskRecurrence = 'once' | 'weekly' | 'monthly';
 
 export interface HouseTask {
   id: string;
+  houseId: string;
   title: string;
   description: string;
   priority: TaskPriority;
@@ -23,6 +26,8 @@ export interface HouseTask {
   completedBy: string | null; // user UUID
   createdBy: string; // user UUID
   createdAt: string;
+  recurrence: TaskRecurrence;
+  recurrenceDay: string | null; // weekly: 'Sun'…'Sat', monthly: '1'…'31'
 }
 
 export interface NewTaskInput {
@@ -31,6 +36,8 @@ export interface NewTaskInput {
   priority: TaskPriority;
   assignedTo: string | null;
   dueDate: string | null;
+  recurrence: TaskRecurrence;
+  recurrenceDay: string | null;
 }
 
 interface TasksStore {
@@ -44,11 +51,14 @@ interface TasksStore {
   toggleTask: (id: string) => Promise<void>;
   assignTask: (id: string, userId: string | null) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  /** Un-tick every repeating task so it's ready for the next round (admins). */
+  resetRepeating: (houseId: string) => Promise<void>;
 }
 
 function rowToTask(r: HouseTaskRow): HouseTask {
   return {
     id: r.id,
+    houseId: r.house_id,
     title: r.title,
     description: r.description ?? '',
     priority: (r.priority ?? 'medium') as TaskPriority,
@@ -59,6 +69,8 @@ function rowToTask(r: HouseTaskRow): HouseTask {
     completedBy: r.completed_by,
     createdBy: r.created_by,
     createdAt: r.created_at,
+    recurrence: (r.recurrence ?? 'once') as TaskRecurrence,
+    recurrenceDay: r.recurrence_day ?? null,
   };
 }
 
@@ -179,6 +191,8 @@ export const useTasksStore = create<TasksStore>()(
               priority: parsed.priority,
               assigned_to: parsed.assignedTo,
               due_date: parsed.dueDate,
+              recurrence: parsed.recurrence,
+              recurrence_day: parsed.recurrence === 'once' ? null : parsed.recurrenceDay,
               created_by: userId,
             })
             .select()
@@ -277,6 +291,30 @@ export const useTasksStore = create<TasksStore>()(
           throw new Error('Could not delete the task. Please try again.');
         }
         set({ tasks: get().tasks.filter((t) => t.id !== id) });
+      },
+      resetRepeating: async (houseId): Promise<void> => {
+        try {
+          const { error } = await supabase.rpc('reset_repeating_tasks', {
+            p_house_id: houseId,
+          });
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, {
+            context: 'reset-repeating-tasks',
+            houseId,
+            userId: useAuthStore.getState().profile?.id ?? '',
+          });
+          throw new Error('Could not reset the repeating tasks. Please try again.');
+        }
+        // Only this house's tasks: after switching house the old list can
+        // still be in memory until the next load.
+        set({
+          tasks: get().tasks.map((t) =>
+            t.houseId !== houseId || t.recurrence === 'once'
+              ? t
+              : { ...t, isComplete: false, completedAt: null, completedBy: null }
+          ),
+        });
       },
     }),
     { name: 'tasks-store' }

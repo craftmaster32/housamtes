@@ -23,7 +23,6 @@ import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useAppliancesStore } from '@stores/appliancesStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
@@ -174,6 +173,9 @@ export default function RootLayout(): React.JSX.Element | null {
     Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
+    // Caveat — handwriting for paper touches (sticky note). Latin only.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Caveat_700Bold: require('../assets/fonts/Caveat_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -273,7 +275,6 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadParking = useParkingStore((s) => s.load);
   const loadAppliances = useAppliancesStore((s) => s.load);
   const loadGrocery = useGroceryStore((s) => s.load);
-  const loadChores = useChoresStore((s) => s.load);
   const loadEvents = useEventsStore((s) => s.load);
   const loadAnnouncements = useAnnouncementsStore((s) => s.load);
   const loadMaintenance = useMaintenanceStore((s) => s.load);
@@ -396,7 +397,6 @@ export default function RootLayout(): React.JSX.Element | null {
       loadParking(houseId);
       loadAppliances(houseId);
       loadGrocery(houseId);
-      loadChores(houseId);
       loadEvents(houseId);
       loadAnnouncements(houseId);
       loadMaintenance(houseId);
@@ -416,7 +416,6 @@ export default function RootLayout(): React.JSX.Element | null {
       useParkingStore.getState().unsubscribe();
       useAppliancesStore.getState().unsubscribe();
       useGroceryStore.getState().unsubscribe();
-      useChoresStore.getState().unsubscribe();
       useEventsStore.getState().unsubscribe();
       useAnnouncementsStore.getState().unsubscribe();
       useMaintenanceStore.getState().unsubscribe();
@@ -433,7 +432,6 @@ export default function RootLayout(): React.JSX.Element | null {
     loadParking,
     loadAppliances,
     loadGrocery,
-    loadChores,
     loadEvents,
     loadAnnouncements,
     loadMaintenance,
@@ -471,7 +469,6 @@ export default function RootLayout(): React.JSX.Element | null {
           loadParking(houseId);
           loadAppliances(houseId);
           loadGrocery(houseId);
-          loadChores(houseId);
           loadEvents(houseId);
           loadAnnouncements(houseId);
           loadMaintenance(houseId);
@@ -496,7 +493,6 @@ export default function RootLayout(): React.JSX.Element | null {
     loadParking,
     loadAppliances,
     loadGrocery,
-    loadChores,
     loadEvents,
     loadAnnouncements,
     loadMaintenance,
@@ -554,7 +550,7 @@ export default function RootLayout(): React.JSX.Element | null {
             <WebAlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
-                <LoadingSpinner size={140} color={darkColors.primary} />
+                <LoadingSpinner size={140} onDark showQuip={fontsLoaded} />
               </View>
             )}
           </View>

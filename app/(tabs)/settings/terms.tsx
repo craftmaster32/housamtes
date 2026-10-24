@@ -1,40 +1,44 @@
-import { useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useMemo } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
+import { useHandFont } from '@hooks/useHandFont';
+import { BackLink } from '@components/shared/BackLink';
 
 import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    header: { padding: sizes.lg, gap: ms(4) },
-    backBtn: { marginBottom: sizes.sm },
-    backRow: { flexDirection: 'row', alignItems: 'center' },
-    backText: { color: C.primary, fontSize: mf(15), ...font.medium },
-    heading: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
-    updated: { color: C.textSecondary, fontSize: mf(13), ...font.regular },
-    content: { paddingHorizontal: sizes.lg, paddingBottom: sizes.xxl, gap: sizes.lg },
-    section: { gap: sizes.xs },
-    sectionTitle: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
-    body: { fontSize: mf(14), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
+    header: { paddingHorizontal: ms(20), paddingTop: ms(8), paddingBottom: ms(12) },
+    heading: {
+      fontSize: mf(36),
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
+      color: C.textPrimary,
+    },
+    updated: { color: C.textSecondary, fontSize: mf(19) },
+    content: { paddingHorizontal: ms(20), paddingBottom: ms(60), gap: ms(22) },
+    section: { gap: ms(6) },
+    sectionTitle: { fontSize: mf(18), lineHeight: mf(24), color: C.textPrimary },
+    body: { fontSize: mf(14.5), ...font.regular, color: C.textSecondary, lineHeight: mf(23) },
   });
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const heading = useHeadingFont('semibold');
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={[styles.sectionTitle, heading]} accessibilityRole="header">
+        {title}
+      </Text>
       <Text style={styles.body} selectable>
         {children}
       </Text>
@@ -45,38 +49,17 @@ function Section({ title, children }: { title: string; children: string }): Reac
 export default function TermsScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
-
-  const handleBackPress = useCallback((): void => {
-    goBack();
-  }, []);
+  const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.flex}>
         <View style={styles.header}>
-          <Pressable
-            onPress={handleBackPress}
-            style={styles.backBtn}
-            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('legal.go_back')}
-          >
-            <View style={styles.backRow}>
-              <Ionicons
-                name={rtl ? 'chevron-forward' : 'chevron-back'}
-                size={18}
-                color={C.primary}
-              />
-              <Text style={styles.backText}>{t('common.back')}</Text>
-            </View>
-          </Pressable>
+          <BackLink label={t('common.back')} />
           <Text style={[styles.heading, headingFont]}>{t('legal.terms_title')}</Text>
-          <Text style={styles.updated}>
+          <Text style={[styles.updated, hand]}>
             {t('legal.last_updated', { date: t('legal.legal_date') })}
           </Text>
         </View>

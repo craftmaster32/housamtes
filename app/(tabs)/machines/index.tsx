@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +23,7 @@ import { mf, ms } from '@utils/responsive';
 export default function MachinesScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
-  const headingFont = useHeadingFont();
+  const headingFont = useHeadingFont('semibold');
   const styles = useMemo(() => makeStyles(c), [c]);
 
   const sessions = useAppliancesStore((s) => s.sessions);
@@ -165,7 +164,7 @@ export default function MachinesScreen(): React.JSX.Element {
             <Text style={styles.errorText}>{storeError}</Text>
           </View>
         ) : (
-          <Animated.View entering={FadeIn.duration(300)} style={styles.cards}>
+          <View style={styles.cards}>
             {APPLIANCE_KINDS.map((kind) => (
               <MachineCard
                 key={kind}
@@ -179,11 +178,8 @@ export default function MachinesScreen(): React.JSX.Element {
                 busy={busy}
               />
             ))}
-            <View style={styles.hint}>
-              <Ionicons name="notifications-outline" size={15} color={c.textSecondary} />
-              <Text style={styles.hintText}>{t('machines.notify_hint')}</Text>
-            </View>
-          </Animated.View>
+            <Text style={styles.hintText}>{t('machines.notify_hint')}</Text>
+          </View>
         )}
       </ScrollView>
 
@@ -204,13 +200,20 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.background },
     scroll: {
-      paddingHorizontal: ms(18),
+      paddingHorizontal: ms(20),
       paddingTop: ms(8),
       paddingBottom: sizes.bottomTabContentPadding,
     },
-    title: { fontSize: mf(26), ...font.extrabold, color: c.textPrimary, letterSpacing: -0.78 },
-    subtitle: { fontSize: mf(13.5), ...font.regular, color: c.textSecondary, marginTop: ms(2) },
-    cards: { gap: ms(14), marginTop: ms(18) },
+    title: {
+      fontSize: mf(36),
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
+      color: c.textPrimary,
+    },
+    subtitle: { fontSize: mf(14), ...font.regular, color: c.textSecondary },
+    cards: { gap: ms(14), marginTop: ms(20) },
     center: { paddingVertical: ms(60), alignItems: 'center' },
     errorBox: {
       flexDirection: 'row',
@@ -222,12 +225,13 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       backgroundColor: c.dangerTint,
     },
     errorText: { flex: 1, fontSize: mf(13.5), ...font.medium, color: c.danger },
-    hint: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingHorizontal: ms(4),
-      marginTop: ms(2),
+    // Small print under the machines, quiet.
+    hintText: {
+      fontSize: mf(12.5),
+      ...font.regular,
+      color: c.textSecondary,
+      textAlign: 'center',
+      marginTop: ms(4),
+      paddingHorizontal: ms(12),
     },
-    hintText: { flex: 1, fontSize: mf(12.5), ...font.regular, color: c.textSecondary },
   });

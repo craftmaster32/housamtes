@@ -21,6 +21,10 @@ export const heading = {
   bold: { fontFamily: 'Fraunces_700Bold' },
 } as const;
 
+// Handwriting (Caveat) for paper touches like the sticky note. Latin only —
+// use the `useHandFont` hook so Hebrew falls back to Heebo.
+export const hand = { fontFamily: 'Caveat_700Bold' } as const;
+
 // Design-system v2 — semantic ladder
 // Usage: <Text style={[type.title, { color: C.textPrimary }]}>
 export const type = {

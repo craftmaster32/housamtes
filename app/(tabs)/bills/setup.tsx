@@ -1,11 +1,9 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { withFeatureGuard } from '@components/shared/withFeatureGuard';
-import { View, StyleSheet, ScrollView, Pressable, Platform, Alert, Modal } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useBillsStore } from '@stores/billsStore';
@@ -13,223 +11,17 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { formatFull } from '@constants/currencies';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
 import { BackLink } from '@components/shared/BackLink';
-
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { Mate } from '@components/shared/Mate';
+import { BuzzerPanel } from '@components/bills/BuzzerPanel';
+import { InviteTicket } from '@components/bills/InviteTicket';
+import { SettingsDialog, DialogButton } from '@components/settings/SettingsDialog';
+import { asWord } from '@utils/asWord';
 import { mf, ms } from '@utils/responsive';
-const makeStyles = (C: ColorTokens) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.md },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    loadingText: { color: C.textSecondary, ...font.regular },
-
-    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    houseName: { fontSize: mf(15), ...font.regular, color: C.textSecondary, marginTop: -sizes.xs },
-
-    inviteCard: {
-      borderRadius: ms(22),
-      padding: sizes.lg,
-      alignItems: 'center',
-      gap: sizes.sm,
-      overflow: 'hidden',
-      shadowColor: C.owedShadow,
-      shadowOffset: { width: 0, height: ms(12) },
-      shadowOpacity: 1,
-      shadowRadius: 20,
-      elevation: 8,
-    },
-    inviteLabel: {
-      fontSize: mf(11),
-      ...font.semibold,
-      color: '#fff' + 'aa',
-      letterSpacing: 1.5,
-    },
-    inviteCode: {
-      fontSize: mf(36),
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: 8,
-    },
-    inviteHint: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: '#fff' + 'bb',
-      textAlign: 'center',
-      lineHeight: mf(18),
-    },
-    copyBtn: {
-      backgroundColor: '#fff' + '25',
-      paddingVertical: ms(10),
-      paddingHorizontal: sizes.lg,
-      borderRadius: sizes.borderRadiusFull,
-      marginTop: sizes.xs,
-    },
-    copyBtnDone: { backgroundColor: '#fff' + '40' },
-    copyBtnText: { color: '#fff', ...font.semibold, fontSize: mf(15) },
-
-    sectionLabel: {
-      fontSize: mf(12),
-      ...font.semibold,
-      color: C.textSecondary,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-      marginBottom: -sizes.xs,
-    },
-
-    membersList: {
-      backgroundColor: C.surface,
-      borderRadius: ms(16),
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    memberRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.md,
-      paddingHorizontal: sizes.md,
-      paddingVertical: ms(14),
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: C.border,
-    },
-    avatar: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(22),
-      justifyContent: 'center',
-      alignItems: 'center',
-      overflow: 'hidden',
-    },
-    avatarImg: { width: ms(44), height: ms(44) },
-    avatarText: { color: '#fff', fontSize: mf(17), ...font.bold },
-    memberInfo: { flex: 1 },
-    memberName: { fontSize: mf(16), ...font.semibold, color: C.textPrimary },
-    memberYou: { fontSize: mf(13), ...font.regular, color: C.textSecondary, marginTop: ms(1) },
-
-    emptyCard: {
-      backgroundColor: C.surface,
-      borderRadius: ms(16),
-      padding: sizes.lg,
-      alignItems: 'center',
-      gap: sizes.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
-    emptyText: {
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(20),
-    },
-
-    infoBox: {
-      backgroundColor: C.primary + '0f',
-      borderRadius: ms(12),
-      padding: sizes.md,
-      borderWidth: 1,
-      borderColor: C.primary + '25',
-    },
-    infoText: { fontSize: mf(13), ...font.regular, color: C.textSecondary, lineHeight: mf(19) },
-
-    formerList: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.sm },
-    formerChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.xs,
-      backgroundColor: C.surface,
-      borderRadius: sizes.borderRadiusFull,
-      paddingVertical: ms(6),
-      paddingHorizontal: sizes.md,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: C.border,
-    },
-    formerDot: { width: ms(8), height: ms(8), borderRadius: ms(4) },
-    formerName: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-
-    leftoverHint: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: C.textSecondary,
-      lineHeight: mf(19),
-      marginBottom: -sizes.xs,
-    },
-    leftoverRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.md,
-      paddingHorizontal: sizes.md,
-      paddingVertical: ms(14),
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: C.border,
-    },
-    settleBtn: {
-      backgroundColor: C.primary,
-      borderRadius: sizes.borderRadiusFull,
-      paddingVertical: ms(8),
-      paddingHorizontal: sizes.md,
-      minHeight: ms(44),
-      justifyContent: 'center',
-    },
-    settleBtnBusy: { opacity: 0.6 },
-    settleBtnText: { color: '#fff', ...font.semibold, fontSize: mf(14) },
-
-    removeBtn: {
-      paddingVertical: ms(8),
-      paddingHorizontal: sizes.md,
-      minHeight: ms(44),
-      justifyContent: 'center',
-      borderRadius: sizes.borderRadiusFull,
-    },
-    removeBtnPressed: { opacity: 0.6 },
-    removeBtnText: { color: C.negative, ...font.semibold, fontSize: mf(14) },
-
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: '#00000088',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: sizes.lg,
-    },
-    modalCard: {
-      width: '100%',
-      maxWidth: ms(400),
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
-      padding: sizes.lg,
-      gap: sizes.sm,
-    },
-    modalTitle: { fontSize: mf(18), ...font.bold, color: C.textPrimary },
-    modalBody: { fontSize: mf(14), ...font.regular, color: C.textSecondary, lineHeight: mf(20) },
-    modalDangerBtn: {
-      backgroundColor: C.negative,
-      borderRadius: sizes.borderRadiusFull,
-      paddingVertical: ms(14),
-      minHeight: ms(44),
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: sizes.sm,
-    },
-    modalDangerText: { color: '#fff', ...font.semibold, fontSize: mf(15) },
-    modalCancelBtn: {
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    modalCancelText: { color: C.textSecondary, ...font.semibold, fontSize: mf(15) },
-  });
 
 function HousematesScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -313,7 +105,8 @@ function HousematesScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
 
   const handleCopy = useCallback(() => {
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
@@ -323,229 +116,168 @@ function HousematesScreen(): React.JSX.Element {
     setTimeout(() => setCopied(false), 2000);
   }, [inviteCode]);
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.root}>
-        <View style={styles.scroll}>
-          <BackLink label={t('common.back')} />
-        </View>
-        <View style={styles.centered}>
-          <Text style={styles.loadingText}>{t('housemates.loading')}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <BackLink label={t('common.back')} />
-          <Text style={[styles.heading, headingFont]}>{t('housemates.title')}</Text>
-          {!!houseName && <Text style={styles.houseName}>{houseName}</Text>}
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <BackLink label={t('common.back')} />
+        <Text style={[styles.title, headingFont]}>{t('housemates.title')}</Text>
+        {!!houseName && <Text style={[styles.house, hand]}>{houseName}</Text>}
 
-          <LinearGradient
-            colors={C.owedGradient}
-            start={{ x: 0.15, y: 0 }}
-            end={{ x: 0.85, y: 1 }}
-            style={styles.inviteCard}
-          >
-            <Text style={styles.inviteLabel}>{t('housemates.invite_section')}</Text>
-            <Text style={[styles.inviteCode, headingFont]}>{inviteCode || '------'}</Text>
-            <Text style={styles.inviteHint}>{t('housemates.invite_body')}</Text>
-            <Pressable
-              style={[styles.copyBtn, copied && styles.copyBtnDone]}
-              onPress={handleCopy}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('housemates.copy_code')}
-            >
-              <Text style={styles.copyBtnText}>
-                {copied ? t('housemates.copied') : t('housemates.copy_code')}
-              </Text>
-            </Pressable>
-          </LinearGradient>
+        {isLoading ? (
+          <View style={styles.loading}>
+            <LoadingSpinner accessibilityLabel={t('housemates.loading')} />
+          </View>
+        ) : (
+          <>
+            <InviteTicket code={inviteCode} copied={copied} onCopy={handleCopy} />
 
-          <Text style={styles.sectionLabel}>
-            {t('housemates.members_section')} ({housemates.length})
-          </Text>
+            <Text style={[styles.section, headingFont]}>
+              {asWord(t('housemates.members_section'))} ({housemates.length})
+            </Text>
+            {housemates.length === 0 ? (
+              <View style={styles.empty}>
+                <Mate size={ms(80)} />
+                <Text style={[styles.emptyTitle, hand]}>{t('housemates.just_you')}</Text>
+                <Text style={styles.small}>{t('housemates.just_you_hint')}</Text>
+              </View>
+            ) : (
+              <BuzzerPanel
+                housemates={housemates}
+                myId={myId}
+                canRemove={isOwner}
+                onRemove={setMemberToRemove}
+              />
+            )}
 
-          {housemates.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>{t('housemates.just_you')}</Text>
-              <Text style={styles.emptyText}>{t('housemates.just_you_hint')}</Text>
-            </View>
-          ) : (
-            <View style={styles.membersList}>
-              {housemates.map((h) => {
-                const isMe = h.id === myId;
-                const initial = (h.name || '?')[0].toUpperCase();
-                return (
-                  <View key={h.id} style={styles.memberRow}>
-                    <View
-                      style={[
-                        styles.avatar,
-                        { backgroundColor: h.avatarUrl ? 'transparent' : (h.color ?? C.primary) },
-                      ]}
-                    >
-                      {h.avatarUrl ? (
-                        <Image
-                          source={{ uri: h.avatarUrl }}
-                          style={styles.avatarImg}
-                          contentFit="cover"
-                          accessibilityLabel={t('members.avatar_of', { name: h.name })}
-                        />
-                      ) : (
-                        <Text style={styles.avatarText}>{initial}</Text>
-                      )}
-                    </View>
-                    <View style={styles.memberInfo}>
-                      <Text style={styles.memberName}>{h.name}</Text>
-                      {isMe && <Text style={styles.memberYou}>{t('housemates.thats_you')}</Text>}
-                    </View>
-                    {isOwner && !isMe && (
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.removeBtn,
-                          pressed && styles.removeBtnPressed,
-                        ]}
-                        onPress={() => setMemberToRemove(h)}
-                        accessible
-                        accessibilityRole="button"
-                        accessibilityLabel={t('members.remove_member', { name: h.name })}
-                      >
-                        <Text style={styles.removeBtnText}>{t('members.remove')}</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {isManager && (formerMembers.length > 0 || leftoverBills.length > 0) && (
-            <>
-              <Text style={styles.sectionLabel}>{t('members.left_section')}</Text>
-
-              {formerMembers.length > 0 && (
-                <View style={styles.formerList}>
-                  {formerMembers.map((f) => (
-                    <View key={f.id} style={styles.formerChip}>
-                      <View style={[styles.formerDot, { backgroundColor: f.color }]} />
-                      <Text style={styles.formerName}>
+            {isManager && (formerMembers.length > 0 || leftoverBills.length > 0) && (
+              <>
+                <Text style={[styles.section, headingFont]}>{t('members.left_section')}</Text>
+                {formerMembers.length > 0 && (
+                  <View style={styles.former}>
+                    {formerMembers.map((f) => (
+                      <Text key={f.id} style={[styles.formerName, hand, { color: f.color }]}>
                         {t('members.name_left', { name: f.name })}
                       </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {leftoverBills.length > 0 ? (
-                <>
-                  <Text style={styles.leftoverHint}>{t('members.settle_hint')}</Text>
-                  <View style={styles.membersList}>
-                    {leftoverBills.map((b) => (
-                      <View key={b.id} style={styles.leftoverRow}>
-                        <View style={styles.memberInfo}>
-                          <Text style={styles.memberName} numberOfLines={1}>
-                            {b.title}
-                          </Text>
-                          <Text style={styles.memberYou} numberOfLines={1}>
-                            {t('members.leftover_bill_meta', {
-                              name: memberName(b.paidBy),
-                              amount: formatFull(b.amount, currencyCode),
-                            })}
-                          </Text>
-                        </View>
-                        <Pressable
-                          style={[styles.settleBtn, settlingId === b.id && styles.settleBtnBusy]}
-                          onPress={() => handleSettle(b.id)}
-                          disabled={settlingId !== null}
-                          accessible
-                          accessibilityRole="button"
-                          accessibilityLabel={t('members.settle')}
-                          accessibilityState={{
-                            disabled: settlingId !== null,
-                            busy: settlingId === b.id,
-                          }}
-                        >
-                          <Text style={styles.settleBtnText}>
-                            {settlingId === b.id ? t('members.settling') : t('members.settle')}
-                          </Text>
-                        </Pressable>
-                      </View>
                     ))}
                   </View>
-                </>
-              ) : billsLoading ? (
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoText}>{t('members.checking_bills')}</Text>
-                </View>
-              ) : (
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoText}>{t('members.nothing_to_settle')}</Text>
-                </View>
-              )}
-            </>
-          )}
+                )}
+                {leftoverBills.length > 0 ? (
+                  <>
+                    <Text style={styles.small}>{t('members.settle_hint')}</Text>
+                    <View style={styles.card}>
+                      {leftoverBills.map((b, i) => (
+                        <View
+                          key={b.id}
+                          style={[styles.billRow, i < leftoverBills.length - 1 && styles.ruled]}
+                        >
+                          <View style={styles.billInfo}>
+                            <Text style={styles.billTitle} numberOfLines={1}>
+                              {b.title}
+                            </Text>
+                            <Text style={styles.small} numberOfLines={1}>
+                              {t('members.leftover_bill_meta', {
+                                name: memberName(b.paidBy),
+                                amount: formatFull(b.amount, currencyCode),
+                              })}
+                            </Text>
+                          </View>
+                          <Pressable
+                            style={[styles.link, settlingId !== null && styles.dim]}
+                            onPress={() => handleSettle(b.id)}
+                            disabled={settlingId !== null}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('members.settle')}
+                            accessibilityState={{
+                              disabled: settlingId !== null,
+                              busy: settlingId === b.id,
+                            }}
+                          >
+                            <Text style={styles.linkText}>
+                              {settlingId === b.id ? t('members.settling') : t('members.settle')}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.small}>
+                    {billsLoading ? t('members.checking_bills') : t('members.nothing_to_settle')}
+                  </Text>
+                )}
+              </>
+            )}
 
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>{t('housemates.join_instructions')}</Text>
-          </View>
-        </ScrollView>
+            <Text style={[styles.small, styles.footer]}>{t('housemates.join_instructions')}</Text>
+          </>
+        )}
+      </ScrollView>
 
-        {/* Remove-member confirmation */}
-        <Modal
-          visible={memberToRemove !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => {
-            if (!removing) setMemberToRemove(null);
-          }}
-        >
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => {
-              if (!removing) setMemberToRemove(null);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          >
-            <Pressable style={styles.modalCard} onPress={() => {}} accessible={false}>
-              <Text style={styles.modalTitle}>
-                {t('members.remove_title', { name: memberToRemove?.name ?? '' })}
-              </Text>
-              <Text style={styles.modalBody}>{t('members.remove_body')}</Text>
-              <Pressable
-                style={[styles.modalDangerBtn, removing && styles.settleBtnBusy]}
-                onPress={handleConfirmRemove}
-                disabled={removing}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('members.yes_remove')}
-                accessibilityState={{ disabled: removing, busy: removing }}
-              >
-                <Text style={styles.modalDangerText}>
-                  {removing ? t('members.removing') : t('members.yes_remove')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={styles.modalCancelBtn}
-                onPress={() => setMemberToRemove(null)}
-                disabled={removing}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('common.cancel')}
-                accessibilityState={{ disabled: removing }}
-              >
-                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      </View>
+      <SettingsDialog
+        visible={memberToRemove !== null}
+        onClose={() => {
+          if (!removing) setMemberToRemove(null);
+        }}
+        title={t('members.remove_title', { name: memberToRemove?.name ?? '' })}
+        body={t('members.remove_body')}
+      >
+        <DialogButton
+          kind="danger"
+          label={removing ? t('members.removing') : t('members.yes_remove')}
+          onPress={handleConfirmRemove}
+          disabled={removing}
+        />
+        <DialogButton
+          kind="link"
+          label={t('common.cancel')}
+          onPress={() => setMemberToRemove(null)}
+          disabled={removing}
+        />
+      </SettingsDialog>
     </SafeAreaView>
   );
 }
 
 export default withFeatureGuard('bills', HousematesScreen);
+
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    scroll: { paddingHorizontal: ms(20), paddingTop: ms(8), paddingBottom: ms(60) },
+    title: {
+      fontSize: mf(36),
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
+      color: C.textPrimary,
+    },
+    house: { fontSize: mf(21), lineHeight: mf(25), color: C.textSecondary, marginBottom: ms(16) },
+    loading: { paddingVertical: ms(60), alignItems: 'center' },
+    section: {
+      fontSize: mf(22),
+      lineHeight: mf(29),
+      marginTop: ms(26),
+      marginBottom: ms(12),
+      color: C.textPrimary,
+    },
+    empty: { alignItems: 'center', gap: ms(8), paddingVertical: ms(10) },
+    emptyTitle: { fontSize: mf(22), lineHeight: mf(26), color: C.textPrimary },
+    small: { fontSize: mf(13), lineHeight: mf(19), ...font.regular, color: C.textSecondary },
+    former: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(14), marginBottom: ms(10) },
+    formerName: { fontSize: mf(20), textDecorationLine: 'line-through' },
+    card: {
+      backgroundColor: C.surface,
+      borderRadius: ms(18),
+      paddingHorizontal: ms(16),
+      marginTop: ms(10),
+    },
+    billRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10), minHeight: 60 },
+    ruled: { borderBottomWidth: 1, borderBottomColor: C.border },
+    billInfo: { flex: 1, minWidth: 0 },
+    billTitle: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    link: { minHeight: 44, justifyContent: 'center', paddingStart: ms(8) },
+    linkText: { fontSize: mf(14.5), ...font.semibold, color: C.primary },
+    dim: { opacity: 0.5 },
+    footer: { textAlign: 'center', marginTop: ms(26) },
+  });

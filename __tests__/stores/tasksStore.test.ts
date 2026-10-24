@@ -17,10 +17,12 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
   },
@@ -40,6 +42,7 @@ const HOUSE = 'house-1';
 function task(overrides: Partial<HouseTask> = {}): HouseTask {
   return {
     id: 't1',
+    houseId: HOUSE,
     title: 'Call the landlord',
     description: '',
     priority: 'medium',
@@ -50,6 +53,8 @@ function task(overrides: Partial<HouseTask> = {}): HouseTask {
     completedBy: null,
     createdBy: ME,
     createdAt: '2026-07-01T00:00:00Z',
+    recurrence: 'once',
+    recurrenceDay: null,
     ...overrides,
   };
 }
@@ -67,6 +72,8 @@ function taskRow(overrides: Partial<Record<string, unknown>> = {}): Record<strin
     completed_by: null,
     created_by: ME,
     created_at: '2026-07-01T00:00:00Z',
+    recurrence: 'once',
+    recurrence_day: null,
     ...overrides,
   };
 }
@@ -87,12 +94,18 @@ beforeEach(() => {
 describe('tasksStore — addTask', () => {
   it('rejects an empty title before touching the database (Zod)', async () => {
     await expect(
-      useTasksStore
-        .getState()
-        .addTask(
-          { title: '   ', description: '', priority: 'medium', assignedTo: null, dueDate: null },
-          HOUSE
-        )
+      useTasksStore.getState().addTask(
+        {
+          title: '   ',
+          description: '',
+          priority: 'medium',
+          assignedTo: null,
+          dueDate: null,
+          recurrence: 'once',
+          recurrenceDay: null,
+        },
+        HOUSE
+      )
     ).rejects.toThrow();
 
     expect(mockFrom).not.toHaveBeenCalled();
@@ -108,6 +121,8 @@ describe('tasksStore — addTask', () => {
           priority: 'high',
           assignedTo: null,
           dueDate: 'next tuesday',
+          recurrence: 'once',
+          recurrenceDay: null,
         },
         HOUSE
       )
@@ -127,6 +142,8 @@ describe('tasksStore — addTask', () => {
           priority: 'medium',
           assignedTo: null,
           dueDate: null,
+          recurrence: 'once',
+          recurrenceDay: null,
         },
         HOUSE
       )
@@ -139,12 +156,18 @@ describe('tasksStore — addTask', () => {
     useTasksStore.setState({ tasks: [task({ id: 'older' })] });
     mockFrom.mockReturnValue(ok(taskRow({ id: 't-new', title: 'Fix tap', priority: 'high' })));
 
-    await useTasksStore
-      .getState()
-      .addTask(
-        { title: 'Fix tap', description: '', priority: 'high', assignedTo: null, dueDate: null },
-        HOUSE
-      );
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'high',
+        assignedTo: null,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: null,
+      },
+      HOUSE
+    );
 
     const tasks = useTasksStore.getState().tasks;
     expect(tasks).toHaveLength(2);
@@ -156,12 +179,18 @@ describe('tasksStore — addTask', () => {
   it('notifies only the assignee when the task is assigned to a housemate', async () => {
     mockFrom.mockReturnValue(ok(taskRow({ assigned_to: ALEX, title: 'Fix tap' })));
 
-    await useTasksStore
-      .getState()
-      .addTask(
-        { title: 'Fix tap', description: '', priority: 'medium', assignedTo: ALEX, dueDate: null },
-        HOUSE
-      );
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'medium',
+        assignedTo: ALEX,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: null,
+      },
+      HOUSE
+    );
 
     expect(mockNotify).toHaveBeenCalledTimes(1);
     expect(mockNotify).toHaveBeenCalledWith(
@@ -181,12 +210,18 @@ describe('tasksStore — addTask', () => {
     });
     mockFrom.mockReturnValue(ok(taskRow({ id: 't-new', title: 'Fix tap' })));
 
-    await useTasksStore
-      .getState()
-      .addTask(
-        { title: 'Fix tap', description: '', priority: 'medium', assignedTo: null, dueDate: null },
-        HOUSE
-      );
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'medium',
+        assignedTo: null,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: null,
+      },
+      HOUSE
+    );
 
     const ids = useTasksStore.getState().tasks.map((t) => t.id);
     expect(ids).toEqual(['t-new', 'older']); // no duplicate
@@ -195,12 +230,18 @@ describe('tasksStore — addTask', () => {
   it('does NOT notify when I assign the task to myself', async () => {
     mockFrom.mockReturnValue(ok(taskRow({ assigned_to: ME })));
 
-    await useTasksStore
-      .getState()
-      .addTask(
-        { title: 'Fix tap', description: '', priority: 'medium', assignedTo: ME, dueDate: null },
-        HOUSE
-      );
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'medium',
+        assignedTo: ME,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: null,
+      },
+      HOUSE
+    );
 
     expect(mockNotify).not.toHaveBeenCalled();
   });
@@ -347,5 +388,102 @@ describe('tasksStore — deleteTask', () => {
     );
 
     expect(useTasksStore.getState().tasks).toHaveLength(1); // unchanged
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Repeating tasks (merged in from Chores)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('tasksStore — repeating tasks', () => {
+  it('saves the repeat setting with a new task', async () => {
+    const chain = ok(taskRow({ recurrence: 'weekly', recurrence_day: 'Thu' }));
+    mockFrom.mockReturnValue(chain);
+
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Bins',
+        description: '',
+        priority: 'medium',
+        assignedTo: null,
+        dueDate: null,
+        recurrence: 'weekly',
+        recurrenceDay: 'Thu',
+      },
+      HOUSE
+    );
+
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence: 'weekly', recurrence_day: 'Thu' })
+    );
+    expect(useTasksStore.getState().tasks[0]).toMatchObject({
+      recurrence: 'weekly',
+      recurrenceDay: 'Thu',
+    });
+  });
+
+  it('never stores a repeat day on a one-off task', async () => {
+    const chain = ok(taskRow());
+    mockFrom.mockReturnValue(chain);
+
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'medium',
+        assignedTo: null,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: 'Mon',
+      },
+      HOUSE
+    );
+
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence: 'once', recurrence_day: null })
+    );
+  });
+
+  it('reset un-ticks only repeating tasks and keeps one-off history', async () => {
+    useTasksStore.setState({
+      tasks: [
+        task({ id: 'r', recurrence: 'weekly', isComplete: true, completedBy: ME }),
+        task({ id: 'o', recurrence: 'once', isComplete: true, completedBy: ME }),
+      ],
+    });
+    mockRpc.mockResolvedValue({ error: null });
+
+    await useTasksStore.getState().resetRepeating(HOUSE);
+
+    expect(mockRpc).toHaveBeenCalledWith('reset_repeating_tasks', { p_house_id: HOUSE });
+    const byId = Object.fromEntries(useTasksStore.getState().tasks.map((t) => [t.id, t]));
+    expect(byId.r).toMatchObject({ isComplete: false, completedBy: null, completedAt: null });
+    expect(byId.o).toMatchObject({ isComplete: true, completedBy: ME });
+  });
+
+  it("reset leaves another house's tasks alone", async () => {
+    useTasksStore.setState({
+      tasks: [
+        task({ id: 'mine', recurrence: 'weekly', isComplete: true, completedBy: ME }),
+        task({ id: 'old', houseId: 'house-2', recurrence: 'weekly', isComplete: true }),
+      ],
+    });
+    mockRpc.mockResolvedValue({ error: null });
+
+    await useTasksStore.getState().resetRepeating(HOUSE);
+
+    const byId = Object.fromEntries(useTasksStore.getState().tasks.map((t) => [t.id, t]));
+    expect(byId.mine.isComplete).toBe(false);
+    expect(byId.old.isComplete).toBe(true);
+  });
+
+  it('reset throws and changes nothing when the database fails', async () => {
+    useTasksStore.setState({ tasks: [task({ id: 'r', recurrence: 'weekly', isComplete: true })] });
+    mockRpc.mockResolvedValue({ error: { message: 'connection error' } });
+
+    await expect(useTasksStore.getState().resetRepeating(HOUSE)).rejects.toThrow(
+      'Could not reset the repeating tasks. Please try again.'
+    );
+    expect(useTasksStore.getState().tasks[0].isComplete).toBe(true);
   });
 });

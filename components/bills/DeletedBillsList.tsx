@@ -21,7 +21,7 @@ export function DeletedBillsList({ items, currency }: DeletedBillsListProps): Re
   const memberName = useMemberName();
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+    <View style={[styles.card, { borderColor: c.border }]}>
       <Text style={[styles.title, { color: c.textSecondary }]}>
         {t('bills.history_deleted_bills')}
       </Text>
@@ -46,13 +46,8 @@ export function DeletedBillsList({ items, currency }: DeletedBillsListProps): Re
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
-  title: {
-    fontSize: sizes.fontXs,
-    ...font.bold,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
+  card: { borderRadius: ms(20), borderWidth: 1, padding: sizes.md, gap: sizes.sm },
+  title: { fontSize: sizes.fontSm, ...font.bold },
   item: { gap: ms(2) },
   name: { fontSize: sizes.fontSm, ...font.semibold },
   meta: { fontSize: sizes.fontXs },

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconName } from '@/types/icons';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { mf, ms } from '@utils/responsive';
 import { useRecurringPalette } from './palette';
 
@@ -32,6 +33,7 @@ export function BillCardMenu({
 }: BillCardMenuProps): React.JSX.Element {
   const { t } = useTranslation();
   const p = useRecurringPalette();
+  const headingFont = useHeadingFont('semibold');
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[styles.overlay, { backgroundColor: p.overlay }]}>
@@ -41,20 +43,23 @@ export function BillCardMenu({
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
         />
-        <View style={[styles.sheet, { backgroundColor: p.card }]} accessibilityViewIsModal>
-          <Text style={[styles.title, { color: p.muted }]} numberOfLines={1}>
+        <View style={[styles.sheet, { backgroundColor: p.sheet }]} accessibilityViewIsModal>
+          <View style={[styles.grab, { backgroundColor: p.border }]} />
+          <Text style={[styles.title, headingFont, { color: p.text }]} numberOfLines={1}>
             {billName}
           </Text>
-          {ITEMS.map((item) => (
-            <MenuItem key={item.action} {...item} label={t(item.labelKey)} onSelect={onSelect} />
-          ))}
+          <View style={[styles.group, { backgroundColor: p.card }]}>
+            {ITEMS.map((item) => (
+              <MenuItem key={item.action} {...item} label={t(item.labelKey)} onSelect={onSelect} />
+            ))}
+          </View>
           <Pressable
             style={[styles.item, styles.cancel]}
             onPress={onClose}
             accessible
             accessibilityRole="button"
           >
-            <Text style={[styles.cancelText, { color: p.text }]}>{t('common.cancel')}</Text>
+            <Text style={[styles.cancelText, { color: p.primary }]}>{t('common.cancel')}</Text>
           </Pressable>
         </View>
       </View>
@@ -92,25 +97,33 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject },
   sheet: {
-    borderTopLeftRadius: ms(24),
-    borderTopRightRadius: ms(24),
-    paddingTop: ms(16),
-    paddingBottom: ms(24),
-    paddingHorizontal: ms(12),
+    borderTopLeftRadius: ms(26),
+    borderTopRightRadius: ms(26),
+    paddingTop: ms(10),
+    paddingBottom: ms(28),
+    paddingHorizontal: ms(16),
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',
   },
-  title: { fontSize: mf(13), ...font.medium, paddingHorizontal: ms(12), marginBottom: ms(4) },
+  grab: {
+    width: ms(40),
+    height: ms(5),
+    borderRadius: ms(3),
+    alignSelf: 'center',
+    marginBottom: ms(14),
+  },
+  title: { fontSize: mf(22), letterSpacing: -0.4, paddingHorizontal: ms(4), marginBottom: ms(10) },
+  group: { borderRadius: ms(20), paddingVertical: ms(4) },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ms(14),
     minHeight: ms(52),
-    paddingHorizontal: ms(12),
-    borderRadius: ms(12),
+    paddingHorizontal: ms(16),
+    borderRadius: ms(16),
   },
-  itemText: { fontSize: mf(16), ...font.medium },
-  cancel: { justifyContent: 'center', marginTop: ms(4) },
-  cancelText: { fontSize: mf(16), ...font.semibold },
+  itemText: { fontSize: mf(16), ...font.bold },
+  cancel: { justifyContent: 'center', marginTop: ms(6) },
+  cancelText: { fontSize: mf(16), ...font.bold },
 });

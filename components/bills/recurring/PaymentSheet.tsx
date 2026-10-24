@@ -92,7 +92,7 @@ export function PaymentSheet({
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           />
-          <View style={[styles.sheet, { backgroundColor: p.card }]} accessibilityViewIsModal>
+          <View style={[styles.sheet, { backgroundColor: p.sheet }]} accessibilityViewIsModal>
             <SheetHeader
               eyebrow={isEdit ? t('bills.edit_payment') : t('bills.recurring_log_payment')}
               title={bill.name}
@@ -142,7 +142,7 @@ export function PaymentSheet({
                     <Text style={[styles.dateText, { color: p.text }]}>
                       {formatDateDDMMYYYY(form.paidAt)}
                     </Text>
-                    <Ionicons name="calendar-outline" size={18} color={p.primary} />
+                    <Ionicons name="calendar-outline" size={18} color={p.muted} />
                   </Pressable>
                 </View>
               </View>
@@ -154,6 +154,7 @@ export function PaymentSheet({
                   selected={form.paidBy ? [form.paidBy] : []}
                   mode="single"
                   onToggle={form.setPaidBy}
+                  avatars
                 />
               )}
 
@@ -164,6 +165,7 @@ export function PaymentSheet({
                   selected={form.splitWith}
                   mode="multi"
                   onToggle={form.toggleSplit}
+                  avatars
                 />
               )}
 
@@ -238,8 +240,8 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject },
   sheet: {
-    borderTopLeftRadius: ms(24),
-    borderTopRightRadius: ms(24),
+    borderTopLeftRadius: ms(26),
+    borderTopRightRadius: ms(26),
     maxHeight: '92%',
     width: '100%',
     maxWidth: 560,
@@ -248,14 +250,15 @@ const styles = StyleSheet.create({
   body: { padding: ms(20), paddingBottom: ms(32), gap: ms(18) },
   twoCol: { flexDirection: 'row', gap: ms(12) },
   col: { flex: 1, minWidth: 0 },
-  label: { fontSize: mf(13), ...font.medium, marginBottom: ms(6) },
+  label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(2) },
+  // Fields are written on a line, like the rest of the bill forms.
   input: {
-    minHeight: ms(48),
-    borderWidth: 1,
-    borderRadius: ms(12),
-    paddingHorizontal: ms(14),
-    fontSize: mf(16),
-    ...font.regular,
+    minHeight: 44,
+    borderBottomWidth: 1.5,
+    paddingHorizontal: 0,
+    paddingVertical: ms(8),
+    fontSize: mf(17),
+    ...font.semibold,
   },
   amount: { writingDirection: 'ltr' },
   dateBtn: {
@@ -263,16 +266,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dateText: { fontSize: mf(16), ...font.regular },
+  dateText: { fontSize: mf(17), ...font.semibold },
   error: { fontSize: mf(14), ...font.medium },
   primaryBtn: {
-    minHeight: ms(52),
-    borderRadius: ms(14),
+    minHeight: ms(56),
+    borderRadius: ms(18),
     alignItems: 'center',
     justifyContent: 'center',
   },
   dimmed: { opacity: 0.6 },
-  primaryText: { fontSize: mf(16), ...font.semibold },
+  primaryText: { fontSize: mf(17), ...font.bold },
   deleteBtn: { minHeight: ms(44), alignItems: 'center', justifyContent: 'center' },
-  deleteText: { fontSize: mf(15), ...font.semibold },
+  deleteText: { fontSize: mf(15.5), ...font.extrabold },
 });
