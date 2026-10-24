@@ -1674,7 +1674,8 @@
     "history_title": "היסטוריית הוצאות",
     "history_sub": "פירוט חודשי ומגמות",
     "app_settings_title": "הגדרות האפליקציה",
-    "member_of": "חבר/ה ב{{house}}"
+    "member_of": "חבר/ה ב{{house}}",
+    "crop_hint": "גררו · צבטו כדי להגדיל"
   },
   "housemates": {
     "title": "שותפים",

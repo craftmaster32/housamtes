@@ -1674,7 +1674,8 @@
     "history_title": "Historial de gastos",
     "history_sub": "Desglose mensual y tendencias",
     "app_settings_title": "Ajustes de la app",
-    "member_of": "Miembro de {{house}}"
+    "member_of": "Miembro de {{house}}",
+    "crop_hint": "Arrastra · pellizca para ampliar"
   },
   "housemates": {
     "title": "Compañeros",

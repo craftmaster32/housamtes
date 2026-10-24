@@ -1674,7 +1674,8 @@
     "history_title": "Expense history",
     "history_sub": "Monthly breakdown and trends",
     "app_settings_title": "App settings",
-    "member_of": "Member of {{house}}"
+    "member_of": "Member of {{house}}",
+    "crop_hint": "Drag · pinch to zoom"
   },
   "housemates": {
     "title": "Housemates",

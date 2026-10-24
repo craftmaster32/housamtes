@@ -63,6 +63,7 @@ function MachineCardComponent({
       ? t('machines.finished')
       : t('machines.time_left', { time: formatRemaining(left) });
   const answerColor = !inUse || finished ? c.success : meta.color;
+  const stopLabel = mine && !finished ? t('machines.stop') : t('machines.mark_free');
 
   return (
     <View
@@ -110,11 +111,9 @@ function MachineCardComponent({
           onPress={() => onStop(kind)}
           disabled={busy}
           accessibilityRole="button"
-          accessibilityLabel={t('machines.mark_free')}
+          accessibilityLabel={stopLabel}
         >
-          <Text style={[styles.linkText, { color: c.negative }]}>
-            {mine && !finished ? t('machines.stop') : t('machines.mark_free')}
-          </Text>
+          <Text style={[styles.linkText, { color: c.negative }]}>{stopLabel}</Text>
         </Pressable>
       ) : (
         <View style={[styles.tagRow, busy && styles.dim]} pointerEvents={busy ? 'none' : 'auto'}>

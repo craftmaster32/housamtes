@@ -8,12 +8,13 @@ import type { Bill } from '@stores/billsStore';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
+import { useMemberName } from '@hooks/useMemberName';
 import { mf, ms } from '@utils/responsive';
 
 interface RecentActivityProps {
   today: Bill[];
   yesterday: Bill[];
-  userName: string;
+  userId: string;
   onMore: () => void;
 }
 
@@ -21,18 +22,19 @@ interface RecentActivityProps {
 export function RecentActivity({
   today,
   yesterday,
-  userName,
+  userId,
   onMore,
 }: RecentActivityProps): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const hand = useHandFont();
   const currency = useSettingsStore((s) => s.currency);
+  const memberName = useMemberName();
 
   const row = (bill: Bill): React.JSX.Element => {
     const splits = bill.splitBetween.length || 1;
     const share = bill.splitAmounts
-      ? (bill.splitAmounts[userName] ?? bill.amount / splits)
+      ? (bill.splitAmounts[userId] ?? bill.amount / splits)
       : bill.amount / splits;
     const meta = CATEGORY_META[bill.category?.toLowerCase() ?? ''] ?? CATEGORY_META['other'];
     return (
@@ -43,9 +45,9 @@ export function RecentActivity({
             {bill.title}
           </Text>
           <Text style={[styles.activitySub, hand, { color: c.textSecondary }]}>
-            {bill.paidBy === userName
+            {bill.paidBy === userId
               ? t('profile.paid_by_you')
-              : t('profile.paid_by_name', { name: bill.paidBy })}
+              : t('profile.paid_by_name', { name: memberName(bill.paidBy) })}
           </Text>
         </View>
         <View style={styles.activityAmt}>

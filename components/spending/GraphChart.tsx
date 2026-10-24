@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import Svg, { Defs, Pattern, Path, Rect } from 'react-native-svg';
@@ -16,6 +17,20 @@ const P = lightColors;
 const PAPER = '#FBFCFA';
 const GRID = 'rgba(79,120,176,0.16)';
 const BAR_MAX_H = ms(96);
+
+/**
+ * Pencil hatching. Each Svg defines its own copy: on iOS a pattern can only be
+ * used inside the Svg that defines it.
+ */
+function Hatch({ id }: { id: string }): React.JSX.Element {
+  return (
+    <Defs>
+      <Pattern id={id} width={6} height={6} patternUnits="userSpaceOnUse">
+        <Path d="M0 6 L6 0" stroke="rgba(34,32,29,0.55)" strokeWidth={1.2} />
+      </Pattern>
+    </Defs>
+  );
+}
 
 interface GraphChartProps {
   months: MonthSpend[];
@@ -39,6 +54,8 @@ export function GraphChart({
 }: GraphChartProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const hand = useHandFont();
+  // Unique per chart so two charts on one web page don't share pattern ids.
+  const uid = `spend${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const data = months.slice(0, 6).reverse();
   const personal = view === 'personal';
   const maxVal = Math.max(...data.map((m) => (personal ? m.total : m.houseTotal)), 1);
@@ -47,14 +64,11 @@ export function GraphChart({
     <View style={styles.paper}>
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
-          <Pattern id="spend-grid" width={14} height={14} patternUnits="userSpaceOnUse">
+          <Pattern id={`${uid}-grid`} width={14} height={14} patternUnits="userSpaceOnUse">
             <Path d="M14 0 H0 V14" stroke={GRID} strokeWidth={1} fill="none" />
           </Pattern>
-          <Pattern id="spend-hatch" width={6} height={6} patternUnits="userSpaceOnUse">
-            <Path d="M0 6 L6 0" stroke="rgba(34,32,29,0.55)" strokeWidth={1.2} />
-          </Pattern>
         </Defs>
-        <Rect width="100%" height="100%" fill="url(#spend-grid)" />
+        <Rect width="100%" height="100%" fill={`url(#${uid}-grid)`} />
       </Svg>
 
       <Text style={[styles.title, hand]}>{t('spending.monthly_trend')}</Text>
@@ -87,7 +101,8 @@ export function GraphChart({
               >
                 {shareH > 0 && (
                   <Svg width="100%" height={shareH} style={styles.share}>
-                    <Rect width="100%" height="100%" fill="url(#spend-hatch)" />
+                    <Hatch id={`${uid}-bar${i}`} />
+                    <Rect width="100%" height="100%" fill={`url(#${uid}-bar${i})`} />
                   </Svg>
                 )}
               </View>
@@ -107,7 +122,8 @@ export function GraphChart({
           <Text style={styles.legendText}>{t('spending.house_label')}</Text>
           <Svg width={12} height={12}>
             <Rect width={12} height={12} fill="rgba(79,120,176,0.45)" />
-            <Rect width={12} height={12} fill="url(#spend-hatch)" />
+            <Hatch id={`${uid}-key`} />
+            <Rect width={12} height={12} fill={`url(#${uid}-key)`} />
           </Svg>
           <Text style={styles.legendText}>{t('spending.your_share')}</Text>
         </View>

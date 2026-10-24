@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
+import { Alert } from '@lib/alert';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';

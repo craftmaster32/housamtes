@@ -108,6 +108,10 @@ export default function CalendarScreen(): React.JSX.Element {
   const handleSelectDay = useCallback((ymd: string): void => {
     setSelectedDate(ymd);
     setExpandedEventId(null);
+    // Tapping a greyed day from the next or previous month turns the page to it.
+    const [y, m] = ymd.split('-').map(Number);
+    setViewYear(y);
+    setViewMonth(m - 1);
   }, []);
 
   const handleOpenAdd = useCallback((): void => {

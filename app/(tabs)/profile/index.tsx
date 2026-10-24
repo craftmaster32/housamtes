@@ -216,7 +216,7 @@ export default function ProfileScreen(): React.JSX.Element {
             <RecentActivity
               today={todayBills}
               yesterday={yesterdayBills}
-              userName={profile?.name ?? ''}
+              userId={profile?.id ?? ''}
               onMore={() => navigateToBase('/(tabs)/bills/index')}
             />
           </>

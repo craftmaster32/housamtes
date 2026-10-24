@@ -208,7 +208,7 @@ export function CropEditor({
 
   return (
     <View style={cedStyles.wrapper}>
-      <Text style={cedStyles.hint}>Drag · pinch to zoom</Text>
+      <Text style={cedStyles.hint}>{t('profile.crop_hint')}</Text>
       <View
         ref={frameRef}
         style={cedStyles.frame}
@@ -253,5 +253,3 @@ export function CropEditor({
     </View>
   );
 }
-
-// ── Main screen ────────────────────────────────────────────────────────────────
