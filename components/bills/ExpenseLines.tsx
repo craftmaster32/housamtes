@@ -12,6 +12,8 @@ import { useBillsStore } from '@stores/billsStore';
 import { resolveBillIcon } from '@stores/recurringBillsStore';
 import { CATEGORY_META } from '@stores/spendingStore';
 import { useCategoryLook } from '@hooks/useCategoryLook';
+import { CategoryDoodle } from '@components/bills/art/CategoryDoodle';
+import { doodleKind, type DoodleKind } from '@components/bills/art/doodleKind';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
@@ -50,33 +52,20 @@ export function DayHeader({ title }: { title: string }): React.JSX.Element {
 }
 
 interface LineProps {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
+  kind: DoodleKind;
   title: string;
   meta: string;
   amount: string;
   struck?: boolean;
   stamp?: React.ReactNode;
-  /** The category's colour; the icon is drawn in it on a soft round tint. */
+  /** The category's colour; the drawing is coloured in with it. */
   tint?: string | null;
 }
 
-// A slightly deeper shade of a category colour, so a light one (amber, cyan)
-// still reads on the cream receipt.
-function deepen(hex: string): string {
-  const m = /^#([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  const mix = (v: number): number => Math.round(v * 0.72 + 0x22 * 0.28);
-  const r = mix((n >> 16) & 255);
-  const g = mix((n >> 8) & 255);
-  const b = mix(n & 255);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
-}
-
-// One printed line: the category's icon in its colour, the name, a dotted
-// leader and the price.
+// One printed line: a small drawing of the category in its colour, the name,
+// a dotted leader and the price.
 function ReceiptLine({
-  icon,
+  kind,
   title,
   meta,
   amount,
@@ -87,17 +76,10 @@ function ReceiptLine({
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
   const ink = struck ? c.receiptMuted : c.receiptInk;
-  const iconInk = tint ? deepen(tint) : c.receiptMuted;
   return (
     <View style={styles.line}>
-      <View
-        style={[
-          styles.lineIcon,
-          { backgroundColor: tint ? `${tint}26` : 'transparent' },
-          struck && styles.iconStruck,
-        ]}
-      >
-        <Ionicons name={icon} size={18} color={iconInk} />
+      <View style={[styles.lineIcon, struck && styles.iconStruck]}>
+        <CategoryDoodle kind={kind} color={tint ?? null} size={ms(32)} />
       </View>
       <View style={styles.lineBody}>
         <View style={styles.lineTop}>
@@ -181,7 +163,7 @@ export function BillLine({
       accessibilityRole="button"
     >
       <ReceiptLine
-        icon={look.icon}
+        kind={look.kind}
         tint={look.color}
         title={bill.title}
         meta={catLabel ? `${catLabel} · ${payer}` : t('bills.paid_by_name', { name: payer })}
@@ -247,7 +229,7 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
       accessibilityLabel={row.title}
     >
       <ReceiptLine
-        icon={resolveBillIcon(row.icon)}
+        kind={doodleKind(resolveBillIcon(row.icon), row.title)}
         tint={CATEGORY_META[row.title.trim().toLowerCase()]?.color ?? c.primary}
         title={row.title}
         meta={
@@ -274,14 +256,7 @@ const styles = StyleSheet.create({
   dashRow: { flex: 1, flexDirection: 'row', gap: ms(4), overflow: 'hidden' },
   dash: { width: ms(5), height: 1.5, borderRadius: 1 },
   line: { flexDirection: 'row', gap: ms(12), paddingVertical: ms(11) },
-  lineIcon: {
-    width: ms(32),
-    height: ms(32),
-    borderRadius: ms(16),
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -ms(4),
-  },
+  lineIcon: { marginTop: -ms(4) },
   iconStruck: { opacity: 0.45 },
   lineBody: { flex: 1, minWidth: 0 },
   lineTop: { flexDirection: 'row', alignItems: 'center' },

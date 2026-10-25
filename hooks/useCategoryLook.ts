@@ -2,16 +2,17 @@ import { useCallback } from 'react';
 import { useExpenseCategoriesStore, resolveCategoryIcon } from '@stores/expenseCategoriesStore';
 import { CATEGORY_META } from '@stores/spendingStore';
 import { getCategoryIcon } from '@components/bills/categoryIcons';
-import type { IoniconName } from '@/types/icons';
+import { doodleKind, type DoodleKind } from '@components/bills/art/doodleKind';
 
 export interface CategoryLook {
-  icon: IoniconName;
+  /** Which hand-drawn picture the category gets. */
+  kind: DoodleKind;
   /** The category's own colour, or null when it has none (shown in grey ink). */
   color: string | null;
 }
 
 /**
- * The icon and colour a category is drawn with: the house's own category
+ * The drawing and colour a category gets: the house's own category
  * (as picked when it was created) first, then the built-in defaults.
  */
 export function useCategoryLook(): (name: string | null | undefined) => CategoryLook {
@@ -20,8 +21,16 @@ export function useCategoryLook(): (name: string | null | undefined) => Category
     (name: string | null | undefined): CategoryLook => {
       const key = (name ?? '').trim().toLowerCase();
       const own = categories.find((c) => c.name.trim().toLowerCase() === key);
-      if (own) return { icon: resolveCategoryIcon(own.icon), color: own.color || null };
-      return { icon: getCategoryIcon(key), color: CATEGORY_META[key]?.color ?? null };
+      if (own) {
+        return {
+          kind: doodleKind(resolveCategoryIcon(own.icon), own.name),
+          color: own.color || null,
+        };
+      }
+      return {
+        kind: doodleKind(getCategoryIcon(key), key),
+        color: CATEGORY_META[key]?.color ?? null,
+      };
     },
     [categories]
   );

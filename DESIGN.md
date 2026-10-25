@@ -216,6 +216,10 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   "Paid by [you] and split [equally]" — equal split is the default and needs no
   extra taps; tapping a chip opens a sheet with Who paid / Split between /
   Equal·Custom·By % and the sticky-note result.
+- Receipt lines (later, owner: "more colours", then "like drawings"): each
+  expense has a small hand-drawn picture of its category (`CategoryDoodle`,
+  chosen by `doodleKind` from the category's icon, then its name) in the same
+  ink style as the recurring tiles, coloured in with the category's own colour.
 - Pop-ups: Log payment (period on paper strip with ‹ ›, handwritten "Next unpaid
   period", underlined amount/date, people chips with avatars), ⋯ menu as a
   grouped sheet, recurring form as a dashed card, date picker with pen-circled
