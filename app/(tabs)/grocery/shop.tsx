@@ -28,6 +28,8 @@ import { SheetHeader } from '@components/bills/recurring/SheetHeader';
 import { BagSlice } from '@components/grocery/BagSlice';
 import { AisleSign } from '@components/grocery/AisleSign';
 import { ShopItemRow } from '@components/grocery/ShopItemRow';
+import { Fold } from '@components/shared/Fold';
+import { useBasketMoves } from '@hooks/useBasketMoves';
 import { useHandFont } from '@hooks/useHandFont';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -46,6 +48,10 @@ interface ShopSection {
   data: GroceryItem[];
   /** Already-bought group renders quieter. */
   muted?: boolean;
+  /** Every row is moving out, so the sign folds away with them. */
+  leaving?: boolean;
+  /** Every row has just moved in, so the sign unfolds with them. */
+  arriving?: boolean;
 }
 
 function ShopScreen(): React.JSX.Element {
@@ -111,21 +117,35 @@ function ShopScreen(): React.JSX.Element {
     return n > 1 ? (i.boughtCount ?? 0) >= n : i.isChecked;
   }, []);
 
+  // A ticked item waits a beat, then moves to the basket with a fold, so the
+  // list doesn't jump under your finger on every tap.
+  const { isShownInBasket, leavingIds, arrivingIds } = useBasketMoves(shoppingItems, isDone);
+
   const sections = useMemo((): ShopSection[] => {
-    const toGrab = shoppingItems.filter((i) => !isDone(i));
-    const inBasket = shoppingItems.filter((i) => isDone(i));
+    const toGrab = shoppingItems.filter((i) => !isShownInBasket(i));
+    const inBasket = shoppingItems.filter((i) => isShownInBasket(i));
+    const moving = (data: GroceryItem[]): Pick<ShopSection, 'leaving' | 'arriving'> => ({
+      leaving: data.every((i) => leavingIds.has(i.id)),
+      arriving: data.every((i) => arrivingIds.has(i.id)),
+    });
     const result: ShopSection[] = [];
     if (toGrab.length > 0)
-      result.push({ title: t('grocery.shop.still_to_grab'), icon: 'cart-outline', data: toGrab });
+      result.push({
+        title: t('grocery.shop.still_to_grab'),
+        icon: 'cart-outline',
+        data: toGrab,
+        ...moving(toGrab),
+      });
     if (inBasket.length > 0)
       result.push({
         title: t('grocery.shop.in_basket'),
         icon: 'bag-check-outline',
         data: inBasket,
         muted: true,
+        ...moving(inBasket),
       });
     return result;
-  }, [shoppingItems, isDone, t]);
+  }, [shoppingItems, isShownInBasket, leavingIds, arrivingIds, t]);
 
   // The newest thing a housemate added since you got to the shop.
   const justAdded = useMemo((): GroceryItem | null => {
@@ -216,29 +236,33 @@ function ShopScreen(): React.JSX.Element {
 
   const renderItem = useCallback(
     ({ item, index }: { item: GroceryItem; index: number }): React.JSX.Element => (
-      <BagSlice dashedTop={index > 0}>
-        <ShopItemRow
-          item={item}
-          onToggle={onToggle}
-          onIncrement={onIncrement}
-          onDecrement={onDecrement}
-          onSetCount={onSetCount}
-        />
-      </BagSlice>
+      <Fold open={!leavingIds.has(item.id)} appear={arrivingIds.has(item.id)}>
+        <BagSlice dashedTop={index > 0}>
+          <ShopItemRow
+            item={item}
+            onToggle={onToggle}
+            onIncrement={onIncrement}
+            onDecrement={onDecrement}
+            onSetCount={onSetCount}
+          />
+        </BagSlice>
+      </Fold>
     ),
-    [onToggle, onIncrement, onDecrement, onSetCount]
+    [onToggle, onIncrement, onDecrement, onSetCount, leavingIds, arrivingIds]
   );
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: ShopSection }): React.JSX.Element => (
-      <BagSlice isTop={sections.indexOf(section) === 0}>
-        <AisleSign
-          title={section.title}
-          icon={section.icon}
-          tone={section.muted ? 'blue' : 'green'}
-          leanRight={!!section.muted}
-        />
-      </BagSlice>
+      <Fold open={!section.leaving} appear={section.arriving}>
+        <BagSlice isTop={sections.indexOf(section) === 0}>
+          <AisleSign
+            title={section.title}
+            icon={section.icon}
+            tone={section.muted ? 'blue' : 'green'}
+            leanRight={!!section.muted}
+          />
+        </BagSlice>
+      </Fold>
     ),
     [sections]
   );

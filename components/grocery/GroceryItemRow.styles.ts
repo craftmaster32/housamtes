@@ -48,7 +48,15 @@ export function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create>
     ctrBtnOff: { opacity: 0.35 },
     ctrBtnText: { fontSize: mf(18), ...font.semibold, color: C.kraftInk, lineHeight: mf(20) },
     ctrBtnTextPlus: { color: '#FFFFFF' },
-    ctrText: { fontSize: mf(21), color: C.kraftInk, minWidth: ms(30), textAlign: 'center' },
+    // A fixed slot (and same-width digits) so going from 9/12 to 10/12 never
+    // widens the counter and re-wraps the name beside it.
+    ctrText: {
+      fontSize: mf(21),
+      color: C.kraftInk,
+      width: ms(46),
+      textAlign: 'center',
+      fontVariant: ['tabular-nums'],
+    },
     progressTrack: {
       height: 3,
       borderRadius: 2,

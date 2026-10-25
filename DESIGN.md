@@ -354,6 +354,14 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   UnderlineInput, SplitSummary + SplitSheet). Quick buy uses the same form.
 - Owner idea for later (in IDEAS.md): photos on grocery items; rows keep room.
 - Empty grocery texts lost their emoji.
+- **Ticking must not shake the page** (owner: items "jump and affect the whole
+  page"). On the shopping trip a ticked item stays where it is for a beat (you
+  see the tick and can undo it, and can tick several in a row), then folds away
+  while the rows below glide up, and unfolds in "In the basket"
+  (`useBasketMoves` + the shared `Fold`). The "Still need it?" strip stays with
+  its item: ticking that item folds it away instead of hopping to another row
+  (`useStaleNudge`). The 3/12 counters have a fixed width so 9→10 never re-wraps
+  the name.
 
 **Autonomous pass (built on #252 without mockups, owner to review on the preview)**
 
@@ -393,7 +401,8 @@ the mockup step and follow the approved style. Each has its own object:
   as an ink tick box (`InkTickBox`) instead of a phone switch.
 
 New shared pieces: `PageSheet` + `SheetButton` (standard bottom sheet and its
-blue button), `InkTickBox`. Emoji were removed from empty-state texts.
+blue button), `InkTickBox`, `Fold` (opens/closes a row by its height so the
+list below glides instead of jumping). Emoji were removed from empty-state texts.
 
 ## 8. Working setup (for the next session)
 

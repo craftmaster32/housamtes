@@ -182,5 +182,13 @@ const styles = StyleSheet.create({
   off: { opacity: 0.35 },
   ctrSign: { fontSize: mf(18), ...font.semibold, color: INK, lineHeight: mf(20) },
   ctrSignPlus: { color: '#FFFFFF' },
-  ctrText: { fontSize: mf(22), color: INK, minWidth: ms(32), textAlign: 'center' },
+  // A fixed slot (and same-width digits) so going from 9/12 to 10/12 never
+  // widens the counter and re-wraps the name beside it.
+  ctrText: {
+    fontSize: mf(22),
+    color: INK,
+    width: ms(48),
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
 });

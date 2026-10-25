@@ -39,7 +39,8 @@ import { GroceryItemRow } from '@components/grocery/GroceryItemRow';
 import { ShoppingRunCard } from '@components/grocery/ShoppingRunCard';
 import { AddItemSheet, type AddDestination } from '@components/grocery/AddItemSheet';
 import { StaleItemNudge } from '@components/grocery/StaleItemNudge';
-import { getItemAge, isItemStale } from '@utils/groceryAge';
+import { Fold } from '@components/shared/Fold';
+import { useStaleNudge } from '@hooks/useStaleNudge';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import {
@@ -71,7 +72,6 @@ import { mf, ms } from '@utils/responsive';
 const ADD_MODE_KEY = 'grocery_add_mode';
 const DRAFT_TOGGLE_KEY = 'grocery_draft_toggle';
 const REMINDER_PROMPT_DURATION_MS = 4000;
-const STALE_KEPT_KEY = 'grocery_stale_kept';
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 interface GroceryItemWithMeta extends GroceryItem {
@@ -797,45 +797,14 @@ function GroceryScreen(): React.JSX.Element {
     [addEntry]
   );
 
-  // "Still need it?" — the oldest shared item that's been waiting 3+ days and
-  // nobody has said "keep it" to on this phone.
-  const [keptStaleIds, setKeptStaleIds] = useState<string[]>([]);
-  useEffect((): void => {
-    AsyncStorage.getItem(STALE_KEPT_KEY)
-      .then((raw) => {
-        const parsed: unknown = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) setKeptStaleIds(parsed.filter((x) => typeof x === 'string'));
-      })
-      .catch(() => {});
-  }, []);
-  const staleItem = useMemo((): { id: string; name: string; days: number } | null => {
-    const candidates = items
-      .filter(
-        (i) =>
-          !i.isChecked &&
-          !i.isPersonal &&
-          !i.isDraft &&
-          !keptStaleIds.includes(i.id) &&
-          isItemStale(i.createdAt, now)
-      )
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    const oldest = candidates[0];
-    if (!oldest) return null;
-    const age = getItemAge(oldest.createdAt, now);
-    return { id: oldest.id, name: oldest.name, days: age.unit === 'days' ? age.count : 3 };
-  }, [items, keptStaleIds, now]);
-  const handleKeepStale = useCallback((): void => {
-    if (!staleItem) return;
-    Haptics.selectionAsync().catch(() => {});
-    // Only remember ids still on the list so the stored set can't grow forever.
-    const liveIds = new Set(items.map((i) => i.id));
-    const next = [...keptStaleIds.filter((id) => liveIds.has(id)), staleItem.id];
-    setKeptStaleIds(next);
-    AsyncStorage.setItem(STALE_KEPT_KEY, JSON.stringify(next)).catch(() => {});
-  }, [staleItem, items, keptStaleIds]);
-  const handleRemoveStale = useCallback((): void => {
-    if (staleItem) onDelete(staleItem.id);
-  }, [staleItem, onDelete]);
+  const {
+    nudge,
+    isOpen: nudgeOpen,
+    appear: nudgeAppear,
+    handleKeep: handleKeepStale,
+    handleRemove: handleRemoveStale,
+    handleClosed: handleNudgeClosed,
+  } = useStaleNudge(items, now, onDelete);
 
   const renderItem = useCallback(
     ({ item, index }: { item: GroceryItemWithMeta; index: number }): React.JSX.Element => (
@@ -851,13 +820,15 @@ function GroceryScreen(): React.JSX.Element {
           onDecrement={onDec}
           onLongPress={handleLongPress}
         />
-        {staleItem?.id === item.id && (
-          <StaleItemNudge
-            itemName={staleItem.name}
-            days={staleItem.days}
-            onKeep={handleKeepStale}
-            onRemove={handleRemoveStale}
-          />
+        {nudge?.id === item.id && (
+          <Fold open={nudgeOpen} appear={nudgeAppear} onClosed={handleNudgeClosed}>
+            <StaleItemNudge
+              itemName={nudge.name}
+              days={nudge.days}
+              onKeep={handleKeepStale}
+              onRemove={handleRemoveStale}
+            />
+          </Fold>
         )}
       </BagSlice>
     ),
@@ -869,9 +840,12 @@ function GroceryScreen(): React.JSX.Element {
       onInc,
       onDec,
       handleLongPress,
-      staleItem,
+      nudge,
+      nudgeOpen,
+      nudgeAppear,
       handleKeepStale,
       handleRemoveStale,
+      handleNudgeClosed,
     ]
   );
 
