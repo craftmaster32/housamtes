@@ -427,7 +427,10 @@ list below glides instead of jumping). Emoji were removed from empty-state texts
 
 - Staging Supabase (test data only): `https://tcwhpelylmbafagliors.supabase.co`.
   Test house "Dizengoff 42" with fake housemates (Maya, Noam) and the owner's
-  test account as admin. Seed scripts are kept outside the repo.
+  test account as admin. Demo activity (six months of bills and payments by
+  the existing members) is `supabase/demo/staging-demo.sql`, run by the
+  "Staging demo data" GitHub Action with the staging secrets GitHub already has
+  — no keys are needed in a session. It runs once; it never touches the live app.
 - Local visual check: run Expo web on port 8099 with the staging URL/key as
   `EXPO_PUBLIC_SUPABASE_*`, inject a test session into localStorage, and take
   Playwright screenshots (Chromium at `/opt/pw-browsers/chromium`) in light +
