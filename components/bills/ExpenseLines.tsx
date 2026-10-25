@@ -10,6 +10,8 @@ import { Alert } from '@lib/alert';
 import { navigateToBase } from '@stores/navigationStore';
 import { useBillsStore } from '@stores/billsStore';
 import { resolveBillIcon } from '@stores/recurringBillsStore';
+import { CATEGORY_META } from '@stores/spendingStore';
+import { useCategoryLook } from '@hooks/useCategoryLook';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
@@ -20,7 +22,6 @@ import { formatFull } from '@constants/currencies';
 import { font } from '@constants/typography';
 import { DotLeader } from '@components/shared/DotLeader';
 import { Stamp } from '@components/shared/Stamp';
-import { getCategoryIcon } from '@components/bills/categoryIcons';
 import type { BillRow, RecurringPaymentRow } from '@hooks/useOneOffBillHistory';
 import { mf, ms } from '@utils/responsive';
 
@@ -55,16 +56,49 @@ interface LineProps {
   amount: string;
   struck?: boolean;
   stamp?: React.ReactNode;
+  /** The category's colour; the icon is drawn in it on a soft round tint. */
+  tint?: string | null;
 }
 
-// One printed line: a small ink doodle, the name, a dotted leader and the price.
-function ReceiptLine({ icon, title, meta, amount, struck, stamp }: LineProps): React.JSX.Element {
+// A slightly deeper shade of a category colour, so a light one (amber, cyan)
+// still reads on the cream receipt.
+function deepen(hex: string): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const mix = (v: number): number => Math.round(v * 0.72 + 0x22 * 0.28);
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+// One printed line: the category's icon in its colour, the name, a dotted
+// leader and the price.
+function ReceiptLine({
+  icon,
+  title,
+  meta,
+  amount,
+  struck,
+  stamp,
+  tint,
+}: LineProps): React.JSX.Element {
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
   const ink = struck ? c.receiptMuted : c.receiptInk;
+  const iconInk = tint ? deepen(tint) : c.receiptMuted;
   return (
     <View style={styles.line}>
-      <Ionicons name={icon} size={20} color={c.receiptMuted} style={styles.lineIcon} />
+      <View
+        style={[
+          styles.lineIcon,
+          { backgroundColor: tint ? `${tint}26` : 'transparent' },
+          struck && styles.iconStruck,
+        ]}
+      >
+        <Ionicons name={icon} size={18} color={iconInk} />
+      </View>
       <View style={styles.lineBody}>
         <View style={styles.lineTop}>
           <Text
@@ -110,6 +144,7 @@ export function BillLine({
   const canDelete = (role === 'owner' || role === 'admin') && !bill.settled && !!houseId;
   const payer = memberName(bill.paidBy).split(' ')[0];
   const catLabel = bill.category ? localizeCategoryName(bill.category, t) : '';
+  const look = useCategoryLook()(bill.category);
 
   // Single-flight guard: a slow delete must not be submitted twice (which would
   // fire duplicate deletes and notify housemates more than once).
@@ -146,7 +181,8 @@ export function BillLine({
       accessibilityRole="button"
     >
       <ReceiptLine
-        icon={getCategoryIcon(bill.category ?? '')}
+        icon={look.icon}
+        tint={look.color}
         title={bill.title}
         meta={catLabel ? `${catLabel} · ${payer}` : t('bills.paid_by_name', { name: payer })}
         amount={formatFull(bill.amount, currencyCode)}
@@ -212,6 +248,7 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
     >
       <ReceiptLine
         icon={resolveBillIcon(row.icon)}
+        tint={CATEGORY_META[row.title.trim().toLowerCase()]?.color ?? c.primary}
         title={row.title}
         meta={
           row.coverage
@@ -237,7 +274,15 @@ const styles = StyleSheet.create({
   dashRow: { flex: 1, flexDirection: 'row', gap: ms(4), overflow: 'hidden' },
   dash: { width: ms(5), height: 1.5, borderRadius: 1 },
   line: { flexDirection: 'row', gap: ms(12), paddingVertical: ms(11) },
-  lineIcon: { marginTop: ms(2) },
+  lineIcon: {
+    width: ms(32),
+    height: ms(32),
+    borderRadius: ms(16),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -ms(4),
+  },
+  iconStruck: { opacity: 0.45 },
   lineBody: { flex: 1, minWidth: 0 },
   lineTop: { flexDirection: 'row', alignItems: 'center' },
   title: { flexShrink: 1, fontSize: mf(16), ...font.bold },

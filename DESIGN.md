@@ -51,7 +51,7 @@ review (a full re-check of everything), tell the owner — that wastes tokens.
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
 - **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Tasks (Chores merged in) ✅ → Chat ✅ → More/Settings ✅ →
-  Grocery → the rest.
+  Grocery → Spending ✅ (review asked on #252) → the rest.
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
   work cost no reviews; each push still gets a Vercel preview and the free CI
