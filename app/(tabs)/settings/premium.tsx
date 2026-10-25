@@ -43,7 +43,7 @@ export default function PremiumScreen(): React.JSX.Element {
   // stack). While premium is parked, bounce straight back. See
   // constants/featureFlags.ts and PREMIUM_BACKDOOR.md.
   useEffect(() => {
-    if (!PREMIUM_ENABLED) router.replace('/(tabs)/settings');
+    if (!PREMIUM_ENABLED) router.replace('/(tabs)/more/settings');
   }, []);
 
   const handleBack = useCallback((): void => {

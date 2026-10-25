@@ -37,7 +37,6 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="grocery/shop" options={{ href: null }} />
       <Tabs.Screen name="grocery/quick-buy" options={{ href: null }} />
       <Tabs.Screen name="chores/index" />
-      <Tabs.Screen name="more/index" options={{ href: null }} />
       <Tabs.Screen name="more/chat" options={{ href: null }} />
       <Tabs.Screen name="more/settings" options={{ href: null }} />
       <Tabs.Screen name="photos/index" />
@@ -53,11 +52,9 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="profile/index" />
       <Tabs.Screen name="profile/spending" options={{ href: null }} />
       <Tabs.Screen name="calendar/index" />
-      <Tabs.Screen name="maintenance/index" options={{ href: null }} />
       <Tabs.Screen name="voting/index" />
       <Tabs.Screen name="tasks/index" />
       <Tabs.Screen name="notes/index" />
-      <Tabs.Screen name="condition/index" options={{ href: null }} />
       <Tabs.Screen name="property/index" />
       <Tabs.Screen name="games/index" options={{ href: null }} />
     </Tabs>
