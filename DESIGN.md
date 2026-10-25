@@ -411,8 +411,13 @@ the mockup step and follow the approved style. Each has its own object:
   "N more") → "Who paid" (one line per person, +/− in pen). Tapping a category
   opens a pop-up (`CategorySheet`) with the house amount, your share, the change
   since last month and the bills behind it on a receipt. Owner removed the month
-  arrows, the totals card and the House Bills / Lifestyle split; the title now
-  scrolls with the page.
+  arrows and the totals card; the title now scrolls with the page.
+- Owner then asked for the regular bills **first and apart**: "Where it went"
+  has House Bills (all shown, each with "Covers Sep – Oct 2026" — the months
+  its payments cover, from the months picked when logging it) and then
+  Lifestyle (top 5, "N more"). Each payment in the pop-up says what it covers.
+- Pop-ups (`PageSheet`): the dim background fades in place and only the sheet
+  slides up — the owner saw the whole dark layer sliding up the page.
 - **Housemates** — a steel door buzzer panel, one name slip per person; the
   invite code is a ticket with a perforated "Copy code" stub.
 - **Settings sub-pages** — Notifications, Calendar, Members, Categories, Terms

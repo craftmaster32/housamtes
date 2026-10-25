@@ -1967,7 +1967,8 @@
     "where_it_went": "Where it went",
     "who_paid": "Who paid",
     "n_more": "{{count}} more",
-    "show_less": "Show less"
+    "show_less": "Show less",
+    "covers": "Covers {{months}}"
   },
   "nfc_parking": {
     "title": "NFC Parking Tag",

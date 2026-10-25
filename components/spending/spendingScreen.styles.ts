@@ -26,6 +26,16 @@ export function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create>
       marginTop: ms(30),
       marginBottom: ms(6),
     },
+    // A group heading inside "Where it went": House Bills, then Lifestyle.
+    group: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      marginTop: ms(18),
+      marginBottom: ms(2),
+    },
+    groupTitle: { fontSize: mf(17), lineHeight: mf(23), color: C.textPrimary },
+    groupTotal: { fontSize: mf(14), ...font.bold, color: C.textSecondary, writingDirection: 'ltr' },
     more: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
     moreText: { fontSize: mf(15), ...font.semibold, color: C.primary },
     pressed: { opacity: 0.6 },

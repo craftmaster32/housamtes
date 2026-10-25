@@ -1967,7 +1967,8 @@
     "where_it_went": "En qué se gastó",
     "who_paid": "Quién pagó",
     "n_more": "{{count}} más",
-    "show_less": "Ver menos"
+    "show_less": "Ver menos",
+    "covers": "Cubre {{months}}"
   },
   "nfc_parking": {
     "title": "Etiqueta NFC de estacionamiento",

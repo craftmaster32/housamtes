@@ -1,5 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import {
-  View,
+  Animated,
+  Dimensions,
+  Easing,
   StyleSheet,
   Pressable,
   Modal,
@@ -10,6 +13,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, darkColors } from '@constants/colors';
 import { SheetHeader } from '@components/bills/recurring/SheetHeader';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { ms } from '@utils/responsive';
 
 interface PageSheetProps {
@@ -34,25 +38,74 @@ export function PageSheet({
   const { t } = useTranslation();
   const c = useThemedColors();
   const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
+  const reduceMotion = useReduceMotion();
+
+  // The dim background fades in place while only the sheet slides up (a
+  // Modal "slide" would carry the dark layer up the screen with it). On close
+  // both run backwards, and the Modal goes away once they're done.
+  const [mounted, setMounted] = useState(visible);
+  const fade = useRef(new Animated.Value(0)).current;
+  const drop = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (visible) setMounted(true);
+  }, [visible]);
+  useEffect(() => {
+    if (!mounted) return undefined;
+    const anim = Animated.parallel([
+      Animated.timing(fade, {
+        toValue: visible ? 1 : 0,
+        duration: reduceMotion ? 0 : visible ? 220 : 180,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(drop, {
+        toValue: visible ? 0 : 1,
+        duration: reduceMotion ? 0 : visible ? 300 : 220,
+        easing: visible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+    anim.start(({ finished }) => {
+      if (finished && !visible) setMounted(false);
+    });
+    return (): void => anim.stop();
+  }, [mounted, visible, reduceMotion, fade, drop]);
+  const travel = Dimensions.get('window').height;
+
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        style={[styles.overlay, { backgroundColor: overlay }]}
+        style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.close')}
-        />
-        <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { backgroundColor: overlay, opacity: fade }]}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: c.background,
+              transform: [
+                { translateY: drop.interpolate({ inputRange: [0, 1], outputRange: [0, travel] }) },
+              ],
+            },
+          ]}
+          accessibilityViewIsModal
+        >
           <SheetHeader eyebrow={eyebrow} title={title} onClose={onClose} />
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -61,7 +114,7 @@ export function PageSheet({
           >
             {children}
           </ScrollView>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );

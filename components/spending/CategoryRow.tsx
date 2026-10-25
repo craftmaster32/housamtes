@@ -16,13 +16,20 @@ interface CategoryRowProps {
   item: CategoryRowItem;
   currency: string;
   onOpen: (item: CategoryRowItem) => void;
+  /** House bills: the months this month's payments cover, e.g. "Sep – Oct 2026". */
+  cover?: string;
 }
 
 /**
  * One line of "Where it went": colour dot, name, a dotted leader and the
  * amount. Tapping it opens the category's details in a pop-up.
  */
-function CategoryRowComponent({ item, currency, onOpen }: CategoryRowProps): React.JSX.Element {
+function CategoryRowComponent({
+  item,
+  currency,
+  onOpen,
+  cover,
+}: CategoryRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const rtl = isRTL(useLanguageStore((s) => s.language));
@@ -39,13 +46,26 @@ function CategoryRowComponent({ item, currency, onOpen }: CategoryRowProps): Rea
       ]}
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${fmtFull(item.cat.amount, currency)}`}
+      accessibilityLabel={[
+        name,
+        cover ? t('spending.covers', { months: cover }) : null,
+        fmtFull(item.cat.amount, currency),
+      ]
+        .filter(Boolean)
+        .join(', ')}
       accessibilityHint={t('spending.tap_details')}
     >
       <View style={[styles.dot, { backgroundColor: item.cat.color }]} />
-      <Text style={[styles.name, { color: c.textPrimary }]} numberOfLines={1}>
-        {name}
-      </Text>
+      <View style={styles.nameCol}>
+        <Text style={[styles.name, { color: c.textPrimary }]} numberOfLines={1}>
+          {name}
+        </Text>
+        {!!cover && (
+          <Text style={[styles.cover, { color: c.textSecondary }]} numberOfLines={1}>
+            {t('spending.covers', { months: cover })}
+          </Text>
+        )}
+      </View>
       <DotLeader color={c.textTertiary} />
       <Text style={[styles.amt, { color: c.textPrimary }]}>
         {fmtWhole(item.cat.amount, currency)}
@@ -67,7 +87,9 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.6 },
   dot: { width: ms(10), height: ms(10), borderRadius: ms(5) },
-  name: { flexShrink: 1, fontSize: mf(16), ...font.semibold },
+  nameCol: { flexShrink: 1, paddingVertical: ms(6) },
+  name: { fontSize: mf(16), ...font.semibold },
+  cover: { fontSize: mf(12.5), ...font.medium, marginTop: ms(1) },
   // Money stays LTR so ₪ and the digits don't reorder in Hebrew.
   amt: { fontSize: mf(16), ...font.semibold, writingDirection: 'ltr' },
 });

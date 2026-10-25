@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { DotLeader } from '@components/shared/DotLeader';
 import { localizeCategoryName } from '@utils/categoryName';
 import { formatDateDDMMYYYY, localizedMonthLabel } from '@utils/dates';
 import {
+  coverLabel,
   fmtFull,
   fmtWhole,
   type CategoryRowItem,
@@ -38,7 +39,7 @@ interface CategorySheetProps {
  * the change since last month in pen, and the bills behind it on a receipt.
  */
 export function CategorySheet({
-  item,
+  item: openItem,
   month,
   previousMonth,
   view,
@@ -58,6 +59,11 @@ export function CategorySheet({
     [onClose]
   );
 
+  // Keep showing the last category while the sheet slides away after closing.
+  const lastRef = useRef(openItem);
+  if (openItem) lastRef.current = openItem;
+  const item = openItem ?? lastRef.current;
+
   const house = view === 'house';
   const amount = item?.cat.amount ?? 0;
   const prev = item?.prevHouseAmount ?? 0;
@@ -65,7 +71,7 @@ export function CategorySheet({
 
   return (
     <PageSheet
-      visible={item !== null}
+      visible={openItem !== null}
       eyebrow={localizedMonthLabel(month, i18n.language)}
       title={item ? localizeCategoryName(item.cat.name, t) : ''}
       onClose={onClose}
@@ -115,6 +121,11 @@ export function CategorySheet({
                       </Text>
                       <Text style={[styles.date, { color: R.receiptMuted }]}>
                         {formatDateDDMMYYYY(d.date)}
+                        {d.coverFrom && d.coverTo
+                          ? ` · ${t('spending.covers', {
+                              months: coverLabel(d.coverFrom, d.coverTo, i18n.language),
+                            })}`
+                          : ''}
                       </Text>
                     </View>
                     <DotLeader color={R.receiptRule} />

@@ -56,3 +56,62 @@ export function categoryRows(
     )
     .sort((a, b) => b.cat.amount - a.cat.amount);
 }
+
+function shortMonth(monthKey: string, locale: string, withYear: boolean): string {
+  const [y, m] = monthKey.split('-');
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(locale, {
+    month: 'short',
+    ...(withYear ? { year: 'numeric' } : {}),
+  });
+}
+
+/** The months a payment covers: "Oct 2026", "Sep – Oct 2026", "Dec 2025 – Jan 2026". */
+export function coverLabel(from: string, to: string, locale: string): string {
+  if (from === to) return shortMonth(to, locale, true);
+  const sameYear = from.slice(0, 4) === to.slice(0, 4);
+  return `${shortMonth(from, locale, !sameYear)} – ${shortMonth(to, locale, true)}`;
+}
+
+/** The span a category's recurring payments cover in this month, or null. */
+export function rowCover(item: CategoryRowItem): { from: string; to: string } | null {
+  const spans = item.drillDownItems.filter(
+    (d) => d.type === 'recurring' && d.coverFrom && d.coverTo
+  );
+  if (spans.length === 0) return null;
+  const from = spans.map((d) => d.coverFrom as string).sort()[0];
+  const to = spans
+    .map((d) => d.coverTo as string)
+    .sort()
+    .slice(-1)[0];
+  return { from, to };
+}
+
+/** A line of "Where it went": a group heading, or one category. */
+export type SpendLine =
+  | { kind: 'group'; group: 'house' | 'lifestyle'; total: number }
+  | { kind: 'row'; item: CategoryRowItem };
+
+/**
+ * Splits the month into its regular house bills (first, all shown) and the
+ * rest (biggest `top` shown until "N more" is opened).
+ */
+export function spendLines(
+  rows: CategoryRowItem[],
+  showAll: boolean,
+  top: number
+): { lines: SpendLine[]; hiddenCount: number } {
+  const house = rows.filter((r) => r.cat.isHouse);
+  const other = rows.filter((r) => !r.cat.isHouse);
+  const shownOther = showAll ? other : other.slice(0, top);
+  const sum = (list: CategoryRowItem[]): number => list.reduce((s, r) => s + r.cat.amount, 0);
+  const lines: SpendLine[] = [];
+  if (house.length > 0) {
+    lines.push({ kind: 'group', group: 'house', total: sum(house) });
+    house.forEach((item) => lines.push({ kind: 'row', item }));
+  }
+  if (other.length > 0) {
+    lines.push({ kind: 'group', group: 'lifestyle', total: sum(other) });
+    shownOther.forEach((item) => lines.push({ kind: 'row', item }));
+  }
+  return { lines, hiddenCount: Math.max(0, other.length - top) };
+}

@@ -1967,7 +1967,8 @@
     "where_it_went": "לאן זה הלך",
     "who_paid": "מי שילם",
     "n_more": "עוד {{count}}",
-    "show_less": "הצג פחות"
+    "show_less": "הצג פחות",
+    "covers": "מכסה {{months}}"
   },
   "nfc_parking": {
     "title": "תג NFC לחניה",

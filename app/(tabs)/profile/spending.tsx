@@ -23,7 +23,12 @@ import { CategorySheet } from '@components/spending/CategorySheet';
 import { SpendStrip } from '@components/spending/SpendStrip';
 import {
   categoryRows,
+  coverLabel,
+  fmtWhole,
+  rowCover,
+  spendLines,
   type CategoryRowItem,
+  type SpendLine,
   type SpendingView,
 } from '@components/spending/spendingFormat';
 import { ms } from '@utils/responsive';
@@ -95,8 +100,11 @@ export default function SpendingScreen(): React.JSX.Element {
     () => categoryRows(selectedMonth, previousMonth, viewMode),
     [selectedMonth, previousMonth, viewMode]
   );
-  const visibleRows = showAll ? rows : rows.slice(0, TOP_ROWS);
-  const hiddenCount = rows.length - TOP_ROWS;
+  // Regular house bills first, then everything else.
+  const { lines, hiddenCount } = useMemo(
+    () => spendLines(rows, showAll, TOP_ROWS),
+    [rows, showAll]
+  );
 
   const hand = useHandFont();
 
@@ -109,13 +117,37 @@ export default function SpendingScreen(): React.JSX.Element {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: CategoryRowItem }): React.JSX.Element => (
-      <CategoryRow item={item} currency={currency} onOpen={handleOpen} />
-    ),
-    [currency, handleOpen]
+    ({ item }: { item: SpendLine }): React.JSX.Element => {
+      if (item.kind === 'group') {
+        return (
+          <View style={styles.group}>
+            <Text style={[styles.groupTitle, headingFont]} accessibilityRole="header">
+              {item.group === 'house'
+                ? t('spending.house_bills_section')
+                : t('spending.lifestyle_section')}
+            </Text>
+            <Text style={styles.groupTotal}>{fmtWhole(item.total, currency)}</Text>
+          </View>
+        );
+      }
+      const cover = rowCover(item.item);
+      return (
+        <CategoryRow
+          item={item.item}
+          currency={currency}
+          onOpen={handleOpen}
+          cover={cover ? coverLabel(cover.from, cover.to, i18n.language) : undefined}
+        />
+      );
+    },
+    [currency, handleOpen, styles, headingFont, t, i18n.language]
   );
 
-  const keyExtractor = useCallback((item: CategoryRowItem): string => item.cat.name, []);
+  const keyExtractor = useCallback(
+    (item: SpendLine): string =>
+      item.kind === 'group' ? `group-${item.group}` : item.item.cat.name,
+    []
+  );
 
   const handleRetry = useCallback((): void => {
     if (houseId && userName) void load(houseId, userName);
@@ -226,7 +258,7 @@ export default function SpendingScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <FlatList
-        data={visibleRows}
+        data={lines}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={styles.scroll}

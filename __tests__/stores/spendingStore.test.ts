@@ -32,6 +32,12 @@ function currentMonthDate(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`;
 }
 
+function monthKeyAgo(n: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function month(overrides: Partial<MonthSpend> = {}): MonthSpend {
   const monthKey = currentMonthDate().slice(0, 7);
   return {
@@ -151,8 +157,39 @@ describe('spendingStore', () => {
     expect(current.total).toBeCloseTo(100);
     expect(previous.houseTotal).toBeCloseTo(100);
     expect(current.categories[0].name).toBe('water');
-    // Drill-down labels the slice so users understand the halved amount.
-    expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
+    // Drill-down says which months the payment covers (last month + this one).
+    const slice = current.billsByCategory['water'][0];
+    expect(slice.title).toBe('Water');
+    expect(slice.coverFrom).toBe(previous.month);
+    expect(slice.coverTo).toBe(current.month);
+  });
+
+  it('uses the months a payment says it covers', async () => {
+    const [cur, prev] = [monthKeyAgo(0), monthKeyAgo(1)];
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'household_payments') {
+        return ok([
+          {
+            id: 'pay-2',
+            amount: 300,
+            // Paid this month, but logged as covering last month and this one.
+            paid_at: currentMonthDate(),
+            coverage_start: `${prev}-01`,
+            coverage_months: 2,
+            recurring_bills: { name: 'Arnona', assigned_to: 'user-1', frequency: 'quarterly' },
+          },
+        ]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const [current, previous] = useSpendingStore.getState().months;
+    expect(current.houseTotal).toBeCloseTo(150);
+    expect(previous.houseTotal).toBeCloseTo(150);
+    expect(current.billsByCategory['arnona'][0].coverFrom).toBe(prev);
+    expect(current.billsByCategory['arnona'][0].coverTo).toBe(cur);
   });
 
   it('charges the user only their share of a recurring bill split across housemates', async (): Promise<void> => {
