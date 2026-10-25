@@ -120,9 +120,9 @@ export default function SettingsScreen(): React.JSX.Element {
   );
 
   const handleShareCode = useCallback((): void => {
-    Alert.alert(t('settings.invite_code'), `${t('profile.share_code')}\n\n${inviteCode}`, [
-      { text: t('common.ok') },
-    ]);
+    Alert.alert(t('settings.invite_code'), t('profile.share_code'), [{ text: t('common.close') }], {
+      code: inviteCode ?? undefined,
+    });
   }, [inviteCode, t]);
 
   const openHousemates = useCallback((): void => router.push('/(tabs)/bills/setup'), []);

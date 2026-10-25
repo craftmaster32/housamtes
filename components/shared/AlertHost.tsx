@@ -1,102 +1,184 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useSyncExternalStore } from 'react';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, darkColors } from '@constants/colors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
-import {
-  subscribeWebAlert,
-  getWebAlertSnapshot,
-  clearWebAlert,
-  type AlertButton,
-} from '@lib/alert';
+import { subscribeAlert, getAlertSnapshot, finishAlert, type AlertButton } from '@lib/alert';
 
-// Renders the web-only fallback for Alert.alert calls with 3+ buttons — see
-// lib/alert.ts for why those can't be represented by window.confirm. No-ops
-// on native, where RNAlert.alert already renders its own native picker.
-export function WebAlertHost(): React.JSX.Element | null {
-  const pending = useSyncExternalStore(subscribeWebAlert, getWebAlertSnapshot, () => null);
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(), []);
+// The sticky note is paper: it keeps these colours in light and dark mode.
+const NOTE_BLUE = '#3B6FBF';
+const NOTE_RED = '#B84540';
+const NOTE_LINK = '#2952A0';
+
+/**
+ * Every pop-up message in the app (Alert.alert from @lib/alert), drawn as a
+ * blue sticky note taped onto the screen: serif title, the message, an
+ * optional big code, then the buttons — the main one big and blue (red when
+ * it deletes), Cancel as a blue word underneath.
+ */
+export function AlertHost(): React.JSX.Element | null {
+  const request = useSyncExternalStore(subscribeAlert, getAlertSnapshot, () => null);
+  const { t } = useTranslation();
+  const c = useThemedColors();
   const heading = useHeadingFont('semibold');
-  const overlay = C === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
+  const hand = useHandFont();
+  const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
 
-  const handlePress = useCallback((button: AlertButton): void => {
-    clearWebAlert();
-    button.onPress?.();
-  }, []);
+  const handlePress = useCallback(
+    (button: AlertButton): void => {
+      if (!request) return;
+      finishAlert(request.id);
+      button.onPress?.();
+    },
+    [request]
+  );
 
-  const handleRequestClose = useCallback((): void => {
-    const onDismiss = pending?.onDismiss;
-    clearWebAlert();
-    onDismiss?.();
-  }, [pending]);
+  // Tapping outside (or Android back) counts as Cancel when there is one; a
+  // plain message with one button counts as pressing it.
+  const handleDismiss = useCallback((): void => {
+    if (!request) return;
+    const cancel = request.buttons.find((b) => b.style === 'cancel');
+    finishAlert(request.id);
+    if (cancel) cancel.onPress?.();
+    else if (request.buttons.length === 1) request.buttons[0].onPress?.();
+    else request.onDismiss?.();
+  }, [request]);
 
-  if (Platform.OS !== 'web' || !pending) return null;
+  if (!request) return null;
+
+  const buttons: AlertButton[] =
+    request.buttons.length > 0 ? request.buttons : [{ text: t('common.ok') }];
+  const actions = buttons.filter((b) => b.style !== 'cancel');
+  const cancels = buttons.filter((b) => b.style === 'cancel');
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={handleRequestClose}>
-      <Pressable
-        style={[s.backdrop, { backgroundColor: overlay }]}
-        onPress={handleRequestClose}
-        accessible={false}
-        accessibilityElementsHidden
-      />
-      <View style={s.centerer} pointerEvents="box-none">
-        <View style={[s.sheet, { backgroundColor: C.background }]}>
-          <Text style={[s.title, heading, { color: C.textPrimary }]}>{pending.title}</Text>
-          {!!pending.message && (
-            <Text style={[s.message, { color: C.textSecondary }]}>{pending.message}</Text>
+    <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
+      <View style={[styles.overlay, { backgroundColor: overlay }]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleDismiss}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+        <View style={[styles.note, { backgroundColor: c.note }]} accessibilityViewIsModal>
+          <View style={styles.tape} />
+          {!!request.title && (
+            <Text style={[styles.title, heading, { color: c.noteInk }]} accessibilityRole="header">
+              {request.title}
+            </Text>
           )}
-          {pending.buttons.map((button, i) => (
-            <Pressable
-              key={i}
-              onPress={() => handlePress(button)}
-              style={[s.btn, { borderColor: C.border }]}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={button.text}
-            >
-              <Text
-                style={[
-                  s.btnText,
-                  { color: C.primary },
-                  button.style === 'destructive' && { color: C.danger },
-                  button.style === 'cancel' && { color: C.textSecondary },
-                ]}
+          {!!request.message && (
+            <Text selectable style={[styles.message, { color: c.noteInk }]}>
+              {request.message}
+            </Text>
+          )}
+          {!!request.code && (
+            <Text selectable style={[styles.code, hand, { color: c.noteInk }]}>
+              {request.code}
+            </Text>
+          )}
+          <View style={styles.buttons}>
+            {actions.map((button, i) => {
+              const red = button.style === 'destructive';
+              // With several choices, the first is the big blue one and the
+              // rest are outlined, so the note doesn't turn into a wall of blue.
+              const outlined = !red && i > 0;
+              return (
+                <Pressable
+                  key={`${button.text}-${i}`}
+                  onPress={() => handlePress(button)}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    outlined ? styles.btnOutline : { backgroundColor: red ? NOTE_RED : NOTE_BLUE },
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={button.text}
+                >
+                  <Text style={[styles.btnText, outlined && styles.btnTextOutline]}>
+                    {button.text}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            {cancels.map((button, i) => (
+              <Pressable
+                key={`${button.text}-cancel-${i}`}
+                onPress={() => handlePress(button)}
+                style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={button.text}
               >
-                {button.text}
-              </Text>
-            </Pressable>
-          ))}
+                <Text style={styles.linkText}>{button.text}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
     </Modal>
   );
 }
 
-function makeStyles(): ReturnType<typeof StyleSheet.create> {
-  return StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject },
-    centerer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: ms(24) },
-    sheet: {
-      width: '100%',
-      maxWidth: ms(400),
-      borderRadius: ms(26),
-      paddingHorizontal: ms(22),
-      paddingTop: ms(22),
-      paddingBottom: ms(8),
-      gap: ms(2),
-    },
-    title: { fontSize: mf(22), lineHeight: mf(28), marginBottom: ms(4) },
-    message: { fontSize: mf(14.5), lineHeight: mf(21), ...font.regular, marginBottom: ms(12) },
-    btn: {
-      minHeight: ms(48),
-      justifyContent: 'center',
-      paddingHorizontal: ms(4),
-      borderTopWidth: StyleSheet.hairlineWidth,
-    },
-    btnText: { fontSize: mf(15.5), ...font.semibold },
-  });
-}
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: ms(24) },
+  note: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: ms(4),
+    paddingHorizontal: ms(22),
+    paddingTop: ms(26),
+    paddingBottom: ms(18),
+    transform: [{ rotate: '-1.2deg' }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(12) },
+    shadowOpacity: 0.25,
+    shadowRadius: ms(26),
+    elevation: 10,
+  },
+  tape: {
+    position: 'absolute',
+    top: ms(-11),
+    alignSelf: 'center',
+    width: ms(92),
+    height: ms(24),
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    transform: [{ rotate: '2deg' }],
+  },
+  title: { fontSize: mf(24), lineHeight: mf(31), letterSpacing: -0.3 },
+  message: {
+    fontSize: mf(15),
+    ...font.regular,
+    lineHeight: mf(22),
+    marginTop: ms(8),
+    opacity: 0.85,
+  },
+  code: {
+    fontSize: mf(40),
+    lineHeight: mf(48),
+    textAlign: 'center',
+    letterSpacing: 3,
+    writingDirection: 'ltr',
+    marginTop: ms(10),
+    paddingBottom: ms(6),
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(20,36,61,0.35)',
+  },
+  buttons: { marginTop: ms(18), gap: ms(8) },
+  btn: {
+    minHeight: 50,
+    borderRadius: ms(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: ms(16),
+  },
+  btnOutline: { borderWidth: 1.5, borderColor: NOTE_BLUE },
+  btnText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF', textAlign: 'center' },
+  btnTextOutline: { color: NOTE_BLUE },
+  link: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  linkText: { fontSize: mf(16), ...font.semibold, color: NOTE_LINK },
+  pressed: { opacity: 0.7 },
+});

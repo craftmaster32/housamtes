@@ -1,86 +1,56 @@
-import { Alert as RNAlert, Platform } from 'react-native';
+import type { Alert as RNAlert } from 'react-native';
 
 type AlertTitle = Parameters<typeof RNAlert.alert>[0];
 type AlertMessage = Parameters<typeof RNAlert.alert>[1];
 type AlertButtons = Parameters<typeof RNAlert.alert>[2];
-type AlertOptions = Parameters<typeof RNAlert.alert>[3];
 export type AlertButton = NonNullable<AlertButtons>[number];
 
-export interface WebAlertRequest {
+export interface AlertOptions {
+  onDismiss?: () => void;
+  /** A short value to show big on its own line and let people copy, e.g. an invite code. */
+  code?: string;
+}
+
+export interface AlertRequest {
+  id: number;
   title: string;
   message?: string;
+  /** Empty means a single "OK" — the host fills in the label in the app's language. */
   buttons: AlertButton[];
+  code?: string;
   onDismiss?: () => void;
 }
 
-// window.confirm only yields OK/Cancel, which can't represent 3+ buttons
-// without silently dropping one — so 3+ button alerts are routed through
-// this tiny external store instead, which <WebAlertHost/> (mounted once at
-// the app root) renders as a proper picker with every option preserved.
-let pendingWebAlert: WebAlertRequest | null = null;
+// Every Alert.alert in the app is drawn by <AlertHost/> (mounted once at the
+// root) as the app's own sticky-note pop-up, on the web and on phones alike.
+// The phone's grey box (and the browser's alert/confirm, which word their
+// buttons in the phone's language) are never used. Alerts that arrive while
+// one is showing wait in line and appear one after another.
+let queue: AlertRequest[] = [];
+let nextId = 1;
 let listeners: Array<() => void> = [];
 
 function notify(): void {
   listeners.forEach((listener) => listener());
 }
 
-export function subscribeWebAlert(listener: () => void): () => void {
+export function subscribeAlert(listener: () => void): () => void {
   listeners.push(listener);
   return (): void => {
     listeners = listeners.filter((l) => l !== listener);
   };
 }
 
-export function getWebAlertSnapshot(): WebAlertRequest | null {
-  return pendingWebAlert;
+/** The pop-up showing right now, if any. */
+export function getAlertSnapshot(): AlertRequest | null {
+  return queue[0] ?? null;
 }
 
-export function clearWebAlert(): void {
-  pendingWebAlert = null;
-  notify();
-}
-
-function runWebAlert(
-  title: AlertTitle,
-  message: AlertMessage,
-  buttons: AlertButtons,
-  options?: AlertOptions
-): void {
-  if (typeof window === 'undefined') return;
-
-  const text = [title, message].filter((part): part is string => !!part).join('\n\n');
-
-  if (!buttons || buttons.length <= 1) {
-    window.alert(text);
-    buttons?.[0]?.onPress?.();
-    return;
-  }
-
-  if (buttons.length > 2) {
-    pendingWebAlert = {
-      title: title ?? '',
-      message: message ?? undefined,
-      buttons,
-      onDismiss: options?.onDismiss,
-    };
-    notify();
-    return;
-  }
-
-  // Exactly 2 buttons maps cleanly onto OK/Cancel.
-  const confirmed = window.confirm(text);
-  if (confirmed) {
-    const destructive = buttons.find((button) => button.style === 'destructive');
-    const fallback = [...buttons].reverse().find((button) => button.style !== 'cancel');
-    (destructive ?? fallback)?.onPress?.();
-  } else {
-    const cancelButton = buttons.find((button) => button.style === 'cancel');
-    if (cancelButton) {
-      cancelButton.onPress?.();
-    } else {
-      options?.onDismiss?.();
-    }
-  }
+/** Take the current pop-up away (the next one in line, if any, shows). */
+export function finishAlert(id: number): void {
+  const before = queue.length;
+  queue = queue.filter((request) => request.id !== id);
+  if (queue.length !== before) notify();
 }
 
 function alert(
@@ -89,11 +59,18 @@ function alert(
   buttons?: AlertButtons,
   options?: AlertOptions
 ): void {
-  if (Platform.OS !== 'web') {
-    RNAlert.alert(title, message, buttons, options);
-    return;
-  }
-  runWebAlert(title, message, buttons, options);
+  queue = [
+    ...queue,
+    {
+      id: nextId++,
+      title: title ?? '',
+      message: message ?? undefined,
+      buttons: buttons ?? [],
+      code: options?.code,
+      onDismiss: options?.onDismiss,
+    },
+  ];
+  notify();
 }
 
 export const Alert = { alert };
