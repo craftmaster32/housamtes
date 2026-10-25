@@ -20,8 +20,10 @@ import { mf, ms } from '@utils/responsive';
 const LOOKAHEAD = 5;
 // Maximum upcoming entries shown in the strip.
 const DISPLAY_LIMIT = 3;
-// Amber dark enough to read on the cream ticket.
+// Amber dark enough for white writing on the stub.
 const PENDING_INK = '#A0711A';
+// The day and time are printed in white on the coloured stub.
+const STUB_INK = '#FFFFFF';
 
 function todayYMD(): string {
   const d = new Date();
@@ -84,9 +86,11 @@ interface TicketProps {
 const PERFORATION = Array.from({ length: 6 });
 
 // ── One ticket ────────────────────────────────────────────────────────────────
-// A cream paper ticket: when it happens on the stub (the day handwritten, the
-// time in the serif), a dashed tear with punched notches, then what it is.
-// Paper, so it stays light in dark mode. Several sit side by side in one row
+// A white paper ticket with its stub printed in colour (blue for plans, amber
+// for a parking request, green for live): the day handwritten and the time in
+// the serif, in white on the stub; a dashed tear with punched notches; then
+// what it is. White so it never blends into the cream money page below, and
+// paper, so it stays light in dark mode. Several sit side by side in one row
 // so plans never push the money card and dashboard cards off the first screen.
 function Ticket({
   accent,
@@ -105,7 +109,7 @@ function Ticket({
     <Pressable
       style={({ pressed }) => [
         styles.ticket,
-        { backgroundColor: c.paper, transform: [{ rotate: `${tilt}deg` }] },
+        { backgroundColor: c.receipt, transform: [{ rotate: `${tilt}deg` }] },
         pressed && styles.pressed,
       ]}
       onPress={onPress}
@@ -114,15 +118,15 @@ function Ticket({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: false }}
     >
-      <View style={styles.stub}>
+      <View style={[styles.stub, { backgroundColor: accent }]}>
         <View style={styles.dayRow}>
-          {live && <LiveDot color={accent} />}
-          <Text style={[styles.day, hand, { color: accent }]} numberOfLines={1}>
+          {live && <LiveDot color={STUB_INK} />}
+          <Text style={[styles.day, hand, { color: STUB_INK }]} numberOfLines={1}>
             {day}
           </Text>
         </View>
         {!!time && (
-          <Text style={[styles.time, headingFont, { color: c.paperInk }]} numberOfLines={1}>
+          <Text style={[styles.time, headingFont, { color: STUB_INK }]} numberOfLines={1}>
             {time}
           </Text>
         )}
@@ -136,7 +140,7 @@ function Ticket({
         ))}
         <View style={[styles.notch, styles.notchBottom, { backgroundColor: c.background }]} />
       </View>
-      <Text style={[styles.title, { color: c.paperInk }]} numberOfLines={1}>
+      <Text style={[styles.title, { color: c.receiptInk }]} numberOfLines={1}>
         {title}
       </Text>
     </Pressable>
@@ -320,6 +324,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: ms(12),
     paddingVertical: ms(6),
+    borderTopStartRadius: ms(8),
+    borderBottomStartRadius: ms(8),
   },
   tear: {
     alignSelf: 'stretch',
