@@ -467,10 +467,11 @@ a mockup step. Their object is **the front door** (`components/auth/`):
 - 404: Mate with "404" scribbled on a blue sticky note.
 - Removed (no longer used): `StepProgress`, `LanguageSwitcher`,
   `AuthIllustration` (+ its photos), `HouseSkyline`.
-- Not restyled because nothing opens them: Games, Maintenance and Condition
-  (hidden; Property replaced the last two), the old `settings/index` page and
-  NFC Parking (only linked from that old page), and Premium (switched off by
-  `PREMIUM_ENABLED`).
+- Owner asked to **delete** the pages nothing opened: Games, Maintenance,
+  Condition (Property replaced the last two), the old `settings/index` page and
+  NFC Parking. Premium stays (switched off by `PREMIUM_ENABLED`; it now bounces
+  to the new Settings page).
+- **Later (owner said yes, not now):** smooth moves between pages.
 
 ## 8. Working setup (for the next session)
 
