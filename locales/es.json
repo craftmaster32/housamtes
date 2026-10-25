@@ -1963,7 +1963,11 @@
     "breakdown_title": "Desglose de {{month}}",
     "no_spending_yet": "Sin gastos aún",
     "add_bills_hint": "Agrega algunos gastos para ver el desglose.",
-    "no_spending_for": "Sin gastos para {{month}}"
+    "no_spending_for": "Sin gastos para {{month}}",
+    "where_it_went": "En qué se gastó",
+    "who_paid": "Quién pagó",
+    "n_more": "{{count}} más",
+    "show_less": "Ver menos"
   },
   "nfc_parking": {
     "title": "Etiqueta NFC de estacionamiento",

@@ -403,8 +403,16 @@ the mockup step and follow the approved style. Each has its own object:
 - **Profile** — a house member card on a lanyard (cover across the top,
   passport photo, "Member of …" in handwriting). Spending summary on notebook
   paper. Rows reuse `SettingsLine`; details and password open sheets.
-- **Spending** — the trend drawn on squared paper (your share hatched in
-  pencil, chosen month circled), the AI insight as a taped sticky note.
+- **Spending** — redone after the owner felt lost ("so much inside"). One
+  month at a time, read top to bottom: title → House · Personal as pen-circled
+  words → the 6-month chart on squared paper (tap a bar to pick the month; its
+  total and your share are written above the bars) → Mate's AI note → "Where
+  it went" (one colour strip + receipt lines, biggest first, top 5 then
+  "N more") → "Who paid" (one line per person, +/− in pen). Tapping a category
+  opens a pop-up (`CategorySheet`) with the house amount, your share, the change
+  since last month and the bills behind it on a receipt. Owner removed the month
+  arrows, the totals card and the House Bills / Lifestyle split; the title now
+  scrolls with the page.
 - **Housemates** — a steel door buzzer panel, one name slip per person; the
   invite code is a ticket with a perforated "Copy code" stub.
 - **Settings sub-pages** — Notifications, Calendar, Members, Categories, Terms

@@ -1,4 +1,4 @@
-import type { CategorySpend, DrillDownItem } from '@stores/spendingStore';
+import type { CategorySpend, DrillDownItem, MonthSpend } from '@stores/spendingStore';
 
 export type SpendingView = 'house' | 'personal';
 
@@ -22,4 +22,37 @@ export function fmtShort(n: number, sym: string): string {
 export function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return Math.round(((current - previous) / previous) * 100);
+}
+
+/** Whole amounts with thousands commas, for the list and the chart: "₪8,032". */
+export function fmtWhole(n: number, sym: string): string {
+  return `${sym}${Math.round(n).toLocaleString('en-US')}`;
+}
+
+/**
+ * The chosen month's categories for the "Where it went" list, biggest first.
+ * House view lists the house's spending (with your share of each); Personal
+ * lists only yours. `sectionTotal` is the whole month, for the colour strip.
+ */
+export function categoryRows(
+  current: MonthSpend | undefined,
+  previous: MonthSpend | undefined,
+  view: SpendingView
+): CategoryRowItem[] {
+  if (!current) return [];
+  const house = view === 'house';
+  const cats = (house ? current.houseCategories : current.categories).filter((c) => c.amount > 0);
+  const prevCats = house ? previous?.houseCategories : previous?.categories;
+  const total = cats.reduce((s, c) => s + c.amount, 0);
+  return cats
+    .map(
+      (cat): CategoryRowItem => ({
+        cat,
+        myAmount: house ? (current.categories.find((c) => c.name === cat.name)?.amount ?? 0) : 0,
+        prevHouseAmount: prevCats?.find((c) => c.name === cat.name)?.amount ?? 0,
+        sectionTotal: total,
+        drillDownItems: current.billsByCategory[cat.name] ?? [],
+      })
+    )
+    .sort((a, b) => b.cat.amount - a.cat.amount);
 }

@@ -1963,7 +1963,11 @@
     "breakdown_title": "פירוט {{month}}",
     "no_spending_yet": "אין הוצאות עדיין",
     "add_bills_hint": "הוסף חשבונות כדי לראות את פירוט ההוצאות.",
-    "no_spending_for": "אין הוצאות ל-{{month}}"
+    "no_spending_for": "אין הוצאות ל-{{month}}",
+    "where_it_went": "לאן זה הלך",
+    "who_paid": "מי שילם",
+    "n_more": "עוד {{count}}",
+    "show_less": "הצג פחות"
   },
   "nfc_parking": {
     "title": "תג NFC לחניה",

@@ -13,8 +13,8 @@ import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 
 /**
- * Who has paid what toward the recurring bills: one small card per person with
- * their total, and the difference from an equal share jotted in the corner.
+ * Who has paid what toward the recurring bills: one line per person with their
+ * total, and the difference from an equal share in pen.
  */
 export function ContributionCards(): React.JSX.Element | null {
   const { t } = useTranslation();
@@ -37,47 +37,42 @@ export function ContributionCards(): React.JSX.Element | null {
   return (
     <View>
       <Text style={[styles.title, headingFont, { color: c.textPrimary }]}>
-        {t('bills.household_contributions')}
+        {t('spending.who_paid')}
       </Text>
-      <View style={styles.row}>
-        {fairness.map((f) => {
-          const mate = housemates.find((h) => h.id === f.person);
-          const name = memberName(f.person);
-          const balanceColor =
-            f.balance > 0 ? c.success : f.balance < 0 ? c.danger : c.textSecondary;
-          return (
-            <View key={f.person} style={[styles.card, { backgroundColor: c.surface }]}>
-              <View style={styles.top}>
-                <View style={[styles.av, { backgroundColor: mate?.color ?? c.primary }]}>
-                  {mate?.avatarUrl ? (
-                    <Image
-                      source={{ uri: mate.avatarUrl }}
-                      style={styles.avImg}
-                      contentFit="cover"
-                      accessible
-                      accessibilityLabel={name}
-                    />
-                  ) : (
-                    <Text style={styles.avText}>{name[0]?.toUpperCase() ?? '?'}</Text>
-                  )}
-                </View>
-                <Text style={[styles.balance, handFont, { color: balanceColor }]}>
-                  {f.balance >= 0
-                    ? `+${currency}${f.balance.toFixed(0)}`
-                    : `−${currency}${Math.abs(f.balance).toFixed(0)}`}
-                </Text>
-              </View>
-              <Text style={[styles.name, { color: c.textSecondary }]} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={[styles.total, headingFont, { color: c.textPrimary }]}>
-                {currency}
-                {f.total.toFixed(0)}
-              </Text>
+      {fairness.map((f) => {
+        const mate = housemates.find((h) => h.id === f.person);
+        const name = memberName(f.person);
+        const balanceColor = f.balance > 0 ? c.success : f.balance < 0 ? c.danger : c.textSecondary;
+        return (
+          <View key={f.person} style={[styles.line, { borderBottomColor: c.border }]}>
+            <View style={[styles.av, { backgroundColor: mate?.color ?? c.primary }]}>
+              {mate?.avatarUrl ? (
+                <Image
+                  source={{ uri: mate.avatarUrl }}
+                  style={styles.avImg}
+                  contentFit="cover"
+                  accessible
+                  accessibilityLabel={name}
+                />
+              ) : (
+                <Text style={styles.avText}>{name[0]?.toUpperCase() ?? '?'}</Text>
+              )}
             </View>
-          );
-        })}
-      </View>
+            <Text style={[styles.name, { color: c.textPrimary }]} numberOfLines={1}>
+              {name}
+            </Text>
+            <Text style={[styles.total, { color: c.textPrimary }]}>
+              {currency}
+              {Math.round(f.total).toLocaleString('en-US')}
+            </Text>
+            <Text style={[styles.balance, handFont, { color: balanceColor }]}>
+              {f.balance >= 0
+                ? `+${currency}${Math.round(f.balance).toLocaleString('en-US')}`
+                : `−${currency}${Math.round(Math.abs(f.balance)).toLocaleString('en-US')}`}
+            </Text>
+          </View>
+        );
+      })}
       <Text style={[styles.note, { color: c.textSecondary }]}>
         {t('bills.household_balance_note')}
       </Text>
@@ -86,30 +81,34 @@ export function ContributionCards(): React.JSX.Element | null {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: mf(22), letterSpacing: -0.4, marginBottom: ms(10), paddingHorizontal: ms(4) },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8) },
-  card: {
-    flexGrow: 1,
-    flexBasis: ms(96),
-    borderRadius: ms(20),
-    paddingHorizontal: ms(12),
-    paddingTop: ms(12),
-    paddingBottom: ms(10),
+  title: { fontSize: mf(22), letterSpacing: -0.4, marginBottom: ms(4) },
+  // One person per line: face, name, what they paid, +/- in pen.
+  line: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(12),
+    minHeight: 56,
+    borderBottomWidth: 1.5,
   },
-  top: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   av: {
-    width: ms(30),
-    height: ms(30),
-    borderRadius: ms(15),
+    width: ms(34),
+    height: ms(34),
+    borderRadius: ms(17),
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  avImg: { width: ms(30), height: ms(30) },
-  avText: { fontSize: mf(14), ...font.extrabold, color: '#fff' },
+  avImg: { width: ms(34), height: ms(34) },
+  avText: { fontSize: mf(15), ...font.extrabold, color: '#fff' },
+  name: { flex: 1, minWidth: 0, fontSize: mf(16), ...font.semibold },
   // Money stays LTR so the sign and symbol don't reorder under Hebrew.
-  balance: { fontSize: mf(20), lineHeight: mf(24), writingDirection: 'ltr' },
-  name: { fontSize: mf(13), ...font.bold, marginTop: ms(8) },
-  total: { fontSize: mf(22), letterSpacing: -0.6, lineHeight: mf(27), writingDirection: 'ltr' },
-  note: { fontSize: mf(12.5), ...font.medium, marginTop: ms(8), paddingHorizontal: ms(4) },
+  total: { fontSize: mf(16), ...font.semibold, writingDirection: 'ltr' },
+  balance: {
+    fontSize: mf(20),
+    lineHeight: mf(24),
+    minWidth: ms(78),
+    textAlign: 'right',
+    writingDirection: 'ltr',
+  },
+  note: { fontSize: mf(12.5), ...font.medium, marginTop: ms(8) },
 });

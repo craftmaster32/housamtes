@@ -1,47 +1,42 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, SectionList } from 'react-native';
+import { View, Pressable, FlatList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
-import { useSpendingStore, type CategorySpend } from '@stores/spendingStore';
+import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { font } from '@constants/typography';
+import { useThemedColors } from '@constants/colors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
 import { localizedMonthLabel } from '@utils/dates';
 import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
-import { BillTabs, type BillTab } from '@components/bills/BillTabs';
+import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { ContributionCards } from '@components/bills/recurring/ContributionCards';
 import { GraphChart } from '@components/spending/GraphChart';
 import { InsightNote } from '@components/spending/InsightNote';
-import { OverviewBlock } from '@components/spending/OverviewBlock';
-import { CategoryLine } from '@components/spending/CategoryLine';
+import { CategoryRow } from '@components/spending/CategoryRow';
+import { CategorySheet } from '@components/spending/CategorySheet';
+import { SpendStrip } from '@components/spending/SpendStrip';
 import {
-  fmtFull,
+  categoryRows,
   type CategoryRowItem,
   type SpendingView,
 } from '@components/spending/spendingFormat';
-import { mf, ms } from '@utils/responsive';
+import { ms } from '@utils/responsive';
+import { makeStyles } from '@components/spending/spendingScreen.styles';
 
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-interface SpendingSection {
-  title: string;
-  icon: IoniconName;
-  total: number;
-  data: CategoryRowItem[];
-}
+// "Where it went" shows the biggest few; the rest open with "N more".
+const TOP_ROWS = 5;
 
 export default function SpendingScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [openItem, setOpenItem] = useState<CategoryRowItem | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [viewMode, setViewMode] = useState<SpendingView>('house');
 
   const profile = useAuthStore((s) => s.profile);
@@ -79,105 +74,45 @@ export default function SpendingScreen(): React.JSX.Element {
     void fetchInsight(houseId, userName, currency);
   }, [houseId, userName, currency, fetchInsight]);
 
-  const handleSelectMonth = useCallback((idx: number) => {
+  const handleSelectMonth = useCallback((idx: number): void => {
     setSelectedIdx(idx);
-    setExpandedCategory(null);
-  }, []);
-
-  const handleToggleCategory = useCallback((name: string) => {
-    setExpandedCategory((prev) => (prev === name ? null : name));
+    setShowAll(false);
   }, []);
 
   const handleView = useCallback((v: SpendingView): void => {
     setViewMode(v);
-    setExpandedCategory(null);
+    setShowAll(false);
   }, []);
+
+  const handleOpen = useCallback((item: CategoryRowItem): void => setOpenItem(item), []);
+  const handleCloseSheet = useCallback((): void => setOpenItem(null), []);
+  const handleToggleAll = useCallback((): void => setShowAll((v) => !v), []);
 
   const selectedMonth = months[selectedIdx];
   const previousMonth = months[selectedIdx + 1];
 
-  const sections = useMemo((): SpendingSection[] => {
-    if (!selectedMonth) return [];
-
-    const sourceCats =
-      viewMode === 'house' ? selectedMonth.houseCategories : selectedMonth.categories;
-    const prevCats =
-      viewMode === 'house' ? previousMonth?.houseCategories : previousMonth?.categories;
-
-    const houseBillCats = sourceCats.filter((c): boolean => c.isHouse);
-    const lifestyleCats = sourceCats.filter((c): boolean => !c.isHouse);
-    const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
-    const lifestyleTotal = lifestyleCats.reduce((s, c) => s + c.amount, 0);
-
-    function toCatRow(cat: CategorySpend, sectionTotal: number): CategoryRowItem {
-      const myAmount =
-        viewMode === 'house'
-          ? (selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0)
-          : 0;
-      const prevHouseAmount = prevCats?.find((c) => c.name === cat.name)?.amount ?? 0;
-      const drillDownItems = selectedMonth.billsByCategory[cat.name] ?? [];
-      return { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems };
-    }
-
-    const result: SpendingSection[] = [];
-    if (houseBillCats.length > 0) {
-      result.push({
-        title: t('spending.house_bills_section'),
-        icon: 'home-outline',
-        total: houseBillTotal,
-        data: houseBillCats.map((c) => toCatRow(c, houseBillTotal)),
-      });
-    }
-    if (lifestyleCats.length > 0) {
-      result.push({
-        title: t('spending.lifestyle_section'),
-        icon: 'bag-handle-outline',
-        total: lifestyleTotal,
-        data: lifestyleCats.map((c) => toCatRow(c, lifestyleTotal)),
-      });
-    }
-    return result;
-  }, [selectedMonth, previousMonth, viewMode, t]);
+  const rows = useMemo(
+    () => categoryRows(selectedMonth, previousMonth, viewMode),
+    [selectedMonth, previousMonth, viewMode]
+  );
+  const visibleRows = showAll ? rows : rows.slice(0, TOP_ROWS);
+  const hiddenCount = rows.length - TOP_ROWS;
 
   const hand = useHandFont();
 
-  const viewTabs = useMemo<BillTab<SpendingView>[]>(
+  const viewWords = useMemo<ChoiceWord<SpendingView>[]>(
     () => [
-      {
-        key: 'house',
-        label: t('spending.house_label'),
-        a11yLabel: t('spending.show_house_spending'),
-      },
-      {
-        key: 'personal',
-        label: t('spending.personal_label'),
-        a11yLabel: t('spending.show_personal_spending'),
-      },
+      { value: 'house', label: t('spending.house_label') },
+      { value: 'personal', label: t('spending.personal_label') },
     ],
     [t]
   );
 
   const renderItem = useCallback(
     ({ item }: { item: CategoryRowItem }): React.JSX.Element => (
-      <CategoryLine
-        item={item}
-        currency={currency}
-        expanded={expandedCategory === item.cat.name}
-        onToggle={handleToggleCategory}
-      />
+      <CategoryRow item={item} currency={currency} onOpen={handleOpen} />
     ),
-    [currency, expandedCategory, handleToggleCategory]
-  );
-
-  const renderSectionHeader = useCallback(
-    ({ section }: { section: SpendingSection }): React.JSX.Element => (
-      <View style={styles.sectionHead}>
-        <Ionicons name={section.icon} size={16} color={C.textSecondary} />
-        <Text style={[styles.sectionTitle, headingFont]}>{section.title}</Text>
-        <Text style={styles.sectionTotal}>{fmtFull(section.total, currency)}</Text>
-      </View>
-    ),
-    [currency, styles, headingFont, C]
+    [currency, handleOpen]
   );
 
   const keyExtractor = useCallback((item: CategoryRowItem): string => item.cat.name, []);
@@ -186,19 +121,19 @@ export default function SpendingScreen(): React.JSX.Element {
     if (houseId && userName) void load(houseId, userName);
   }, [houseId, userName, load]);
 
-  const handleJumpToCurrent = useCallback((): void => setSelectedIdx(0), []);
-
   const pageHeader = (
-    <View style={styles.header}>
+    <View>
       <BackLink label={t('nav.profile')} />
-      <Text style={[styles.title, headingFont]}>{t('spending.spending_analysis')}</Text>
+      <Text style={[styles.title, headingFont]} accessibilityRole="header">
+        {t('spending.spending_analysis')}
+      </Text>
     </View>
   );
 
   if (isLoading && months.length === 0) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
-        {pageHeader}
+        <View style={styles.header}>{pageHeader}</View>
         <View style={styles.centered}>
           <LoadingSpinner size={140} />
         </View>
@@ -209,7 +144,7 @@ export default function SpendingScreen(): React.JSX.Element {
   if (error && months.length === 0) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
-        {pageHeader}
+        <View style={styles.header}>{pageHeader}</View>
         <View style={styles.centered}>
           <Text style={[styles.errorTitle, headingFont]}>{t('spending.could_not_load')}</Text>
           <Text style={styles.muted}>{t('common.failed_try_again')}</Text>
@@ -227,15 +162,19 @@ export default function SpendingScreen(): React.JSX.Element {
   }
 
   const hasTrend = months.some((m) => (viewMode === 'house' ? m.houseTotal : m.total) > 0);
+  // The page scrolls as one: title, the 6-month chart (tap a month to pick it)
+  // and Mate's note first, then where the money went and who paid.
   const listHeader = (
-    <View style={styles.listHeader}>
-      <BillTabs tabs={viewTabs} selected={viewMode} onSelect={handleView} />
-      <InsightNote
-        insight={insight}
-        error={insightError}
-        isLoading={insightLoading}
-        onRefresh={handleRefreshInsight}
-      />
+    <View>
+      {pageHeader}
+      <View style={styles.viewWords}>
+        <ChoiceWords
+          options={viewWords}
+          selected={viewMode}
+          onSelect={handleView}
+          groupLabel={t('spending.spending_analysis')}
+        />
+      </View>
       {hasTrend && (
         <GraphChart
           months={months}
@@ -245,49 +184,55 @@ export default function SpendingScreen(): React.JSX.Element {
           onSelectMonth={handleSelectMonth}
         />
       )}
-      {selectedIdx > 0 && (
+      <View style={styles.note}>
+        <InsightNote
+          insight={insight}
+          error={insightError}
+          isLoading={insightLoading}
+          onRefresh={handleRefreshInsight}
+        />
+      </View>
+      {rows.length > 0 && (
+        <>
+          <Text style={[styles.section, headingFont]} accessibilityRole="header">
+            {t('spending.where_it_went')}
+          </Text>
+          <SpendStrip rows={rows} />
+        </>
+      )}
+    </View>
+  );
+
+  const listFooter = (
+    <View>
+      {hiddenCount > 0 && (
         <Pressable
-          style={styles.jump}
-          onPress={handleJumpToCurrent}
+          style={({ pressed }) => [styles.more, pressed && styles.pressed]}
+          onPress={handleToggleAll}
           accessibilityRole="button"
-          accessibilityLabel={t('spending.jump_to_current')}
+          accessibilityState={{ expanded: showAll }}
         >
-          <Text style={[styles.jumpText, hand]}>{t('spending.jump_to_current')}</Text>
+          <Text style={styles.moreText}>
+            {showAll ? t('spending.show_less') : t('spending.n_more', { count: hiddenCount })}
+          </Text>
         </Pressable>
       )}
-      {selectedMonth &&
-        (viewMode === 'house' ? selectedMonth.houseTotal : selectedMonth.total) > 0 && (
-          <OverviewBlock
-            current={selectedMonth}
-            previous={previousMonth}
-            currency={currency}
-            view={viewMode}
-          />
-        )}
-      {/* Who has been paying the recurring household bills. */}
-      <ContributionCards />
-      {sections.length > 0 && (
-        <Text style={[styles.breakdown, headingFont]}>
-          {t('spending.breakdown_title', {
-            month: selectedMonth ? localizedMonthLabel(selectedMonth.month, i18n.language) : '',
-          })}
-        </Text>
-      )}
+      <View style={styles.whoPaid}>
+        <ContributionCards />
+      </View>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      {pageHeader}
-      <SectionList<CategoryRowItem, SpendingSection>
-        sections={sections}
+      <FlatList
+        data={visibleRows}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        renderSectionHeader={renderSectionHeader}
         contentContainerStyle={styles.scroll}
-        stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
@@ -306,64 +251,14 @@ export default function SpendingScreen(): React.JSX.Element {
           ) : null
         }
       />
+      <CategorySheet
+        item={openItem}
+        month={selectedMonth?.month ?? ''}
+        previousMonth={previousMonth?.month}
+        view={viewMode}
+        currency={currency}
+        onClose={handleCloseSheet}
+      />
     </SafeAreaView>
   );
-}
-
-function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
-  return StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    header: { paddingHorizontal: ms(20), paddingTop: ms(8) },
-    title: {
-      fontSize: mf(36),
-      lineHeight: mf(46),
-      paddingBottom: ms(2),
-      letterSpacing: -0.5,
-      marginTop: ms(4),
-      color: C.textPrimary,
-    },
-    scroll: { paddingHorizontal: ms(20), paddingBottom: ms(60) },
-    listHeader: { gap: ms(20), paddingTop: ms(4), marginBottom: ms(4) },
-    centered: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: ms(24),
-      gap: ms(8),
-    },
-    errorTitle: { fontSize: mf(22), color: C.textPrimary, textAlign: 'center' },
-    muted: {
-      fontSize: mf(13.5),
-      lineHeight: mf(19),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-    },
-    retry: {
-      minHeight: 48,
-      paddingHorizontal: ms(28),
-      borderRadius: ms(16),
-      backgroundColor: C.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: ms(8),
-    },
-    retryText: { fontSize: mf(15), ...font.semibold, color: '#FFFFFF' },
-    jump: { minHeight: 40, justifyContent: 'center', alignSelf: 'center', marginTop: -ms(10) },
-    jumpText: { fontSize: mf(19), color: C.primary },
-    breakdown: { fontSize: mf(22), lineHeight: mf(29), color: C.textPrimary },
-    sectionHead: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingTop: ms(14),
-      paddingBottom: ms(4),
-      borderBottomWidth: 1.5,
-      borderBottomColor: C.border,
-    },
-    sectionTitle: { flex: 1, fontSize: mf(17), lineHeight: mf(23), color: C.textPrimary },
-    sectionTotal: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
-    empty: { alignItems: 'center', paddingVertical: ms(24), gap: ms(8) },
-    emptyTitle: { fontSize: mf(22), lineHeight: mf(26), color: C.textPrimary, textAlign: 'center' },
-  });
 }

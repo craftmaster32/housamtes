@@ -1963,7 +1963,11 @@
     "breakdown_title": "{{month}} Breakdown",
     "no_spending_yet": "No spending yet",
     "add_bills_hint": "Add some bills to see your spending breakdown.",
-    "no_spending_for": "No spending for {{month}}"
+    "no_spending_for": "No spending for {{month}}",
+    "where_it_went": "Where it went",
+    "who_paid": "Who paid",
+    "n_more": "{{count}} more",
+    "show_less": "Show less"
   },
   "nfc_parking": {
     "title": "NFC Parking Tag",

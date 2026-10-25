@@ -7,10 +7,11 @@ import type { MonthSpend } from '@stores/spendingStore';
 import { lightColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 import { PenCircle } from '@components/shared/PenCircle';
 import { Hatch } from '@components/spending/Hatch';
-import { fmtShort, type SpendingView } from '@components/spending/spendingFormat';
+import { fmtShort, fmtWhole, type SpendingView } from '@components/spending/spendingFormat';
 import { mf, ms } from '@utils/responsive';
 
 // Squared maths paper: light inks in both themes.
@@ -45,6 +46,8 @@ export function GraphChart({
   const uid = `spend${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const data = months.slice(0, 6).reverse();
   const personal = view === 'personal';
+  const selected = months[selectedIdx];
+  const heading = useHeadingFont('semibold');
   const maxVal = Math.max(...data.map((m) => (personal ? m.total : m.houseTotal)), 1);
 
   return (
@@ -58,7 +61,19 @@ export function GraphChart({
         <Rect width="100%" height="100%" fill={`url(#${uid}-grid)`} />
       </Svg>
 
-      <Text style={[styles.title, hand]}>{t('spending.monthly_trend')}</Text>
+      {selected && (
+        // The chosen month, with what the house spent and your share of it.
+        <View style={styles.head}>
+          <Text style={[styles.headMonth, heading]} numberOfLines={1}>
+            {localizedMonthLabel(selected.month, i18n.language)}
+          </Text>
+          <Text style={[styles.headSum, hand]}>
+            {personal
+              ? `${fmtWhole(selected.total, currency)} · ${t('spending.house_total')} ${fmtWhole(selected.houseTotal, currency)}`
+              : `${fmtWhole(selected.houseTotal, currency)} · ${t('spending.your_share')} ${fmtWhole(selected.total, currency)}`}
+          </Text>
+        </View>
+      )}
       <View style={styles.bars}>
         {data.map((m, i) => {
           const idx = data.length - 1 - i;
@@ -131,7 +146,9 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  title: { fontSize: mf(20), lineHeight: mf(24), color: P.paperMuted, marginBottom: ms(8) },
+  head: { marginBottom: ms(10) },
+  headMonth: { fontSize: mf(20), lineHeight: mf(26), color: P.paperInk },
+  headSum: { fontSize: mf(20), lineHeight: mf(23), color: P.primary },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: ms(8) },
   col: { flex: 1, alignItems: 'center' },
   amt: { fontSize: mf(10.5), ...font.semibold, color: P.paperMuted, marginBottom: ms(3) },
