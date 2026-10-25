@@ -1,18 +1,20 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Dimensions, Pressable, ViewToken } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { useState, useRef, useCallback } from 'react';
+import { View, StyleSheet, FlatList, Dimensions, ViewToken } from 'react-native';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import type { IoniconName } from '@/types/icons';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-
+import { useHandFont } from '@hooks/useHandFont';
+import { SheetButton } from '@components/shared/SheetButton';
+import { TextLink } from '@components/auth/TextLink';
+import { TapedPicture, type PictureKind } from '@components/auth/TapedPicture';
 import { mf, ms } from '@utils/responsive';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ONBOARDING_KEY = 'housemates_onboarding_seen';
@@ -31,28 +33,28 @@ export default function IntroScreen(): React.JSX.Element {
 
   const SLIDES: {
     id: string;
-    icon: IoniconName;
+    picture: PictureKind;
     title: string;
     subtitle: string;
     body: string;
   }[] = [
     {
       id: '1',
-      icon: 'home-outline',
+      picture: 'door',
       title: t('onboarding.slide1_title'),
       subtitle: t('onboarding.slide1_subtitle'),
       body: t('onboarding.slide1_body'),
     },
     {
       id: '2',
-      icon: 'wallet-outline',
+      picture: 'bill',
       title: t('onboarding.slide2_title'),
       subtitle: t('onboarding.slide2_subtitle'),
       body: t('onboarding.slide2_body'),
     },
     {
       id: '3',
-      icon: 'car-outline',
+      picture: 'car',
       title: t('onboarding.slide3_title'),
       subtitle: t('onboarding.slide3_subtitle'),
       body: t('onboarding.slide3_body'),
@@ -64,8 +66,8 @@ export default function IntroScreen(): React.JSX.Element {
   const isLast = activeIndex === SLIDES.length - 1;
 
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont();
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -91,138 +93,86 @@ export default function IntroScreen(): React.JSX.Element {
   }, []);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.flex}>
-        {/* Skip button */}
-        {!isLast && (
-          <Pressable
-            onPress={handleSkip}
-            style={styles.skipBtn}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('onboarding.skip')}
-          >
-            <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
-          </Pressable>
+    <SafeAreaView style={[styles.root, { backgroundColor: C.background }]} edges={['top']}>
+      <View style={styles.skipRow}>
+        {!isLast && <TextLink muted label={t('onboarding.skip')} onPress={handleSkip} />}
+      </View>
+
+      <FlatList
+        ref={listRef}
+        data={SLIDES}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+        renderItem={({ item, index }) => (
+          <View style={styles.slide}>
+            <TapedPicture kind={item.picture} tilt={index % 2 === 0 ? -3 : 3} />
+            <Text style={[styles.title, heading, { color: C.textPrimary }]}>{item.title}</Text>
+            <Text style={[styles.subtitle, hand, { color: C.primary }]}>{item.subtitle}</Text>
+            <Text style={[styles.body, { color: C.textSecondary }]}>{item.body}</Text>
+          </View>
         )}
+      />
 
-        {/* Slides */}
-        <FlatList
-          ref={listRef}
-          data={SLIDES}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-          renderItem={({ item }) => (
-            <View style={styles.slide}>
-              <View style={styles.emojiCircle}>
-                <Ionicons name={item.icon} size={54} color={C.primary} />
-              </View>
-              <Text style={[styles.title, headingFont]}>{item.title}</Text>
-              <Text style={styles.subtitle}>{item.subtitle}</Text>
-              <Text style={styles.body}>{item.body}</Text>
-            </View>
-          )}
+      {/* Where you are: ink dots, the current one a short blue pen stroke */}
+      <View style={styles.dotsRow}>
+        {SLIDES.map((slide, i) => (
+          <View
+            key={slide.id}
+            style={[
+              styles.dot,
+              { backgroundColor: i === activeIndex ? C.primary : C.textTertiary },
+              i === activeIndex && styles.dotActive,
+            ]}
+          />
+        ))}
+      </View>
+
+      <View style={styles.footer}>
+        <SheetButton
+          label={isLast ? t('onboarding.lets_go') : t('onboarding.next')}
+          onPress={handleNext}
         />
-
-        {/* Dots */}
-        <View style={styles.dotsRow}>
-          {SLIDES.map((_, i) => (
-            <View key={i} style={[styles.dot, i === activeIndex && styles.dotActive]} />
-          ))}
-        </View>
-
-        {/* CTA */}
-        <View style={styles.footer}>
-          <Button
-            mode="contained"
-            onPress={handleNext}
-            style={styles.cta}
-            contentStyle={styles.ctaContent}
-            labelStyle={styles.ctaLabel}
-            buttonColor={C.primary}
-          >
-            {isLast ? t('onboarding.lets_go') : t('onboarding.next')}
-          </Button>
-        </View>
       </View>
     </SafeAreaView>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.surface },
-    flex: { flex: 1 },
-    skipBtn: {
-      alignSelf: 'flex-end',
-      paddingHorizontal: sizes.lg,
-      paddingVertical: sizes.md,
-    },
-    skipText: { color: C.textSecondary, fontSize: mf(15), ...font.medium },
-    slide: {
-      width: SCREEN_WIDTH,
-      paddingHorizontal: sizes.xl,
-      paddingTop: sizes.lg,
-      alignItems: 'center',
-      gap: sizes.md,
-    },
-    emojiCircle: {
-      width: ms(120),
-      height: ms(120),
-      borderRadius: ms(60),
-      backgroundColor: C.primary + '15',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: sizes.md,
-    },
-    title: {
-      fontSize: mf(28),
-      ...font.extrabold,
-      color: C.textPrimary,
-      textAlign: 'center',
-      letterSpacing: -0.5,
-    },
-    subtitle: {
-      fontSize: mf(17),
-      ...font.semibold,
-      color: C.primary,
-      textAlign: 'center',
-      marginTop: -sizes.sm,
-    },
-    body: {
-      fontSize: mf(16),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(24),
-      paddingHorizontal: sizes.sm,
-    },
-    dotsRow: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: ms(8),
-      paddingVertical: sizes.lg,
-    },
-    dot: {
-      width: ms(8),
-      height: ms(8),
-      borderRadius: ms(4),
-      backgroundColor: C.border,
-    },
-    dotActive: {
-      backgroundColor: C.primary,
-      width: ms(24),
-    },
-    footer: {
-      paddingHorizontal: sizes.xl,
-      paddingBottom: sizes.xl,
-    },
-    cta: { borderRadius: ms(14) },
-    ctaContent: { height: ms(56) },
-    ctaLabel: { fontSize: mf(16), ...font.semibold },
-  });
-}
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  skipRow: { minHeight: 52, alignItems: 'flex-end', paddingHorizontal: sizes.md },
+  slide: {
+    width: SCREEN_WIDTH,
+    paddingHorizontal: sizes.xl,
+    paddingTop: ms(18),
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: mf(32),
+    lineHeight: mf(40),
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    marginTop: ms(34),
+  },
+  subtitle: { fontSize: mf(23), textAlign: 'center', marginTop: ms(4) },
+  body: {
+    fontSize: mf(15.5),
+    ...font.regular,
+    textAlign: 'center',
+    lineHeight: mf(23),
+    marginTop: ms(12),
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: ms(8),
+    paddingVertical: ms(18),
+  },
+  dot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
+  dotActive: { width: ms(22), height: ms(4), borderRadius: ms(2) },
+  footer: { paddingHorizontal: sizes.lg, paddingBottom: ms(36) },
+});
