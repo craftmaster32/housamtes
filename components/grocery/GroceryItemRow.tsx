@@ -7,10 +7,12 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { type GroceryItem } from '@stores/groceryStore';
 import { useLanguageStore } from '@stores/languageStore';
-import Svg, { Path } from 'react-native-svg';
 import { useThemedColors, lightColors } from '@constants/colors';
 import { useHandFont } from '@hooks/useHandFont';
 import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
+import { PenTick } from '@components/shared/PenTick';
+import { RollingCount } from '@components/shared/RollingCount';
+import { useEasedValue } from '@hooks/useEasedValue';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { useMemberName } from '@hooks/useMemberName';
 import { formatItemAge } from '@utils/groceryAge';
@@ -58,6 +60,8 @@ export const GroceryItemRow = memo(function GroceryItemRow({
   const hasCount = isPlainInt && qtyNum > 1;
   const bought = item.boughtCount ?? 0;
   const showQtyPill = !hasCount && !!item.quantity && item.quantity !== '1';
+  // The bar under a counted item slides to its new length on each − / +.
+  const filled = useEasedValue(hasCount ? Math.min(1, bought / qtyNum) : 0);
 
   const handleTap = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -127,18 +131,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
         ) : (
           // A box drawn in ink, ticked in blue pen (the paper stays light).
           <View style={s.box}>
-            {item.isChecked && (
-              <Svg width={ms(25)} height={ms(25)} viewBox="0 0 26 26" style={s.tick}>
-                <Path
-                  d="M4 13 L10.5 20 L23 3"
-                  stroke={PEN}
-                  strokeWidth={3}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </Svg>
-            )}
+            <PenTick checked={item.isChecked} size={ms(25)} color={PEN} style={s.tick} />
           </View>
         )}
 
@@ -191,9 +184,11 @@ export const GroceryItemRow = memo(function GroceryItemRow({
             >
               <Text style={s.ctrBtnText}>−</Text>
             </Pressable>
-            <Text style={[s.ctrText, hand]}>
-              {bought}/{qtyNum}
-            </Text>
+            <RollingCount
+              text={`${bought}/${qtyNum}`}
+              value={bought}
+              textStyle={[s.ctrText, hand]}
+            />
             <Pressable
               onPress={handleIncrement}
               style={[s.ctrBtn, s.ctrBtnPlus, bought >= qtyNum && s.ctrBtnOff]}
@@ -209,10 +204,10 @@ export const GroceryItemRow = memo(function GroceryItemRow({
 
       {hasCount && (
         <View style={s.progressTrack}>
-          <View
+          <Animated.View
             style={[
               s.progressFill,
-              { width: `${Math.round((bought / qtyNum) * 100)}%` as `${number}%` },
+              { width: filled.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
             ]}
           />
         </View>

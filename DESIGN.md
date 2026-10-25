@@ -362,6 +362,11 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   its item: ticking that item folds it away instead of hopping to another row
   (`useStaleNudge`). The 3/12 counters have a fixed width so 9→10 never re-wraps
   the name.
+- **Every change moves, nothing snaps** (owner): the tick is drawn in one quick
+  pen stroke and lifts off when un-ticked (`PenTick`); − / + roll the count like
+  a little odometer (`RollingCount`); the item's bar and the trip's progress
+  bar slide to their new length (`useEasedValue`). Owner also wants smooth
+  moves between pages — to be added later.
 
 **Autonomous pass (built on #252 without mockups, owner to review on the preview)**
 

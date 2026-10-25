@@ -1,13 +1,14 @@
 import { memo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
-import Svg, { Path } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import { type GroceryItem } from '@stores/groceryStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { lightColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
+import { PenTick } from '@components/shared/PenTick';
+import { RollingCount } from '@components/shared/RollingCount';
 import { detectCategory } from '@utils/groceryCategory';
 import { localizeQuantityForDisplay } from '@utils/groceryUnits';
 import { mf, ms } from '@utils/responsive';
@@ -59,18 +60,7 @@ export const ShopItemRow = memo(function ShopItemRow({
 
   const box = (
     <View style={styles.box}>
-      {done && (
-        <Svg width={ms(29)} height={ms(29)} viewBox="0 0 26 26" style={styles.tick}>
-          <Path
-            d="M4 13 L10.5 20 L23 3"
-            stroke={PEN}
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </Svg>
-      )}
+      <PenTick checked={done} size={ms(29)} color={PEN} style={styles.tick} />
     </View>
   );
 
@@ -127,9 +117,11 @@ export const ShopItemRow = memo(function ShopItemRow({
           >
             <Text style={styles.ctrSign}>−</Text>
           </Pressable>
-          <Text style={[styles.ctrText, hand]}>
-            {bought}/{qtyNum}
-          </Text>
+          <RollingCount
+            text={`${bought}/${qtyNum}`}
+            value={bought}
+            textStyle={[styles.ctrText, hand]}
+          />
           <Pressable
             onPress={() => onIncrement(item.id)}
             style={[styles.ctrBtn, styles.ctrPlus, bought >= qtyNum && styles.off]}

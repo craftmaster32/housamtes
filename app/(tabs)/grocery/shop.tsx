@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
+  Animated,
   View,
   StyleSheet,
   Pressable,
@@ -30,6 +31,7 @@ import { AisleSign } from '@components/grocery/AisleSign';
 import { ShopItemRow } from '@components/grocery/ShopItemRow';
 import { Fold } from '@components/shared/Fold';
 import { useBasketMoves } from '@hooks/useBasketMoves';
+import { useEasedValue } from '@hooks/useEasedValue';
 import { useHandFont } from '@hooks/useHandFont';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -109,7 +111,8 @@ function ShopScreen(): React.JSX.Element {
   );
   const boughtCount = boughtIds.length;
   const totalCount = shoppingItems.length;
-  const progressPct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0;
+  // The trip's bar slides along as things go in the basket.
+  const progress = useEasedValue(totalCount > 0 ? boughtCount / totalCount : 0);
 
   const isDone = useCallback((i: GroceryItem): boolean => {
     const q = i.quantity.trim();
@@ -302,7 +305,17 @@ function ShopScreen(): React.JSX.Element {
                 {t('grocery.shop.progress', { bought: boughtCount, total: totalCount })}
               </Text>
               <View style={styles.track}>
-                <View style={[styles.fill, { width: `${progressPct}%` }]} />
+                <Animated.View
+                  style={[
+                    styles.fill,
+                    {
+                      width: progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
+                    },
+                  ]}
+                />
               </View>
               {justAdded && (
                 // A housemate's last-minute add, on a yellow sticky note.
