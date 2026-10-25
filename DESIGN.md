@@ -480,11 +480,17 @@ a mockup step. Their object is **the front door** (`components/auth/`):
 
 **Home events + pop-ups (after the owner's preview check)**
 
-- Upcoming events on Home are **cream paper tickets** (owner picked A of three):
-  the day handwritten (blue, amber for a parking request, green "Now" for a
-  live shop), the time in the serif, a dashed tear with punched notches, what
-  it is beside it; neighbours lean opposite ways. Paper, so light in dark mode.
+- Upcoming events on Home are **paper tickets** (owner picked A of three): a
+  **white** ticket whose stub is printed in colour — blue for plans, amber for a
+  parking request, green "Now" for a live shop — with the day handwritten and
+  the time in the serif in white; a dashed tear with punched notches; what it
+  is beside it; neighbours lean opposite ways. They were cream at first, but the
+  owner found them too like the cream money page, so white + coloured stub won.
 - Pop-up messages: the sticky note above (owner picked it over the plain card).
+  It **sticks on** when it appears (drops from a little above, turning from
+  -6° to its tilt, pressed flat with a tiny settle, 380 ms) and **peels off**
+  upwards when closed (220 ms); the button's action runs once it's gone.
+  Reduce Motion: it just appears.
 
 ## 8. Working setup (for the next session)
 

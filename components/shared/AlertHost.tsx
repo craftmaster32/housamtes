@@ -1,10 +1,11 @@
-import { useCallback, useSyncExternalStore } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { Animated, Easing, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, darkColors } from '@constants/colors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 import { subscribeAlert, getAlertSnapshot, finishAlert, type AlertButton } from '@lib/alert';
@@ -13,6 +14,13 @@ import { subscribeAlert, getAlertSnapshot, finishAlert, type AlertButton } from 
 const NOTE_BLUE = '#3B6FBF';
 const NOTE_RED = '#B84540';
 const NOTE_LINK = '#2952A0';
+
+// Sticking on: dropped from a little above, turning from a bigger tilt, then
+// pressed flat with a tiny settle. Peeling off runs it backwards, quicker.
+const STICK_MS = 380;
+const PEEL_MS = 220;
+const STICK_EASING = Easing.bezier(0.2, 0.9, 0.3, 1.12);
+const PEEL_EASING = Easing.bezier(0.5, 0, 0.9, 0.4);
 
 /**
  * Every pop-up message in the app (Alert.alert from @lib/alert), drawn as a
@@ -27,26 +35,61 @@ export function AlertHost(): React.JSX.Element | null {
   const heading = useHeadingFont('semibold');
   const hand = useHandFont();
   const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
+  const reduceMotion = useReduceMotion();
+  // 0 = off the screen, 1 = stuck on. Each new note sticks itself on.
+  const stuck = useRef(new Animated.Value(0)).current;
+  const leaving = useRef(false);
+  const requestId = request?.id;
 
-  const handlePress = useCallback(
-    (button: AlertButton): void => {
-      if (!request) return;
-      finishAlert(request.id);
-      button.onPress?.();
+  useEffect(() => {
+    if (requestId === undefined) return undefined;
+    leaving.current = false;
+    stuck.setValue(reduceMotion ? 1 : 0);
+    if (reduceMotion) return undefined;
+    const anim = Animated.timing(stuck, {
+      toValue: 1,
+      duration: STICK_MS,
+      easing: STICK_EASING,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return (): void => anim.stop();
+  }, [requestId, reduceMotion, stuck]);
+
+  // Peel the note off, then take it away and run what the button does.
+  const close = useCallback(
+    (then?: () => void): void => {
+      if (!request || leaving.current) return;
+      leaving.current = true;
+      const done = (): void => {
+        finishAlert(request.id);
+        then?.();
+      };
+      if (reduceMotion) {
+        done();
+        return;
+      }
+      Animated.timing(stuck, {
+        toValue: 0,
+        duration: PEEL_MS,
+        easing: PEEL_EASING,
+        useNativeDriver: true,
+      }).start(done);
     },
-    [request]
+    [request, reduceMotion, stuck]
   );
+
+  const handlePress = useCallback((button: AlertButton): void => close(button.onPress), [close]);
 
   // Tapping outside (or Android back) counts as Cancel when there is one; a
   // plain message with one button counts as pressing it.
   const handleDismiss = useCallback((): void => {
     if (!request) return;
     const cancel = request.buttons.find((b) => b.style === 'cancel');
-    finishAlert(request.id);
-    if (cancel) cancel.onPress?.();
-    else if (request.buttons.length === 1) request.buttons[0].onPress?.();
-    else request.onDismiss?.();
-  }, [request]);
+    if (cancel) close(cancel.onPress);
+    else if (request.buttons.length === 1) close(request.buttons[0].onPress);
+    else close(request.onDismiss);
+  }, [request, close]);
 
   if (!request) return null;
 
@@ -54,17 +97,40 @@ export function AlertHost(): React.JSX.Element | null {
     request.buttons.length > 0 ? request.buttons : [{ text: t('common.ok') }];
   const actions = buttons.filter((b) => b.style !== 'cancel');
   const cancels = buttons.filter((b) => b.style === 'cancel');
+  const dim = stuck.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
+  const show = stuck.interpolate({
+    inputRange: [0, 0.6],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const dropY = stuck.interpolate({ inputRange: [0, 1], outputRange: [-ms(46), 0] });
+  const tilt = stuck.interpolate({ inputRange: [0, 1], outputRange: ['-6deg', '-1.2deg'] });
+  const lift = stuck.interpolate({ inputRange: [0, 1], outputRange: [1.06, 1] });
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={handleDismiss}>
-      <View style={[styles.overlay, { backgroundColor: overlay }]}>
+    <Modal visible transparent animationType="none" onRequestClose={handleDismiss}>
+      <View style={styles.overlay}>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { backgroundColor: overlay, opacity: dim }]}
+          pointerEvents="none"
+        />
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={handleDismiss}
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
         />
-        <View style={[styles.note, { backgroundColor: c.note }]} accessibilityViewIsModal>
+        <Animated.View
+          style={[
+            styles.note,
+            {
+              backgroundColor: c.note,
+              opacity: show,
+              transform: [{ translateY: dropY }, { rotate: tilt }, { scale: lift }],
+            },
+          ]}
+          accessibilityViewIsModal
+        >
           <View style={styles.tape} />
           {!!request.title && (
             <Text style={[styles.title, heading, { color: c.noteInk }]} accessibilityRole="header">
@@ -117,7 +183,7 @@ export function AlertHost(): React.JSX.Element | null {
               </Pressable>
             ))}
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -132,7 +198,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: ms(22),
     paddingTop: ms(26),
     paddingBottom: ms(18),
-    transform: [{ rotate: '-1.2deg' }],
     shadowColor: '#000',
     shadowOffset: { width: 0, height: ms(12) },
     shadowOpacity: 0.25,
