@@ -52,7 +52,13 @@ jobs:
             echo "No database address after linking" >&2
             exit 1
           fi
-          psql "$(cat supabase/.temp/pooler-url)" -v ON_ERROR_STOP=1 -f supabase/demo/staging-demo.sql
+          # The shared pooler needs the user as "postgres.<project ref>".
+          DB_URL=$(cat supabase/.temp/pooler-url)
+          case "$DB_URL" in
+            *"postgres.$REF@"*) ;;
+            *) DB_URL="${DB_URL/postgres@/postgres.$REF@}" ;;
+          esac
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/demo/staging-demo.sql
         env:
           REF: ${{ secrets.SUPABASE_STAGING_PROJECT_REF }}
           PGPASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
