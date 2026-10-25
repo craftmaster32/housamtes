@@ -5,7 +5,8 @@
 -- The house's existing members (the owner's test account, Maya, Noam) "use the
 -- app" for six months: they log the recurring house bills and everyday shared
 -- expenses, each paying in turn and splitting with everyone or a few people.
--- Everything it adds is marked 'demo-data' and it only runs once.
+-- Everything it adds is marked 'demo-data' and it only adds once; on every
+-- run it also drops demo payments that overlap the house's own payments.
 DO $$
 DECLARE
   h uuid;
@@ -23,6 +24,25 @@ BEGIN
   IF h IS NULL THEN
     RAISE EXCEPTION 'Test house "Dizengoff 42" not found';
   END IF;
+
+  -- The house's own payments win: a demo payment for a bill the house already
+  -- paid for the same months (within the bill's frequency) is removed, so
+  -- nothing is counted twice.
+  DELETE FROM household_payments d
+   USING recurring_bills r
+   WHERE d.house_id = h
+     AND d.note = 'demo-data'
+     AND r.id = d.bill_id
+     AND EXISTS (
+       SELECT 1 FROM household_payments o
+        WHERE o.house_id = h
+          AND o.bill_id = d.bill_id
+          AND o.note IS DISTINCT FROM 'demo-data'
+          AND abs(
+            (extract(year FROM o.paid_at) * 12 + extract(month FROM o.paid_at))
+            - (extract(year FROM d.paid_at) * 12 + extract(month FROM d.paid_at))
+          ) < CASE r.frequency WHEN 'bimonthly' THEN 2 WHEN 'quarterly' THEN 3 ELSE 1 END
+     );
 
   IF EXISTS (SELECT 1 FROM bills WHERE house_id = h AND notes = 'demo-data') THEN
     RAISE NOTICE 'Demo activity is already there, nothing added.';
@@ -125,6 +145,23 @@ BEGIN
       );
     END LOOP;
   END LOOP;
+
+  -- Same clean-up for what was just added.
+  DELETE FROM household_payments d
+   USING recurring_bills r
+   WHERE d.house_id = h
+     AND d.note = 'demo-data'
+     AND r.id = d.bill_id
+     AND EXISTS (
+       SELECT 1 FROM household_payments o
+        WHERE o.house_id = h
+          AND o.bill_id = d.bill_id
+          AND o.note IS DISTINCT FROM 'demo-data'
+          AND abs(
+            (extract(year FROM o.paid_at) * 12 + extract(month FROM o.paid_at))
+            - (extract(year FROM d.paid_at) * 12 + extract(month FROM d.paid_at))
+          ) < CASE r.frequency WHEN 'bimonthly' THEN 2 WHEN 'quarterly' THEN 3 ELSE 1 END
+     );
 
   RAISE NOTICE 'Demo activity added for % housemates.', n;
 END $$;
