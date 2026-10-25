@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
+import { Fold } from '@components/shared/Fold';
 import { BillTabs } from '@components/bills/BillTabs';
 import { PadSlice } from '@components/tasks/PadSlice';
 import { TaskForm } from '@components/tasks/TaskForm';
@@ -16,23 +17,16 @@ import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
+import { useTaskPadRows, type PadItem } from '@hooks/useTaskPadRows';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { Alert } from '@lib/alert';
 import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
-import {
-  useTasksStore,
-  type HouseTask,
-  type NewTaskInput,
-  type TaskFilter,
-} from '@stores/tasksStore';
+import { useTasksStore, type NewTaskInput, type TaskFilter } from '@stores/tasksStore';
 import { getErrorMessage } from '@utils/errors';
 import { mf, ms } from '@utils/responsive';
 
 const FILTERS: TaskFilter[] = ['all', 'active', 'completed'];
-
-// Rows of the to-do pad: tasks, and the handwritten "3 done" before the done ones.
-type PadItem = { _k: 'task'; task: HouseTask } | { _k: 'done-header'; count: number };
 
 /**
  * Tasks — the house's one to-do list (Chores were merged in, Oct 2026): one-off
@@ -70,16 +64,8 @@ export default function TasksScreen(): React.JSX.Element {
   const done = useMemo(() => tasks.filter((tk) => tk.isComplete), [tasks]);
   const canReset = isAdmin && done.some((tk) => tk.recurrence !== 'once');
 
-  const listData = useMemo((): PadItem[] => {
-    const rows = (list: HouseTask[]): PadItem[] => list.map((task) => ({ _k: 'task', task }));
-    if (filter === 'active') return rows(active);
-    if (filter === 'completed') return rows(done);
-    return [
-      ...rows(active),
-      ...(done.length > 0 ? [{ _k: 'done-header' as const, count: done.length }] : []),
-      ...rows(done),
-    ];
-  }, [filter, active, done]);
+  // A ticked task stays put for a beat, then folds down under "done".
+  const listData = useTaskPadRows(tasks, filter);
 
   const handleAdd = useCallback(
     async (input: NewTaskInput): Promise<void> => {
@@ -146,24 +132,32 @@ export default function TasksScreen(): React.JSX.Element {
       const isLast = index === listData.length - 1;
       if (item._k === 'done-header') {
         return (
-          <PadSlice isFirst={isFirst} isLast={isLast}>
-            <Text style={[styles.doneHeader, hand, { color: c.receiptMuted }]}>
-              {t('tasks.done', { count: item.count })}
-            </Text>
-          </PadSlice>
+          <Fold open={!item.leaving} appear={item.arriving}>
+            <PadSlice isFirst={isFirst} isLast={isLast}>
+              <Text style={[styles.doneHeader, hand, { color: c.receiptMuted }]}>
+                {t('tasks.done', { count: item.count })}
+              </Text>
+            </PadSlice>
+          </Fold>
         );
       }
       return (
-        <PadSlice isFirst={isFirst} isLast={isLast} dashedTop={listData[index - 1]?._k === 'task'}>
-          <TaskLine
-            task={item.task}
-            myId={myId}
-            canDelete={isAdmin || item.task.createdBy === myId}
-            onToggle={handleToggle}
-            onAssign={handleAssign}
-            onDelete={handleDelete}
-          />
-        </PadSlice>
+        <Fold open={!item.leaving} appear={item.arriving}>
+          <PadSlice
+            isFirst={isFirst}
+            isLast={isLast}
+            dashedTop={listData[index - 1]?._k === 'task'}
+          >
+            <TaskLine
+              task={item.task}
+              myId={myId}
+              canDelete={isAdmin || item.task.createdBy === myId}
+              onToggle={handleToggle}
+              onAssign={handleAssign}
+              onDelete={handleDelete}
+            />
+          </PadSlice>
+        </Fold>
       );
     },
     [listData, myId, isAdmin, handleToggle, handleAssign, handleDelete, hand, c, t]

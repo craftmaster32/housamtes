@@ -41,6 +41,7 @@ import { AddItemSheet, type AddDestination } from '@components/grocery/AddItemSh
 import { StaleItemNudge } from '@components/grocery/StaleItemNudge';
 import { Fold } from '@components/shared/Fold';
 import { useStaleNudge } from '@hooks/useStaleNudge';
+import { useFoldAway } from '@hooks/useFoldAway';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import {
@@ -260,6 +261,7 @@ function GroceryScreen(): React.JSX.Element {
   const destPersonal = addMode === 'private';
   const destDraft = addMode === 'shared' && isDraftOn && draftEnabled;
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
+  const { foldingIds, foldAway } = useFoldAway();
 
   const sections = useMemo((): SectionData[] => {
     const draftItems = items.filter((i) => i.isDraft && i.addedBy === myId);
@@ -707,10 +709,15 @@ function GroceryScreen(): React.JSX.Element {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    clearChecked(houseId).catch(() => {
-      Alert.alert(t('grocery.could_not_clear'), t('grocery.something_went_wrong'));
-    });
-  }, [clearChecked, houseId, t]);
+    // The ticked rows fold away first, then they're removed.
+    foldAway(
+      checked.map((i) => i.id),
+      () =>
+        clearChecked(houseId).catch(() => {
+          Alert.alert(t('grocery.could_not_clear'), t('grocery.something_went_wrong'));
+        })
+    );
+  }, [clearChecked, houseId, t, foldAway, checked]);
   const handleLongPress = useCallback((item: GroceryItem): void => {
     setSelectedItem(item);
   }, []);
@@ -808,33 +815,36 @@ function GroceryScreen(): React.JSX.Element {
 
   const renderItem = useCallback(
     ({ item, index }: { item: GroceryItemWithMeta; index: number }): React.JSX.Element => (
-      <BagSlice dashedTop={index > 0}>
-        <GroceryItemRow
-          item={item}
-          myId={myId}
-          now={now}
-          isDuplicate={item.isDuplicate}
-          onToggle={onToggle}
-          onDelete={onDelete}
-          onIncrement={onInc}
-          onDecrement={onDec}
-          onLongPress={handleLongPress}
-        />
-        {nudge?.id === item.id && (
-          <Fold open={nudgeOpen} appear={nudgeAppear} onClosed={handleNudgeClosed}>
-            <StaleItemNudge
-              itemName={nudge.name}
-              days={nudge.days}
-              onKeep={handleKeepStale}
-              onRemove={handleRemoveStale}
-            />
-          </Fold>
-        )}
-      </BagSlice>
+      <Fold open={!foldingIds.has(item.id)}>
+        <BagSlice dashedTop={index > 0}>
+          <GroceryItemRow
+            item={item}
+            myId={myId}
+            now={now}
+            isDuplicate={item.isDuplicate}
+            onToggle={onToggle}
+            onDelete={onDelete}
+            onIncrement={onInc}
+            onDecrement={onDec}
+            onLongPress={handleLongPress}
+          />
+          {nudge?.id === item.id && (
+            <Fold open={nudgeOpen} appear={nudgeAppear} onClosed={handleNudgeClosed}>
+              <StaleItemNudge
+                itemName={nudge.name}
+                days={nudge.days}
+                onKeep={handleKeepStale}
+                onRemove={handleRemoveStale}
+              />
+            </Fold>
+          )}
+        </BagSlice>
+      </Fold>
     ),
     [
       myId,
       now,
+      foldingIds,
       onToggle,
       onDelete,
       onInc,
@@ -849,7 +859,7 @@ function GroceryScreen(): React.JSX.Element {
     ]
   );
 
-  const renderSectionHeader = useCallback(
+  const renderSectionSign = useCallback(
     ({ section }: { section: SectionData }): React.JSX.Element => {
       const sectionIndex = sections.indexOf(section);
       const isTop = sectionIndex === 0;
@@ -922,6 +932,15 @@ function GroceryScreen(): React.JSX.Element {
       handleOpenGeneralReminder,
       reminders,
     ]
+  );
+  // An aisle whose items are all being cleared folds its sign away with them.
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SectionData }): React.JSX.Element => (
+      <Fold open={!section.data.every((i) => foldingIds.has(i.id))}>
+        {renderSectionSign({ section })}
+      </Fold>
+    ),
+    [renderSectionSign, foldingIds]
   );
 
   const handleSelectDestination = useCallback(

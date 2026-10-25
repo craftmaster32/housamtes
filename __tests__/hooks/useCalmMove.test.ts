@@ -1,5 +1,5 @@
 import { act, renderHook, type RenderHookResult } from '@testing-library/react-native';
-import { useBasketMoves, type BasketMoves } from '@hooks/useBasketMoves';
+import { useCalmMove, type CalmMove } from '@hooks/useCalmMove';
 import { type GroceryItem } from '@stores/groceryStore';
 
 const item = (id: string, isChecked = false): GroceryItem => ({
@@ -15,13 +15,15 @@ const item = (id: string, isChecked = false): GroceryItem => ({
 });
 const isDone = (i: GroceryItem): boolean => i.isChecked;
 
-function setup(initial: GroceryItem[]): RenderHookResult<BasketMoves, { items: GroceryItem[] }> {
-  return renderHook(({ items }) => useBasketMoves(items, isDone), {
+function setup(
+  initial: GroceryItem[]
+): RenderHookResult<CalmMove<GroceryItem>, { items: GroceryItem[] }> {
+  return renderHook(({ items }) => useCalmMove(items, isDone), {
     initialProps: { items: initial },
   });
 }
 
-describe('useBasketMoves', () => {
+describe('useCalmMove', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
@@ -29,8 +31,8 @@ describe('useBasketMoves', () => {
     const milk = item('milk');
     const eggs = item('eggs', true);
     const { result } = setup([milk, eggs]);
-    expect(result.current.isShownInBasket(milk)).toBe(false);
-    expect(result.current.isShownInBasket(eggs)).toBe(true);
+    expect(result.current.isShownDone(milk)).toBe(false);
+    expect(result.current.isShownDone(eggs)).toBe(true);
   });
 
   it('keeps a ticked item in place, then folds it into the basket', () => {
@@ -39,21 +41,21 @@ describe('useBasketMoves', () => {
     rerender({ items: [ticked, item('eggs')] });
 
     // Right after the tap nothing moves.
-    expect(result.current.isShownInBasket(ticked)).toBe(false);
+    expect(result.current.isShownDone(ticked)).toBe(false);
     expect(result.current.leavingIds.size).toBe(0);
 
     act(() => {
       jest.advanceTimersByTime(900);
     });
     expect(result.current.leavingIds.has('milk')).toBe(true);
-    expect(result.current.isShownInBasket(ticked)).toBe(false);
+    expect(result.current.isShownDone(ticked)).toBe(false);
 
     act(() => {
       jest.advanceTimersByTime(260);
     });
     expect(result.current.leavingIds.size).toBe(0);
     expect(result.current.arrivingIds.has('milk')).toBe(true);
-    expect(result.current.isShownInBasket(ticked)).toBe(true);
+    expect(result.current.isShownDone(ticked)).toBe(true);
 
     act(() => {
       jest.advanceTimersByTime(400);
@@ -91,6 +93,6 @@ describe('useBasketMoves', () => {
     });
     expect(result.current.leavingIds.size).toBe(0);
     expect(result.current.arrivingIds.size).toBe(0);
-    expect(result.current.isShownInBasket(item('milk'))).toBe(false);
+    expect(result.current.isShownDone(item('milk'))).toBe(false);
   });
 });

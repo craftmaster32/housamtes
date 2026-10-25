@@ -2,12 +2,12 @@ import { useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 import { lightColors, useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { PaperTag } from '@components/bills/recurring/PaperTag';
 import { UserAvatar } from '@components/shared/UserAvatar';
+import { PenTick } from '@components/shared/PenTick';
 import { useHandFont } from '@hooks/useHandFont';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
@@ -88,18 +88,7 @@ export function TaskLine({
         accessibilityLabel={task.title}
       >
         <View style={styles.box}>
-          {done && (
-            <Svg width={ms(26)} height={ms(26)} viewBox="0 0 26 26" style={styles.tick}>
-              <Path
-                d="M4 13 L10.5 20 L23 3"
-                stroke={PEN}
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
-          )}
+          <PenTick checked={done} size={ms(26)} color={PEN} style={styles.tick} />
         </View>
       </Pressable>
 

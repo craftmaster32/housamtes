@@ -358,7 +358,7 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   page"). On the shopping trip a ticked item stays where it is for a beat (you
   see the tick and can undo it, and can tick several in a row), then folds away
   while the rows below glide up, and unfolds in "In the basket"
-  (`useBasketMoves` + the shared `Fold`). The "Still need it?" strip stays with
+  (`useCalmMove` + the shared `Fold`). The "Still need it?" strip stays with
   its item: ticking that item folds it away instead of hopping to another row
   (`useStaleNudge`). The 3/12 counters have a fixed width so 9→10 never re-wraps
   the name.
@@ -367,6 +367,9 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   a little odometer (`RollingCount`); the item's bar and the trip's progress
   bar slide to their new length (`useEasedValue`). Owner also wants smooth
   moves between pages — to be added later.
+- "Clear ticked" folds the ticked rows (and any aisle sign left empty) away
+  before they're removed (`useFoldAway`). Tasks use the same calm move: a
+  ticked task waits a beat, then folds down under "done" (`useTaskPadRows`).
 
 **Autonomous pass (built on #252 without mockups, owner to review on the preview)**
 

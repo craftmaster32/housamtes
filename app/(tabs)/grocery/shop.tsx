@@ -30,7 +30,7 @@ import { BagSlice } from '@components/grocery/BagSlice';
 import { AisleSign } from '@components/grocery/AisleSign';
 import { ShopItemRow } from '@components/grocery/ShopItemRow';
 import { Fold } from '@components/shared/Fold';
-import { useBasketMoves } from '@hooks/useBasketMoves';
+import { useCalmMove } from '@hooks/useCalmMove';
 import { useEasedValue } from '@hooks/useEasedValue';
 import { useHandFont } from '@hooks/useHandFont';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -122,7 +122,11 @@ function ShopScreen(): React.JSX.Element {
 
   // A ticked item waits a beat, then moves to the basket with a fold, so the
   // list doesn't jump under your finger on every tap.
-  const { isShownInBasket, leavingIds, arrivingIds } = useBasketMoves(shoppingItems, isDone);
+  const {
+    isShownDone: isShownInBasket,
+    leavingIds,
+    arrivingIds,
+  } = useCalmMove(shoppingItems, isDone);
 
   const sections = useMemo((): ShopSection[] => {
     const toGrab = shoppingItems.filter((i) => !isShownInBasket(i));

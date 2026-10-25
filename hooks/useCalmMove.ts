@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type GroceryItem } from '@stores/groceryStore';
-
-// How long a ticked item stays where it is before it moves to the basket —
+// How long a ticked item stays where it is before it moves (to the basket, or
+// under "done") —
 // long enough to see the tick and undo a wrong tap, and to tick a few things
 // in a row without the list moving under your finger.
 const HOLD_MS = 900;
@@ -9,9 +8,9 @@ const HOLD_MS = 900;
 const LEAVE_MS = 260;
 const ARRIVE_MS = 400;
 
-export interface BasketMoves {
-  /** The side an item is shown on right now (true = in the basket). */
-  isShownInBasket: (item: GroceryItem) => boolean;
+export interface CalmMove<T> {
+  /** The side an item is shown on right now (true = done side). */
+  isShownDone: (item: T) => boolean;
   /** Rows folding away from their old side. */
   leavingIds: ReadonlySet<string>;
   /** Rows unfolding on their new side. */
@@ -25,14 +24,15 @@ function without(set: ReadonlySet<string>, ids: string[]): Set<string> {
 }
 
 /**
- * Moves ticked items between "Still to grab" and "In the basket" calmly: the
- * item stays put while you keep ticking, then folds away and unfolds on the
- * other side, so the rest of the list glides instead of jumping on each tap.
+ * Moves ticked items to their done group calmly (e.g. "Still to grab" → "In
+ * the basket", a task → "done"): the item stays put while you keep ticking,
+ * then folds away and unfolds on the other side, so the rest of the list
+ * glides instead of jumping on each tap. Pair with `Fold` on each row.
  */
-export function useBasketMoves(
-  items: GroceryItem[],
-  isDone: (item: GroceryItem) => boolean
-): BasketMoves {
+export function useCalmMove<T extends { id: string }>(
+  items: T[],
+  isDone: (item: T) => boolean
+): CalmMove<T> {
   // The side each item is shown on. An item takes its side when first seen;
   // after that it only changes side by folding across (below).
   const sidesRef = useRef(new Map<string, boolean>());
@@ -46,8 +46,8 @@ export function useBasketMoves(
   const [leavingIds, setLeavingIds] = useState<ReadonlySet<string>>(new Set());
   const [arrivingIds, setArrivingIds] = useState<ReadonlySet<string>>(new Set());
 
-  const isShownInBasket = useCallback(
-    (item: GroceryItem): boolean => sidesRef.current.get(item.id) ?? isDone(item),
+  const isShownDone = useCallback(
+    (item: T): boolean => sidesRef.current.get(item.id) ?? isDone(item),
     [isDone]
   );
 
@@ -92,5 +92,5 @@ export function useBasketMoves(
     return (): void => clearTimeout(timer);
   }, [items, isDone, leavingIds, later]);
 
-  return { isShownInBasket, leavingIds, arrivingIds };
+  return { isShownDone, leavingIds, arrivingIds };
 }
