@@ -51,7 +51,8 @@ review (a full re-check of everything), tell the owner — that wastes tokens.
 - **Mockup first, then code.** For every page: make an HTML mockup, show it,
   get a yes, then build. Mockups live in the scratchpad (not the repo).
 - **One page at a time:** Home ✅ → Bills ✅ → Parking ✅ (review asked on #252) → Tasks (Chores merged in) ✅ → Chat ✅ → More/Settings ✅ →
-  Grocery → Spending ✅ (review asked on #252) → the rest.
+  Grocery → Spending ✅ (review asked on #252) → the rest (autonomous pass) → sign-in, intro,
+  house setup, 404 (built, owner to review on the preview).
 - **One branch, one draft PR:** all redesign work goes on `feature/app-redesign`
   (PR #252, kept as a **draft**). CodeRabbit skips drafts, so pushes during the
   work cost no reviews; each push still gets a Vercel preview and the free CI
@@ -431,6 +432,45 @@ the mockup step and follow the approved style. Each has its own object:
 New shared pieces: `PageSheet` + `SheetButton` (standard bottom sheet and its
 blue button), `InkTickBox`, `Fold` (opens/closes a row by its height so the
 list below glides instead of jumping). Emoji were removed from empty-state texts.
+
+**Sign-in, intro, house setup, 404 (built on #252 without mockups, owner to review)**
+
+The owner asked to "build the rest", so these follow the approved style without
+a mockup step. Their object is **the front door** (`components/auth/`):
+
+- No more blue header with a white card. Every sign-in page (`AuthScreen`) sits
+  on the page colour: blue "‹ Back" link, Fraunces title with a small drawing at
+  its end (a brass **key on a cream tag** for log in / forgot / reset password,
+  an **envelope** for check your inbox), fields written on a line (`AuthField`:
+  label above, blue line while writing, red line on the field to fix, an eye for
+  passwords, big spaced digits for codes), the big blue button (`SheetButton`,
+  which now takes `loading` and `testID`), and plain text links (`TextLink`).
+- Welcome: a drawn **blue front door** ("42", brass letterbox, doormat, a plant)
+  with Mate beside it, "HouseMates" in Fraunces, the tagline handwritten, the
+  pitch on a notebook page. The language is picked right there as pen-circled
+  words (English · עברית · Español), like Settings — the flag chip is gone.
+- Signup steps are words, not numbered circles (`StepTrail`): the current step
+  circled in pen, finished ones ticked. The 18+ / terms box is an `InkTickBox`;
+  the password strength is a thin line with Weak/Fair/Strong in handwriting;
+  "Use it" for an email typo is handwritten. "Email sent" is a blue sticky note.
+- Password updated: a notebook page with the key on it (`PasswordDone`).
+- Accept updated terms: the changes are lines on a notebook page, each with a
+  blue pen tick.
+- Intro slides: each picture is drawn on cream paper held by masking tape
+  (`TapedPicture`: door / receipt / car), Fraunces title, handwritten subtitle;
+  the dots are ink dots with the current one a short blue stroke.
+- House setup: Create / Join are a cream **key tag** and a blue **ticket stub**
+  (the same objects Settings uses for the house and its invite code); the chosen
+  one has its name circled in pen, the other's writing fades (the paper stays
+  bright in dark mode). "Is this your house?" is a `PageSheet` with the house as
+  a key tag. The logic lives in `hooks/useHouseSetup.ts`.
+- 404: Mate with "404" scribbled on a blue sticky note.
+- Removed (no longer used): `StepProgress`, `LanguageSwitcher`,
+  `AuthIllustration` (+ its photos), `HouseSkyline`.
+- Not restyled because nothing opens them: Games, Maintenance and Condition
+  (hidden; Property replaced the last two), the old `settings/index` page and
+  NFC Parking (only linked from that old page), and Premium (switched off by
+  `PREMIUM_ENABLED`).
 
 ## 8. Working setup (for the next session)
 
