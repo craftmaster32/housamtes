@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // A touch longer than the Fold's close, so rows are gone before they're removed.
-const FOLD_MS = 260;
+const FOLD_MS = 200;
 
 export interface FoldAway {
   /** Rows folding away right now. */

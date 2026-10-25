@@ -3,8 +3,8 @@ import { type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 
-const DRAW_MS = 260;
-const ERASE_MS = 140;
+const DRAW_MS = 200;
+const ERASE_MS = 110;
 const TICK = 'M4 13 L10.5 20 L23 3';
 // Length of TICK in its 26×26 box, so the stroke can be drawn bit by bit.
 const LENGTH = Math.hypot(6.5, 7) + Math.hypot(12.5, 17);

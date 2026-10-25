@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 
-const OPEN_MS = 300;
-const CLOSE_MS = 240;
+const OPEN_MS = 220;
+const CLOSE_MS = 180;
 
 type Phase = 'open' | 'closing' | 'closed' | 'opening';
 

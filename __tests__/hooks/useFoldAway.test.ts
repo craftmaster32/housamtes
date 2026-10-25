@@ -14,7 +14,7 @@ describe('useFoldAway', () => {
     expect(remove).not.toHaveBeenCalled();
 
     await act(async () => {
-      jest.advanceTimersByTime(260);
+      jest.advanceTimersByTime(200);
     });
     expect(remove).toHaveBeenCalledTimes(1);
     expect(result.current.foldingIds.size).toBe(0);
@@ -26,7 +26,7 @@ describe('useFoldAway', () => {
 
     act(() => result.current.foldAway(['milk'], remove));
     await act(async () => {
-      jest.advanceTimersByTime(260);
+      jest.advanceTimersByTime(200);
     });
     expect(result.current.foldingIds.size).toBe(0);
   });

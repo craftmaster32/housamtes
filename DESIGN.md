@@ -367,6 +367,9 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
   a little odometer (`RollingCount`); the item's bar and the trip's progress
   bar slide to their new length (`useEasedValue`). Owner also wants smooth
   moves between pages — to be added later.
+- Speed (owner: "a bit faster"): ticked items wait ½ s before moving; folds
+  open in 220 ms / close in 180 ms; the tick draws in 200 ms; counts roll in
+  150 ms; bars slide in 200 ms.
 - "Clear ticked" folds the ticked rows (and any aisle sign left empty) away
   before they're removed (`useFoldAway`). Tasks use the same calm move: a
   ticked task waits a beat, then folds down under "done" (`useTaskPadRows`).

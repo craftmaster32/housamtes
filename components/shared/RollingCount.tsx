@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 
-const ROLL_MS = 200;
+const ROLL_MS = 150;
 
 interface RollingCountProps {
   /** What to show, e.g. "3/12". */

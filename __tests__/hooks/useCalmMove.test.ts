@@ -45,20 +45,20 @@ describe('useCalmMove', () => {
     expect(result.current.leavingIds.size).toBe(0);
 
     act(() => {
-      jest.advanceTimersByTime(900);
+      jest.advanceTimersByTime(500);
     });
     expect(result.current.leavingIds.has('milk')).toBe(true);
     expect(result.current.isShownDone(ticked)).toBe(false);
 
     act(() => {
-      jest.advanceTimersByTime(260);
+      jest.advanceTimersByTime(200);
     });
     expect(result.current.leavingIds.size).toBe(0);
     expect(result.current.arrivingIds.has('milk')).toBe(true);
     expect(result.current.isShownDone(ticked)).toBe(true);
 
     act(() => {
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(300);
     });
     expect(result.current.arrivingIds.size).toBe(0);
   });
@@ -67,16 +67,16 @@ describe('useCalmMove', () => {
     const { result, rerender } = setup([item('milk'), item('eggs')]);
     rerender({ items: [item('milk', true), item('eggs')] });
     act(() => {
-      jest.advanceTimersByTime(600);
+      jest.advanceTimersByTime(300);
     });
     rerender({ items: [item('milk', true), item('eggs', true)] });
     act(() => {
-      jest.advanceTimersByTime(600);
+      jest.advanceTimersByTime(300);
     });
     // The second tick restarted the wait, so nothing has moved yet.
     expect(result.current.leavingIds.size).toBe(0);
     act(() => {
-      jest.advanceTimersByTime(300);
+      jest.advanceTimersByTime(250);
     });
     expect([...result.current.leavingIds].sort()).toEqual(['eggs', 'milk']);
   });
@@ -85,7 +85,7 @@ describe('useCalmMove', () => {
     const { result, rerender } = setup([item('milk')]);
     rerender({ items: [item('milk', true)] });
     act(() => {
-      jest.advanceTimersByTime(400);
+      jest.advanceTimersByTime(200);
     });
     rerender({ items: [item('milk')] });
     act(() => {

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 
-const EASE_MS = 260;
+const EASE_MS = 200;
 
 /**
  * An Animated.Value that glides to each new `value` instead of snapping (e.g.

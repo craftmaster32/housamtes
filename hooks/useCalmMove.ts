@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // under "done") —
 // long enough to see the tick and undo a wrong tap, and to tick a few things
 // in a row without the list moving under your finger.
-const HOLD_MS = 900;
+const HOLD_MS = 500;
 // A touch longer than the Fold's close and open, so each finishes first.
-const LEAVE_MS = 260;
-const ARRIVE_MS = 400;
+const LEAVE_MS = 200;
+const ARRIVE_MS = 300;
 
 export interface CalmMove<T> {
   /** The side an item is shown on right now (true = done side). */
