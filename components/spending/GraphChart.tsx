@@ -9,6 +9,7 @@ import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 import { PenCircle } from '@components/shared/PenCircle';
+import { Hatch } from '@components/spending/Hatch';
 import { fmtShort, type SpendingView } from '@components/spending/spendingFormat';
 import { mf, ms } from '@utils/responsive';
 
@@ -17,20 +18,6 @@ const P = lightColors;
 const PAPER = '#FBFCFA';
 const GRID = 'rgba(79,120,176,0.16)';
 const BAR_MAX_H = ms(96);
-
-/**
- * Pencil hatching. Each Svg defines its own copy: on iOS a pattern can only be
- * used inside the Svg that defines it.
- */
-function Hatch({ id }: { id: string }): React.JSX.Element {
-  return (
-    <Defs>
-      <Pattern id={id} width={6} height={6} patternUnits="userSpaceOnUse">
-        <Path d="M0 6 L6 0" stroke="rgba(34,32,29,0.55)" strokeWidth={1.2} />
-      </Pattern>
-    </Defs>
-  );
-}
 
 interface GraphChartProps {
   months: MonthSpend[];
