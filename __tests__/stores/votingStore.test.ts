@@ -16,7 +16,8 @@
  */
 
 import { summarizeProposalVotes, useVotingStore, type Proposal } from '../../stores/votingStore';
-import { ok, fail } from '../__helpers__/supabaseMock';
+import { ok, fail, dbResult } from '../__helpers__/supabaseMock';
+import { useAuthStore } from '../../stores/authStore';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -103,9 +104,9 @@ describe('votingStore — castVote', () => {
   it('throws when the proposal is already closed (client guard)', async () => {
     useVotingStore.setState({ proposals: [proposal({ id: 'p1', isOpen: false })] });
 
-    await expect(
-      useVotingStore.getState().castVote('p1', 'Bob', 'yes')
-    ).rejects.toThrow('This vote is already closed');
+    await expect(useVotingStore.getState().castVote('p1', 'Bob', 'yes')).rejects.toThrow(
+      'This vote is already closed'
+    );
 
     expect(mockFrom).not.toHaveBeenCalled();
   });
@@ -136,7 +137,10 @@ describe('votingStore — castVote', () => {
 
     await useVotingStore.getState().castVote('p1', 'Carol', 'no');
 
-    expect(useVotingStore.getState().proposals[0].votes[0]).toMatchObject({ person: 'Carol', choice: 'no' });
+    expect(useVotingStore.getState().proposals[0].votes[0]).toMatchObject({
+      person: 'Carol',
+      choice: 'no',
+    });
   });
 
   it('replaces an existing vote from the same person (no duplicate votes)', async () => {
@@ -159,9 +163,9 @@ describe('votingStore — castVote', () => {
     });
     mockFrom.mockReturnValue(fail('write conflict'));
 
-    await expect(
-      useVotingStore.getState().castVote('p1', 'Bob', 'yes')
-    ).rejects.toThrow('Could not record your vote. Please try again.');
+    await expect(useVotingStore.getState().castVote('p1', 'Bob', 'yes')).rejects.toThrow(
+      'Could not record your vote. Please try again.'
+    );
 
     // Reverted correctly — Bob's vote is gone
     expect(useVotingStore.getState().proposals[0].votes).toEqual(originalVotes);
@@ -176,12 +180,116 @@ describe('votingStore — castVote', () => {
     });
     mockFrom.mockReturnValue(fail('error'));
 
-    await expect(
-      useVotingStore.getState().castVote('p1', 'Bob', 'yes')
-    ).rejects.toThrow();
+    await expect(useVotingStore.getState().castVote('p1', 'Bob', 'yes')).rejects.toThrow();
 
     // p2's votes must be untouched
     expect(useVotingStore.getState().proposals[1].votes).toHaveLength(1);
+  });
+});
+
+// A write whose result we release by hand, to recreate quick taps mid-save.
+function heldWrite(): {
+  chain: Record<string, unknown>;
+  release: () => void;
+  payload: () => unknown;
+} {
+  let release: () => void = () => undefined;
+  let payload: unknown;
+  const p = new Promise<{ data: null; error: null }>((resolve) => {
+    release = (): void => resolve({ data: null, error: null });
+  });
+  const chain: Record<string, unknown> = {
+    then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => p.then(res, rej),
+  };
+  chain.update = jest.fn((body: unknown) => {
+    payload = body;
+    return chain;
+  });
+  chain.eq = jest.fn(() => chain);
+  return { chain, release: () => release(), payload: () => payload };
+}
+
+describe('votingStore — quick Yes then No (no flicker)', () => {
+  it('shows the last tap at once and saves only that', async () => {
+    useVotingStore.setState({ proposals: [proposal({ id: 'p1', votes: [] })] });
+    const write = heldWrite();
+    mockFrom.mockReturnValueOnce(write.chain);
+
+    const yes = useVotingStore.getState().castVote('p1', 'Bob', 'yes');
+    const no = useVotingStore.getState().castVote('p1', 'Bob', 'no');
+    expect(useVotingStore.getState().proposals[0].votes).toEqual([{ person: 'Bob', choice: 'no' }]);
+
+    write.release();
+    await Promise.all([yes, no]);
+
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(write.payload()).toEqual({ votes: [{ person: 'Bob', choice: 'no' }] });
+    expect(useVotingStore.getState().proposals[0].votes).toEqual([{ person: 'Bob', choice: 'no' }]);
+  });
+
+  it('saves a tap made while an earlier save is still going', async () => {
+    useVotingStore.setState({ proposals: [proposal({ id: 'p1', votes: [] })] });
+    const first = heldWrite();
+    const second = heldWrite();
+    mockFrom.mockReturnValueOnce(first.chain).mockReturnValueOnce(second.chain);
+
+    const yes = useVotingStore.getState().castVote('p1', 'Bob', 'yes');
+    await new Promise((r) => setTimeout(r, 0)); // the Yes save is now on its way
+    const no = useVotingStore.getState().castVote('p1', 'Bob', 'no');
+    expect(useVotingStore.getState().proposals[0].votes).toEqual([{ person: 'Bob', choice: 'no' }]);
+
+    first.release();
+    await new Promise((r) => setTimeout(r, 0));
+    second.release();
+    await Promise.all([yes, no]);
+
+    expect(first.payload()).toEqual({ votes: [{ person: 'Bob', choice: 'yes' }] });
+    expect(second.payload()).toEqual({ votes: [{ person: 'Bob', choice: 'no' }] });
+    expect(useVotingStore.getState().proposals[0].votes).toEqual([{ person: 'Bob', choice: 'no' }]);
+  });
+
+  it('keeps the tap when a reload with the older vote lands mid-save', async () => {
+    useAuthStore.setState({ houseId: 'h1' });
+    useVotingStore.setState({
+      proposals: [proposal({ id: 'p1', votes: [{ person: 'Bob', choice: 'yes' }] })],
+    });
+    const write = heldWrite();
+    mockFrom.mockReturnValueOnce(write.chain).mockReturnValueOnce(
+      dbResult({
+        data: [
+          {
+            id: 'p1',
+            title: 'Get a dog',
+            description: '',
+            created_by: 'Alice',
+            created_at: '2026-04-01T00:00:00Z',
+            is_open: true,
+            votes: [{ person: 'Bob', choice: 'yes' }],
+          },
+        ],
+        error: null,
+      })
+    );
+
+    const no = useVotingStore.getState().castVote('p1', 'Bob', 'no');
+    await useVotingStore.getState().load('h1');
+
+    expect(useVotingStore.getState().proposals[0].votes).toEqual([{ person: 'Bob', choice: 'no' }]);
+    write.release();
+    await no;
+  });
+
+  it('puts the vote back as it was before the taps if saving fails', async () => {
+    useVotingStore.setState({
+      proposals: [proposal({ id: 'p1', votes: [{ person: 'Bob', choice: 'yes' }] })],
+    });
+    mockFrom.mockReturnValue(fail('offline'));
+
+    await expect(useVotingStore.getState().castVote('p1', 'Bob', 'no')).rejects.toThrow();
+
+    expect(useVotingStore.getState().proposals[0].votes).toEqual([
+      { person: 'Bob', choice: 'yes' },
+    ]);
   });
 });
 
@@ -204,9 +312,9 @@ describe('votingStore — closeProposal', () => {
     useVotingStore.setState({ proposals: [proposal({ id: 'p1', isOpen: true })] });
     mockFrom.mockReturnValue(fail('lock timeout'));
 
-    await expect(
-      useVotingStore.getState().closeProposal('p1')
-    ).rejects.toThrow('Could not close the proposal. Please try again.');
+    await expect(useVotingStore.getState().closeProposal('p1')).rejects.toThrow(
+      'Could not close the proposal. Please try again.'
+    );
 
     expect(useVotingStore.getState().proposals[0].isOpen).toBe(true); // unchanged
   });
@@ -216,9 +324,7 @@ describe('votingStore — closeProposal', () => {
     mockFrom.mockReturnValue(ok());
 
     // No error thrown, DB update targets 0 rows
-    await expect(
-      useVotingStore.getState().closeProposal('wrong-id')
-    ).resolves.toBeUndefined();
+    await expect(useVotingStore.getState().closeProposal('wrong-id')).resolves.toBeUndefined();
 
     // p1 is unaffected — at least state is consistent here
     expect(useVotingStore.getState().proposals[0].isOpen).toBe(true);
@@ -244,9 +350,9 @@ describe('votingStore — remove', () => {
     useVotingStore.setState({ proposals: [proposal({ id: 'p1', title: 'Get a dog' })] });
     mockFrom.mockReturnValue(fail('RLS violation'));
 
-    await expect(
-      useVotingStore.getState().remove('p1')
-    ).rejects.toThrow('Could not delete the proposal. Please try again.');
+    await expect(useVotingStore.getState().remove('p1')).rejects.toThrow(
+      'Could not delete the proposal. Please try again.'
+    );
 
     expect(useVotingStore.getState().proposals).toHaveLength(1); // unchanged
   });
@@ -287,8 +393,13 @@ describe('votingStore — addProposal', () => {
     useVotingStore.setState({ proposals: [existing] });
 
     const row = {
-      id: 'p-new', title: 'New topic', description: 'details',
-      created_by: 'Alice', created_at: '2026-04-18T00:00:00Z', is_open: true, votes: [],
+      id: 'p-new',
+      title: 'New topic',
+      description: 'details',
+      created_by: 'Alice',
+      created_at: '2026-04-18T00:00:00Z',
+      is_open: true,
+      votes: [],
     };
     mockFrom.mockReturnValue(ok(row));
 
@@ -303,8 +414,13 @@ describe('votingStore — addProposal', () => {
 
   it('new proposal always starts with empty votes array', async () => {
     const row = {
-      id: 'p-new', title: 'Topic', description: '',
-      created_by: 'Bob', created_at: '2026-04-18T00:00:00Z', is_open: true, votes: null,
+      id: 'p-new',
+      title: 'Topic',
+      description: '',
+      created_by: 'Bob',
+      created_at: '2026-04-18T00:00:00Z',
+      is_open: true,
+      votes: null,
     };
     mockFrom.mockReturnValue(ok(row));
 
