@@ -3,13 +3,14 @@ import { View, StyleSheet, Pressable, FlatList, Animated, Easing } from 'react-n
 import { Text } from 'react-native-paper';
 import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, lightColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useEventsStore } from '@stores/eventsStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { isEventImminent } from '@utils/events';
 import { upcomingEventOccurrences } from '@utils/happeningNow';
@@ -19,6 +20,8 @@ import { mf, ms } from '@utils/responsive';
 const LOOKAHEAD = 5;
 // Maximum upcoming entries shown in the strip.
 const DISPLAY_LIMIT = 3;
+// Amber dark enough to read on the cream ticket.
+const PENDING_INK = '#A0711A';
 
 function todayYMD(): string {
   const d = new Date();
@@ -72,32 +75,37 @@ interface TicketProps {
   time?: string;
   title: string;
   live?: boolean;
+  /** Degrees; neighbours lean opposite ways so the row looks hand-placed. */
+  tilt?: number;
   onPress: () => void;
   accessibilityLabel: string;
 }
 
-const PERFORATION = Array.from({ length: 5 });
+const PERFORATION = Array.from({ length: 6 });
 
 // ── One ticket ────────────────────────────────────────────────────────────────
-// A slim ticket: when it happens on a torn-off stub, what it is beside it.
-// Several sit side by side in one row so plans never push the money card
-// and dashboard cards off the first screen.
+// A cream paper ticket: when it happens on the stub (the day handwritten, the
+// time in the serif), a dashed tear with punched notches, then what it is.
+// Paper, so it stays light in dark mode. Several sit side by side in one row
+// so plans never push the money card and dashboard cards off the first screen.
 function Ticket({
   accent,
   day,
   time,
   title,
   live = false,
+  tilt = 0,
   onPress,
   accessibilityLabel,
 }: TicketProps): React.JSX.Element {
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
   return (
     <Pressable
       style={({ pressed }) => [
         styles.ticket,
-        { backgroundColor: c.surface },
+        { backgroundColor: c.paper, transform: [{ rotate: `${tilt}deg` }] },
         pressed && styles.pressed,
       ]}
       onPress={onPress}
@@ -109,23 +117,26 @@ function Ticket({
       <View style={styles.stub}>
         <View style={styles.dayRow}>
           {live && <LiveDot color={accent} />}
-          <Text style={[styles.day, { color: accent }]} numberOfLines={1}>
+          <Text style={[styles.day, hand, { color: accent }]} numberOfLines={1}>
             {day}
           </Text>
         </View>
         {!!time && (
-          <Text style={[styles.time, headingFont, { color: c.textPrimary }]} numberOfLines={1}>
+          <Text style={[styles.time, headingFont, { color: c.paperInk }]} numberOfLines={1}>
             {time}
           </Text>
         )}
       </View>
-      {/* Dashed tear line — drawn as dots since iOS can't dash a single border side. */}
+      {/* The tear: punched notches top and bottom, dashes between — drawn as
+          Views since iOS can't dash a single border side. */}
       <View style={styles.tear} pointerEvents="none">
+        <View style={[styles.notch, styles.notchTop, { backgroundColor: c.background }]} />
         {PERFORATION.map((_, i) => (
-          <View key={i} style={[styles.dash, { backgroundColor: c.border }]} />
+          <View key={i} style={[styles.dash, { backgroundColor: 'rgba(34,32,29,0.22)' }]} />
         ))}
+        <View style={[styles.notch, styles.notchBottom, { backgroundColor: c.background }]} />
       </View>
-      <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={1}>
+      <Text style={[styles.title, { color: c.paperInk }]} numberOfLines={1}>
         {title}
       </Text>
     </Pressable>
@@ -145,7 +156,6 @@ interface ComingEntry {
 // ── The strip ─────────────────────────────────────────────────────────────────
 export function HappeningNow(): React.JSX.Element {
   const { t } = useTranslation();
-  const c = useThemedColors();
   const memberName = useMemberName();
   const events = useEventsStore((s) => s.events);
   const activeRun = useGroceryStore((s) => s.activeRun);
@@ -173,7 +183,7 @@ export function HappeningNow(): React.JSX.Element {
     const eventEntries: ComingEntry[] = upcomingEventOccurrences(events, today, LOOKAHEAD).map(
       (e) => ({
         key: `event:${e.id}`,
-        accent: c.primary,
+        accent: lightColors.primary,
         date: e.date,
         startTime: e.startTime,
         title: e.title,
@@ -186,7 +196,7 @@ export function HappeningNow(): React.JSX.Element {
         const name = memberName(r.requestedBy).split(' ')[0];
         return {
           key: `parking:${r.id}`,
-          accent: r.status === 'pending' ? c.warning : c.secondaryForeground,
+          accent: r.status === 'pending' ? PENDING_INK : lightColors.secondaryForeground,
           date: r.date,
           startTime: r.startTime,
           title:
@@ -223,21 +233,10 @@ export function HappeningNow(): React.JSX.Element {
         })
         .slice(0, DISPLAY_LIMIT)
     );
-  }, [
-    events,
-    reservations,
-    today,
-    c.primary,
-    c.secondaryForeground,
-    c.warning,
-    t,
-    memberName,
-    handleCalendarPress,
-    handleParkingPress,
-  ]);
+  }, [events, reservations, today, t, memberName, handleCalendarPress, handleParkingPress]);
 
   const renderSoonItem = useCallback(
-    ({ item }: { item: ComingEntry }): React.JSX.Element => {
+    ({ item, index }: { item: ComingEntry; index: number }): React.JSX.Element => {
       // Everything here is within 24h, so the stub only ever says today or tomorrow.
       const isToday = item.date === today;
       const dayLabel = isToday ? t('common.today') : t('common.tomorrow');
@@ -248,6 +247,7 @@ export function HappeningNow(): React.JSX.Element {
           day={dayLabel}
           time={item.startTime}
           title={item.title}
+          tilt={index % 2 === 0 ? -1 : 1.2}
           onPress={item.onPress}
           accessibilityLabel={`${when} — ${item.title}`}
         />
@@ -266,7 +266,7 @@ export function HappeningNow(): React.JSX.Element {
       {/* ── Happening now (live) ── */}
       {activeRun && (
         <Ticket
-          accent={c.success}
+          accent={lightColors.success}
           day={nowLabel}
           title={t('happening.shopping_now', { name: activeRun.shopperName.split(' ')[0] })}
           live
@@ -292,37 +292,49 @@ export function HappeningNow(): React.JSX.Element {
   );
 }
 
+const NOTCH = ms(14);
+
 const styles = StyleSheet.create({
-  flex1: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 
   wrap: { marginTop: ms(12), gap: ms(8) },
-  row: { gap: ms(8) },
+  // Room above and below for the tilt and the shadow.
+  row: { gap: ms(10), paddingVertical: ms(6), paddingHorizontal: ms(2) },
   ticket: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    borderRadius: ms(14),
-    height: ms(50),
+    borderRadius: ms(8),
+    minHeight: ms(58),
     maxWidth: ms(260),
     paddingEnd: ms(14),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(4) },
+    shadowOpacity: 0.1,
+    shadowRadius: ms(8),
+    elevation: 2,
   },
   stub: {
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: ms(10),
+    paddingHorizontal: ms(12),
+    paddingVertical: ms(6),
   },
   tear: {
     alignSelf: 'stretch',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: ms(7),
-    marginEnd: ms(10),
+    paddingVertical: NOTCH / 2 + ms(3),
+    marginEnd: ms(12),
   },
+  notch: { position: 'absolute', width: NOTCH, height: NOTCH, borderRadius: NOTCH / 2 },
+  notchTop: { top: -NOTCH / 2 },
+  notchBottom: { bottom: -NOTCH / 2 },
   dash: { width: 2, height: ms(4), borderRadius: 1 },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
-  day: { fontSize: mf(11), ...font.extrabold },
-  time: { fontSize: mf(16), lineHeight: mf(19), letterSpacing: -0.3 },
+  day: { fontSize: mf(18), lineHeight: mf(20) },
+  time: { fontSize: mf(19), lineHeight: mf(23), letterSpacing: -0.3 },
   title: { flexShrink: 1, fontSize: mf(14.5), ...font.bold },
   liveDot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
 });
