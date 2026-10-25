@@ -160,7 +160,12 @@ Card radius 20–24, sheet radius 26, buttons 16–18.
 Pop-ups: bottom sheets sit on the **page colour** (`background`) with a grab
 handle, Fraunces title, round close button; chips/cards inside are `surface`.
 Centered dialogs (date picker, new category) the same. Cancel = blue text link,
-primary = big blue rounded button. System Alerts stay native.
+primary = big blue rounded button. **Every `Alert.alert`** (from `@lib/alert`) is
+the app's own **blue sticky note** with tape (`AlertHost`), on web and phones —
+owner's choice; the phone's grey box and the browser's alert/confirm (which
+wrote "Cerrar" in the phone's language) are gone. Main button big blue (red to
+delete), Cancel a blue word, extra choices outlined. Pass `{ code }` to show a
+short value big in handwriting (the invite code).
 
 ## 5. Motion
 
@@ -472,6 +477,14 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   NFC Parking. Premium stays (switched off by `PREMIUM_ENABLED`; it now bounces
   to the new Settings page).
 - **Later (owner said yes, not now):** smooth moves between pages.
+
+**Home events + pop-ups (after the owner's preview check)**
+
+- Upcoming events on Home are **cream paper tickets** (owner picked A of three):
+  the day handwritten (blue, amber for a parking request, green "Now" for a
+  live shop), the time in the serif, a dashed tear with punched notches, what
+  it is beside it; neighbours lean opposite ways. Paper, so light in dark mode.
+- Pop-up messages: the sticky note above (owner picked it over the plain card).
 
 ## 8. Working setup (for the next session)
 
