@@ -1,19 +1,21 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, Button, TextInput } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-import { sizes } from '@constants/sizes';
+import { useThemedColors } from '@constants/colors';
+import { useHandFont } from '@hooks/useHandFont';
 import { font } from '@constants/typography';
-import { StepProgress } from '@components/shared/StepProgress';
+import { AuthScreen } from '@components/auth/AuthScreen';
+import { AuthField } from '@components/auth/AuthField';
+import { StepTrail } from '@components/auth/StepTrail';
+import { TextLink } from '@components/auth/TextLink';
+import { EnvelopeArt } from '@components/auth/art/EnvelopeArt';
+import { SheetButton } from '@components/shared/SheetButton';
 import { getErrorMessage } from '@utils/errors';
-
 import { mf, ms } from '@utils/responsive';
+
 export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const pendingEmail = useAuthStore((s) => s.pendingEmail);
@@ -30,15 +32,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const [isCorrectingEmail, setIsCorrectingEmail] = useState(false);
 
   const C = useThemedColors();
-  const headingFont = useHeadingFont();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const hand = useHandFont();
 
   const steps = useMemo(
-    () => [
-      { label: t('auth.step_account') },
-      { label: t('auth.step_verify') },
-      { label: t('auth.step_house') },
-    ],
+    () => [t('auth.step_account'), t('auth.step_verify'), t('auth.step_house')],
     [t]
   );
 
@@ -119,329 +116,135 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     }
   }, [newEmail, correctPendingEmail, t]);
 
+  const busy = isVerifying || isResending;
+  const verifyDisabled = busy || !pendingEmail || code.trim().length < 6;
+
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
-          <StepProgress steps={steps} currentStep={1} />
-        </SafeAreaView>
+    <AuthScreen
+      title={t('auth.check_inbox_title')}
+      top={<StepTrail steps={steps} current={1} />}
+      art={<EnvelopeArt width={ms(70)} ink={C.textPrimary} />}
+    >
+      <View style={styles.textBlock}>
+        {!!pendingEmail && (
+          <Text style={[styles.body, { color: C.textSecondary }]}>
+            {t('auth.check_inbox_body_code', { email: pendingEmail })}
+          </Text>
+        )}
+        {!pendingEmail && (
+          <Text style={[styles.error, { color: C.danger }]}>{t('auth.no_pending_email')}</Text>
+        )}
+        {!!pendingEmail && (
+          <Text style={[styles.hint, { color: C.textTertiary }]}>
+            {t('auth.check_inbox_gate_note')}
+          </Text>
+        )}
       </View>
 
-      <View style={styles.cardWrapper}>
-        <View style={styles.card}>
-          <View style={styles.envelopeWrap}>
-            <Ionicons name="mail" size={44} color={C.primary} />
-            <View style={styles.checkBadge}>
-              <Ionicons name="checkmark-circle" size={20} color={C.success} />
-            </View>
-          </View>
+      {!isEditingEmail && (
+        <>
+          <AuthField
+            code
+            label={t('auth.code_from_email')}
+            value={code}
+            onChangeText={handleCodeChange}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+            autoComplete="one-time-code"
+            placeholder="••••••"
+            editable={!!pendingEmail && !busy}
+            returnKeyType="go"
+            onSubmitEditing={handleVerify}
+            accessibilityLabel={t('auth.verification_code_label')}
+            accessibilityHint={t('auth.verification_code_hint')}
+            error={!!error}
+          />
 
-          <View style={styles.textBlock}>
-            <Text style={[styles.heading, headingFont]}>{t('auth.check_inbox_title')}</Text>
-            {!!pendingEmail && (
-              <Text style={styles.bodyText}>
-                {t('auth.check_inbox_body_code', { email: pendingEmail })}
+          {!!error && <Text style={[styles.error, { color: C.danger }]}>{error}</Text>}
+
+          {resent && (
+            <View style={[styles.note, { backgroundColor: C.note }]}>
+              <Text style={[styles.noteText, hand, { color: C.noteInk }]}>
+                ✓ {t('auth.email_sent')}
               </Text>
-            )}
-            {!pendingEmail && <Text style={styles.errorText}>{t('auth.no_pending_email')}</Text>}
-            {!!pendingEmail && (
-              <Text style={styles.hintText}>{t('auth.check_inbox_gate_note')}</Text>
-            )}
-          </View>
-
-          {!isEditingEmail && (
-            <>
-              <TextInput
-                mode="outlined"
-                value={code}
-                onChangeText={handleCodeChange}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
-                style={styles.codeInput}
-                label={t('auth.code_from_email')}
-                disabled={!pendingEmail || isVerifying || isResending}
-                accessibilityLabel={t('auth.verification_code_label')}
-                accessibilityHint={t('auth.verification_code_hint')}
-              />
-
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-              {resent && (
-                <View style={styles.resentBanner}>
-                  <Ionicons name="checkmark-circle" size={16} color={C.success} />
-                  <Text style={styles.resentText}>{t('auth.email_sent')}</Text>
-                </View>
-              )}
-
-              <Button
-                mode="contained"
-                onPress={handleVerify}
-                loading={isVerifying}
-                disabled={isVerifying || isResending || !pendingEmail || code.trim().length < 6}
-                style={styles.verifyButton}
-                contentStyle={styles.buttonContent}
-                labelStyle={styles.buttonLabel}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('auth.verify_button')}
-                accessibilityState={{
-                  disabled: isVerifying || isResending || !pendingEmail || code.trim().length < 6,
-                  busy: isVerifying,
-                }}
-              >
-                {isVerifying ? t('auth.verifying') : t('auth.verify_button')}
-              </Button>
-
-              <Button
-                mode="outlined"
-                onPress={handleResend}
-                loading={isResending}
-                disabled={isResending || isVerifying || !pendingEmail}
-                style={styles.ghostButton}
-                contentStyle={styles.buttonContent}
-                labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
-                textColor={C.textPrimary}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('auth.resend_email_short')}
-              >
-                {isResending ? t('auth.sending') : t('auth.resend_email_short')}
-              </Button>
-
-              <View style={styles.linksRow}>
-                <Pressable
-                  onPress={handleStartEditEmail}
-                  disabled={!pendingEmail}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('auth.wrong_email_correct')}
-                  accessibilityState={{ disabled: !pendingEmail }}
-                  style={styles.goBackLink}
-                >
-                  <Text style={styles.goBackText}>{t('auth.wrong_email_correct')}</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handleGoBack}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('auth.wrong_email_go_back')}
-                  style={styles.goBackLink}
-                >
-                  <Text style={styles.goBackTextMuted}>{t('auth.wrong_email_go_back')}</Text>
-                </Pressable>
-              </View>
-            </>
-          )}
-
-          {isEditingEmail && (
-            <View style={styles.editEmailBlock}>
-              <TextInput
-                mode="outlined"
-                value={newEmail}
-                onChangeText={setNewEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoFocus
-                style={styles.codeInput}
-                label={t('auth.email')}
-                disabled={isCorrectingEmail}
-                accessibilityLabel={t('auth.email')}
-                accessibilityHint={t('auth.email_hint')}
-              />
-
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-              <View style={styles.editEmailButtons}>
-                <Button
-                  mode="outlined"
-                  onPress={handleCancelEditEmail}
-                  disabled={isCorrectingEmail}
-                  style={[styles.ghostButton, styles.editEmailCancel]}
-                  contentStyle={styles.buttonContent}
-                  labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
-                  textColor={C.textPrimary}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.cancel')}
-                  accessibilityState={{ disabled: isCorrectingEmail }}
-                >
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  mode="contained"
-                  onPress={handleCorrectEmail}
-                  loading={isCorrectingEmail}
-                  disabled={isCorrectingEmail || !newEmail.trim()}
-                  style={[styles.verifyButton, styles.editEmailSave]}
-                  contentStyle={styles.buttonContent}
-                  labelStyle={styles.buttonLabel}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('auth.correct_email_button')}
-                  accessibilityState={{
-                    disabled: isCorrectingEmail || !newEmail.trim(),
-                    busy: isCorrectingEmail,
-                  }}
-                >
-                  {t('auth.correct_email_button')}
-                </Button>
-              </View>
             </View>
           )}
-        </View>
-      </View>
-    </View>
+
+          <SheetButton
+            label={isVerifying ? t('auth.verifying') : t('auth.verify_button')}
+            accessibilityLabel={t('auth.verify_button')}
+            onPress={handleVerify}
+            loading={isVerifying}
+            disabled={verifyDisabled}
+          />
+
+          <View style={styles.links}>
+            <TextLink
+              label={isResending ? t('auth.sending') : t('auth.resend_email_short')}
+              accessibilityLabel={t('auth.resend_email_short')}
+              onPress={handleResend}
+              disabled={busy || !pendingEmail}
+            />
+            <TextLink
+              label={t('auth.wrong_email_correct')}
+              onPress={handleStartEditEmail}
+              disabled={!pendingEmail}
+            />
+            <TextLink muted label={t('auth.wrong_email_go_back')} onPress={handleGoBack} />
+          </View>
+        </>
+      )}
+
+      {isEditingEmail && (
+        <>
+          <AuthField
+            label={t('auth.email')}
+            value={newEmail}
+            onChangeText={setNewEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoFocus
+            editable={!isCorrectingEmail}
+            returnKeyType="go"
+            onSubmitEditing={handleCorrectEmail}
+            accessibilityLabel={t('auth.email')}
+            accessibilityHint={t('auth.email_hint')}
+            error={!!error}
+          />
+
+          {!!error && <Text style={[styles.error, { color: C.danger }]}>{error}</Text>}
+
+          <SheetButton
+            label={t('auth.correct_email_button')}
+            onPress={handleCorrectEmail}
+            loading={isCorrectingEmail}
+            disabled={isCorrectingEmail || !newEmail.trim()}
+          />
+          <TextLink
+            label={t('common.cancel')}
+            onPress={handleCancelEditEmail}
+            disabled={isCorrectingEmail}
+          />
+        </>
+      )}
+    </AuthScreen>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: C.surface,
-    },
-    header: {
-      backgroundColor: C.surface,
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.sm,
-      paddingBottom: sizes.sm,
-    },
-    headerInner: {
-      paddingTop: sizes.xs,
-    },
-    cardWrapper: {
-      flex: 1,
-    },
-    card: {
-      flex: 1,
-      backgroundColor: C.surface,
-      paddingHorizontal: sizes.lg,
-      paddingTop: ms(24),
-      paddingBottom: ms(40),
-      alignItems: 'center',
-      gap: ms(20),
-    },
-    envelopeWrap: {
-      width: ms(88),
-      height: ms(88),
-      borderRadius: ms(26),
-      backgroundColor: C.secondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: sizes.xs,
-    },
-    checkBadge: {
-      position: 'absolute',
-      bottom: ms(-4),
-      end: ms(-4),
-      backgroundColor: C.surface,
-      borderRadius: ms(12),
-      padding: ms(2),
-    },
-    textBlock: {
-      alignItems: 'center',
-      gap: ms(8),
-    },
-    heading: {
-      fontSize: mf(24),
-      ...font.extrabold,
-      color: C.textPrimary,
-      letterSpacing: -0.3,
-      textAlign: 'center',
-    },
-    bodyText: {
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(22),
-    },
-    hintText: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: C.textTertiary,
-      textAlign: 'center',
-      marginTop: ms(4),
-    },
-    errorText: {
-      fontSize: sizes.fontXs,
-      ...font.regular,
-      color: C.danger,
-      textAlign: 'center',
-    },
-    resentBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.xs,
-      backgroundColor: 'rgba(79,176,113,0.1)',
-      paddingVertical: sizes.xs,
-      paddingHorizontal: sizes.md,
-      borderRadius: ms(10),
-    },
-    resentText: {
-      color: C.success,
-      ...font.semibold,
-      fontSize: mf(14),
-    },
-    codeInput: {
-      width: '100%',
-      backgroundColor: C.surface,
-      letterSpacing: 4,
-    },
-    verifyButton: {
-      borderRadius: ms(14),
-      width: '100%',
-    },
-    ghostButton: {
-      borderRadius: ms(14),
-      width: '100%',
-      borderColor: C.border,
-      borderWidth: 1.5,
-    },
-    buttonContent: { height: ms(52) },
-    buttonLabel: {
-      fontSize: sizes.fontMd,
-      ...font.semibold,
-      letterSpacing: 0.1,
-    },
-    linksRow: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: sizes.md,
-    },
-    goBackLink: {
-      paddingVertical: sizes.sm,
-      minHeight: sizes.touchTarget,
-      justifyContent: 'center',
-    },
-    goBackText: {
-      fontSize: sizes.fontSm,
-      ...font.medium,
-      color: C.primary,
-      textAlign: 'center',
-    },
-    goBackTextMuted: {
-      fontSize: sizes.fontSm,
-      ...font.medium,
-      color: C.textSecondary,
-      textAlign: 'center',
-    },
-    editEmailBlock: {
-      width: '100%',
-      gap: ms(12),
-    },
-    editEmailButtons: {
-      flexDirection: 'row',
-      gap: sizes.sm,
-    },
-    editEmailCancel: {
-      flex: 1,
-    },
-    editEmailSave: {
-      flex: 1,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  textBlock: { gap: ms(8), marginTop: ms(-8) },
+  body: { fontSize: mf(15.5), ...font.regular, lineHeight: mf(23) },
+  hint: { fontSize: mf(13.5), ...font.regular, lineHeight: mf(19) },
+  error: { fontSize: mf(14), ...font.medium, lineHeight: mf(20) },
+  note: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: ms(14),
+    paddingVertical: ms(8),
+    borderRadius: ms(4),
+    transform: [{ rotate: '-1.5deg' }],
+  },
+  noteText: { fontSize: mf(20) },
+  links: { gap: ms(2) },
+});

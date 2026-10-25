@@ -1,4 +1,4 @@
-import { StyleSheet, Pressable } from 'react-native';
+import { ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -10,6 +10,9 @@ interface SheetButtonProps {
   disabled?: boolean;
   /** Read out instead of the label, e.g. while it says "Saving…". */
   accessibilityLabel?: string;
+  /** Shows a small spinner beside the label while something is saving. */
+  loading?: boolean;
+  testID?: string;
 }
 
 /** The big blue rounded button at the bottom of a sheet or form. */
@@ -18,6 +21,8 @@ export function SheetButton({
   onPress,
   disabled = false,
   accessibilityLabel,
+  loading = false,
+  testID,
 }: SheetButtonProps): React.JSX.Element {
   const c = useThemedColors();
   return (
@@ -29,10 +34,12 @@ export function SheetButton({
       ]}
       onPress={onPress}
       disabled={disabled}
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, busy: loading }}
     >
+      {loading && <ActivityIndicator size="small" color="#FFFFFF" />}
       <Text style={styles.text} numberOfLines={1}>
         {label}
       </Text>
@@ -46,6 +53,8 @@ const styles = StyleSheet.create({
     borderRadius: ms(17),
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: ms(8),
     paddingHorizontal: ms(16),
   },
   text: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
