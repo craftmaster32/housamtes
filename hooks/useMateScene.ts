@@ -1,19 +1,29 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 
-// Mate turns up on roughly two visits in three, so he stays a surprise.
-const SHOW_CHANCE = 0.65;
+// Mate turns up on most visits (owner wants to see him), but not every one.
+const SHOW_CHANCE = 0.8;
+
+function pick<T extends string>(spots: readonly T[]): T | null {
+  return spots.length > 0 && Math.random() < SHOW_CHANCE
+    ? spots[Math.floor(Math.random() * spots.length)]
+    : null;
+}
 
 /**
  * Picks where Mate hides on this visit to a page — one of the page's spots, or
- * nowhere — once, when the page opens. One pick per page keeps the rule of at
- * most one Mate per screen. Pass `enabled = false` while the page shows its
- * empty-state Mate, so the two never meet.
+ * nowhere. The app keeps pages open in the background, so the pick is made
+ * again every time the page comes into view, not only the first time.
+ * One pick per page keeps the rule of at most one Mate per screen. Pass
+ * `enabled = false` while the page shows its empty-state Mate, so the two
+ * never meet.
  */
 export function useMateScene<T extends string>(spots: readonly T[], enabled = true): T | null {
-  const [spot] = useState<T | null>(() =>
-    spots.length > 0 && Math.random() < SHOW_CHANCE
-      ? spots[Math.floor(Math.random() * spots.length)]
-      : null
+  const [spot, setSpot] = useState<T | null>(() => pick(spots));
+  useFocusEffect(
+    useCallback(() => {
+      setSpot(pick(spots));
+    }, [spots])
   );
   return enabled ? spot : null;
 }
