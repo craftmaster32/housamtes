@@ -527,6 +527,17 @@ a mockup step. Their object is **the front door** (`components/auth/`):
 - Fixed: tapping Yes then No quickly flickered — saves now run one after
   another and a reload mid-save keeps your tap (`votingStore`).
 
+**Bottom menu (owner)**
+
+- Owner wants **icons only, no words**; rejected three looks (words + marker,
+  pen circle, binder tabs) and three more (hand-drawn icons, floating bar,
+  highlighter). Chosen: today's bar with option A's feel — the page you're on is
+  blue with a soft blue **marker stroke** under its icon, swiped in left to
+  right when you arrive (`TabButton`, RN Animated so it runs on the web) — and
+  a **P parking sign** instead of the car (`ParkingSignIcon`, outlined, filled in
+  when on Parking; matches the Home parking tile). The + is the blue round
+  button. New-things counts are red numbers circled in pen (`PenCount`).
+
 ## 8. Working setup (for the next session)
 
 - Staging Supabase (test data only): `https://tcwhpelylmbafagliors.supabase.co`.
