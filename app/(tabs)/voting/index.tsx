@@ -8,6 +8,7 @@ import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { BallotCard } from '@components/voting/BallotCard';
 import { ProposalSheet } from '@components/voting/ProposalSheet';
 import { PaperTag } from '@components/bills/recurring/PaperTag';
@@ -133,6 +134,7 @@ function VotingScreen(): React.JSX.Element {
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
+        ListFooterComponent={open.length > 0 ? <MateCameo page="voting" /> : null}
         ListHeaderComponent={
           <View>
             <BackLink label={t('common.home')} />

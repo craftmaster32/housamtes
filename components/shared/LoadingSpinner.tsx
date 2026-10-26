@@ -6,6 +6,7 @@ import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { MateDrawing } from '@components/shared/MateDrawing';
 import { useReduceMotion } from '@hooks/useReduceMotion';
+import { LOADING_QUIP_KEYS as QUIP_KEYS } from '@constants/loadingQuips';
 
 interface LoadingSpinnerProps {
   /** Overall width in px, as before; Mate is drawn at about half of it. Default 96. */
@@ -22,15 +23,6 @@ interface LoadingSpinnerProps {
   onDark?: boolean;
 }
 
-// Lines Mate says while you wait, one at a time.
-const QUIP_KEYS = [
-  'loading.quip_cushions',
-  'loading.quip_remote',
-  'loading.quip_turn',
-  'loading.quip_pizza',
-  'loading.quip_dishes',
-  'loading.quip_lights',
-];
 const QUIP_EVERY_MS = 2600;
 // Big loaders (boot splash, full screens) talk; small inline ones just hop.
 const QUIP_MIN_SIZE = 120;

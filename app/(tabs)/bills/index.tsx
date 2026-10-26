@@ -32,6 +32,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors } from '@constants/colors';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -334,6 +335,7 @@ function BillsScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={ListHeader}
+        ListFooterComponent={billSections.length > 0 ? <MateCameo page="bills" /> : null}
         ListEmptyComponent={
           bills.length + payments.length > 0 ? (
             <EmptyState

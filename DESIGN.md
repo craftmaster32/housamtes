@@ -546,6 +546,20 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   masking tape, a strip of thumbnails to jump between photos (`Filmstrip`),
   and Save · 2 / 6 · Delete as big icon + word buttons.
 
+**Mate cameos, loading lines, background uploads (owner: "make the app a bit more funny")**
+
+- Uploading photos no longer covers the page: a small note at the bottom
+  (`UploadNote`) shows "Uploading 4 of 5…", a hopping Mate and a rotating
+  funny line; you can keep scrolling and tapping meanwhile.
+- 24 more loading lines (`constants/loadingQuips.ts`, shared by the big
+  loader and the upload note), in all three languages.
+- **Mate cameos** (`MateCameo` + `MateProp`): on about half the visits, Mate
+  sits at the very end of a list holding something from that page — camera
+  (Photos), receipt (Bills), broom (Tasks), toy car (Parking), ballot (Votes),
+  push pin (Notes) — with a one-line joke in handwriting (`mate.*` keys, four
+  per page). Never tappable, never above content, and only when the list has
+  items, so the empty-state Mate is still the only Mate on that screen.
+
 **Bottom menu (owner)**
 
 - Owner wants **icons only, no words**; rejected three looks (words + marker,

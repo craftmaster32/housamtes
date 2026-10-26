@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { EmptyState } from '@components/ui';
 import { PaperTag } from '@components/bills/recurring/PaperTag';
@@ -215,6 +216,7 @@ function ParkingScreen(): React.JSX.Element {
             </View>
           </View>
         }
+        ListFooterComponent={listData.length > 0 ? <MateCameo page="parking" /> : null}
         ListEmptyComponent={
           isLoading ? (
             <EmptyState mode="loading" title={t('common.loading')} />

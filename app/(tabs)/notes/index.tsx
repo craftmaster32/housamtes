@@ -10,6 +10,7 @@ import { CorkBoard } from '@components/notes/CorkBoard';
 import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { lightColors, useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { Alert } from '@lib/alert';
@@ -163,6 +164,7 @@ export default function NotesScreen(): React.JSX.Element {
             {notes.length > 0 && (
               <Text style={styles.capHint}>{t('notes.cap_hint', { count: MAX_NOTES })}</Text>
             )}
+            {notes.length > 0 && <MateCameo page="notes" />}
           </View>
         }
       />

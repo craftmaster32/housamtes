@@ -32,12 +32,14 @@ import { usePhotoSelection } from '@hooks/usePhotoSelection';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { PolaroidTile } from '@components/photos/PolaroidTile';
 import { TapeLabel } from '@components/photos/TapeLabel';
 import { SelectionBar } from '@components/photos/SelectionBar';
 import { PhotosHeader } from '@components/photos/PhotosHeader';
+import { UploadNote } from '@components/photos/UploadNote';
 import { getErrorMessage } from '@utils/errors';
 import { mf, ms } from '@utils/responsive';
 
@@ -86,22 +88,6 @@ const makeStyles = (C: ColorTokens) =>
       textAlign: 'center',
       paddingHorizontal: ms(24),
     },
-    uploadOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(34,32,29,0.42)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    uploadCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
-      backgroundColor: C.background,
-      paddingVertical: ms(16),
-      paddingHorizontal: ms(22),
-      borderRadius: ms(22),
-    },
-    uploadText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
   });
 
 function PhotosScreen(): React.JSX.Element {
@@ -188,7 +174,9 @@ function PhotosScreen(): React.JSX.Element {
   // or multi-select) is uploaded immediately. Captions/albums come later.
   const uploadPicked = useCallback(
     async (assets: ImagePickerAsset[]): Promise<void> => {
-      if (!assets.length || !user || !houseId || !profile) return;
+      // One batch at a time — uploads run in the background now, so the
+      // camera and library buttons stay tappable while they do.
+      if (!assets.length || !user || !houseId || !profile || isUploading) return;
       // Fail closed while entitlements are still rehydrating — otherwise a
       // free user could upload past the cap in the brief window before
       // AsyncStorage confirms they aren't premium.
@@ -222,19 +210,30 @@ function PhotosScreen(): React.JSX.Element {
       } catch (err) {
         setError(getErrorMessage(err, t('photos.upload_failed')));
       } finally {
-        // A failed refresh must not leave the blocking overlay stuck on screen,
+        // A failed refresh must not leave the upload note stuck on screen,
         // so reset the upload state even if load() rejects.
         try {
           await load(houseId);
         } catch {
-          /* keep going — the overlay must always clear */
+          /* keep going — the upload note must always clear */
         } finally {
           setIsUploading(false);
           setUploadProgress({ current: 0, total: 0 });
         }
       }
     },
-    [user, houseId, profile, photos.length, canAddPhotos, entitlementsLoading, upload, load, t]
+    [
+      user,
+      houseId,
+      profile,
+      isUploading,
+      photos.length,
+      canAddPhotos,
+      entitlementsLoading,
+      upload,
+      load,
+      t,
+    ]
   );
 
   const pickFromCamera = useCallback(async (): Promise<void> => {
@@ -445,6 +444,7 @@ function PhotosScreen(): React.JSX.Element {
           contentContainerStyle={styles.listContent}
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={EmptyComponent}
+          ListFooterComponent={sections.length > 0 ? <MateCameo page="photos" /> : null}
           showsVerticalScrollIndicator={false}
           initialNumToRender={5}
           maxToRenderPerBatch={6}
@@ -462,19 +462,7 @@ function PhotosScreen(): React.JSX.Element {
         )}
 
         {isUploading && (
-          <View style={styles.uploadOverlay} pointerEvents="auto">
-            <View style={styles.uploadCard}>
-              <LoadingSpinner />
-              <Text style={styles.uploadText}>
-                {uploadProgress.total > 1
-                  ? t('photos.uploading_progress', {
-                      current: uploadProgress.current,
-                      total: uploadProgress.total,
-                    })
-                  : t('photos.uploading')}
-              </Text>
-            </View>
-          </View>
+          <UploadNote current={uploadProgress.current} total={uploadProgress.total} />
         )}
 
         {isSelectMode && (

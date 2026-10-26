@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { Fold } from '@components/shared/Fold';
 import { BillTabs } from '@components/bills/BillTabs';
 import { PadSlice } from '@components/tasks/PadSlice';
@@ -212,6 +213,7 @@ export default function TasksScreen(): React.JSX.Element {
             )}
           </View>
         }
+        ListFooterComponent={listData.length > 0 ? <MateCameo page="tasks" /> : null}
         ListEmptyComponent={
           isLoading ? null : (
             // Mate keeps the empty pad company — the one Mate on this screen.
