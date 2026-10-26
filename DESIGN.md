@@ -399,6 +399,7 @@ the mockup step and follow the approved style. Each has its own object:
   housemate's paper colour with a push pin, signed "— Dana, 12 Oct".
 - **Votes** — ballot slips: tick a box with a pen cross, votes counted as tally
   marks, a rubber stamp with the result when closed. New proposal is a sheet.
+  _Redone after the owner's review (below)._
 - **Photos** — white-bordered prints that lean a little, months on masking
   tape, album filters circled in pen; select mode ticks a box on each print.
 - **Calendar** — a hanging wall calendar with spiral binding; today circled in
@@ -491,6 +492,26 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   -6° to its tilt, pressed flat with a tiny settle, 380 ms) and **peels off**
   upwards when closed (220 ms); the button's action runs once it's gone.
   Reduce Motion: it just appears.
+
+**Votes (redone after the owner's review)**
+
+- Owner: the headings didn't match the house style, and the ballots should look
+  better. "New proposal" is a cream paper tag beside the title (no blue bar);
+  the lists sit under serif headings "Open" (handwritten "2 to decide") and
+  "Decided" (handwritten count, folds away when tapped) — no grey "Past votes".
+- Each proposal is a white **ballot paper** (`BallotCard`): a dashed tear-off top
+  with BALLOT and "Proposed by … · today" in handwriting, the question in the
+  serif (smaller than the page title), then **Yes and No side by side** as boxes
+  (`BallotChoice`): the word, a square crossed in blue pen, tally marks and the
+  faces of who chose it; your side outlined blue. Under them, the faded faces of
+  who still has to vote ("Waiting for"). Decided ballots: greyed sides, stamp.
+- **Quick vote on Home** (owner): the Votes tile keeps its layout (label, big
+  number, one line) but, while an open vote is waiting for you, the line is that
+  question and a row of ☐ Yes ☐ No ink boxes (like the grocery tile) replaces the
+  ballot drawing; one tap votes in place and shows your cross. Owner: "don't
+  change the layout of the tabs, just the voting".
+- Fixed: tapping Yes then No quickly flickered — saves now run one after
+  another and a reload mid-save keeps your tap (`votingStore`).
 
 ## 8. Working setup (for the next session)
 
