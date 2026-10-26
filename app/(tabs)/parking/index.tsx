@@ -108,7 +108,6 @@ function ParkingScreen(): React.JSX.Element {
     [reservations, today]
   );
   const history = useMemo(() => reservations.filter((r) => r.date < today), [reservations, today]);
-  const mateSpot = useMateScene(MATE_SPOTS);
   const listData = useMemo(
     (): FlatItem[] => [
       ...upcoming.map((r) => ({ _k: 'res' as const, res: r, isHistory: false })),
@@ -117,6 +116,8 @@ function ParkingScreen(): React.JSX.Element {
     ],
     [upcoming, history]
   );
+  // An empty page already has its own Mate, so he only hides when there's a list.
+  const mateSpot = useMateScene(MATE_SPOTS, listData.length > 0);
 
   const keyExtractor = useCallback(
     (item: FlatItem): string => (item._k === 'hist-header' ? 'history-header' : item.res.id),
@@ -232,9 +233,7 @@ function ParkingScreen(): React.JSX.Element {
             </View>
           </View>
         }
-        ListFooterComponent={
-          mateSpot === 'footer' && listData.length > 0 ? <MateCameo page="parking" always /> : null
-        }
+        ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="parking" always /> : null}
         ListEmptyComponent={
           isLoading ? (
             <EmptyState mode="loading" title={t('common.loading')} />

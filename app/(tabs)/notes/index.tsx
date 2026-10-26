@@ -11,6 +11,8 @@ import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { lightColors, useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { Alert } from '@lib/alert';
@@ -27,6 +29,8 @@ export default function NotesScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
   const notes = useAnnouncementsStore((s) => s.items);
+  // An empty board already has its own Mate, so he only hides when there are notes.
+  const mateSpot = useMateScene(MATE_SPOTS, notes.length > 0);
   const isLoading = useAnnouncementsStore((s) => s.isLoading);
   const storeError = useAnnouncementsStore((s) => s.error);
   const post = useAnnouncementsStore((s) => s.post);
@@ -140,6 +144,12 @@ export default function NotesScreen(): React.JSX.Element {
             </Pressable>
 
             {!!storeError && <Text style={styles.errorText}>{storeError}</Text>}
+            {/* Before the board so its frame hides his lower half. */}
+            {mateSpot === 'peekOver' && (
+              <View style={mateStyles.behind}>
+                <MateSpot kind="peekOver" size={ms(38)} style={mateStyles.peek} />
+              </View>
+            )}
             <CorkBoard part="top" patternId="cork-top">
               {isLoading && notes.length === 0 && <LoadingSpinner size={64} />}
             </CorkBoard>
@@ -164,7 +174,7 @@ export default function NotesScreen(): React.JSX.Element {
             {notes.length > 0 && (
               <Text style={styles.capHint}>{t('notes.cap_hint', { count: MAX_NOTES })}</Text>
             )}
-            {notes.length > 0 && <MateCameo page="notes" />}
+            {mateSpot === 'footer' && <MateCameo page="notes" always />}
           </View>
         }
       />
@@ -245,3 +255,12 @@ function makeStyles(C: ColorTokens) {
     },
   });
 }
+
+// Where Mate may hide on a visit: peeking over the cork board's frame, or under
+// the board.
+const MATE_SPOTS = ['peekOver', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  behind: { height: 0 },
+  peek: { end: ms(54), top: -ms(26) },
+});

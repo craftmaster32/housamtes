@@ -58,6 +58,8 @@ import { ReminderClip } from '@components/grocery/ReminderClip';
 import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { useHandFont } from '@hooks/useHandFont';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
@@ -333,6 +335,8 @@ function GroceryScreen(): React.JSX.Element {
     if (ordered.length > 0) ordered[0].withReminder = true;
     return ordered;
   }, [items, myId, t, effectiveMode]);
+  // An empty bag already has its own Mate, so he only hides when there's a list.
+  const mateSpot = useMateScene(MATE_SPOTS, sections.length > 0);
 
   // Unticked items in the bucket the user is adding to (shared, private or draft).
   const inAddBucket = useCallback(
@@ -1014,6 +1018,12 @@ function GroceryScreen(): React.JSX.Element {
                   </View>
                 )}
 
+                {/* Before the tiles so they hide his lower half. */}
+                {mateSpot === 'peekOver' && (
+                  <View style={mateStyles.behind}>
+                    <MateSpot kind="peekOver" size={ms(38)} style={mateStyles.peek} />
+                  </View>
+                )}
                 <View style={styles.tiles}>
                   <ShoppingRunCard
                     activeRun={activeRun}
@@ -1073,7 +1083,7 @@ function GroceryScreen(): React.JSX.Element {
                     </View>
                   </BagSlice>
                 )}
-                {sections.length > 0 && <MateCameo page="grocery" />}
+                {mateSpot === 'footer' && <MateCameo page="grocery" always />}
                 <View style={styles.bottomPad} />
               </View>
             }
@@ -1233,3 +1243,12 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
 }
 
 export default withFeatureGuard('grocery', GroceryScreen);
+
+// Where Mate may hide on a visit: peeking over the Saved Lists tile, or under
+// the bag.
+const MATE_SPOTS = ['peekOver', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  behind: { height: 0 },
+  peek: { end: ms(40), top: -ms(26) },
+});

@@ -92,7 +92,6 @@ function BillsScreen(): React.JSX.Element {
   const [filter, setFilter] = useState<BillFilter>('one-off');
   // Search state lives here; category state is owned by the hook.
   const [search, setSearch] = useState('');
-  const mateSpot = useMateScene(MATE_SPOTS);
   const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
   useEffect((): void => {
     if (openRecurring === '1') setFilter('recurring');
@@ -107,6 +106,8 @@ function BillsScreen(): React.JSX.Element {
   }, []);
 
   const { category, setCategory, presentCategories, billSections } = useOneOffBillHistory(search);
+  // An empty page already has its own Mate, so he only hides when there's a list.
+  const mateSpot = useMateScene(MATE_SPOTS, billSections.length > 0);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
@@ -350,11 +351,7 @@ function BillsScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={ListHeader}
-        ListFooterComponent={
-          mateSpot === 'footer' && billSections.length > 0 ? (
-            <MateCameo page="bills" always />
-          ) : null
-        }
+        ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="bills" always /> : null}
         ListEmptyComponent={
           bills.length + payments.length > 0 ? (
             <EmptyState

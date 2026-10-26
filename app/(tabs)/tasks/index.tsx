@@ -8,6 +8,8 @@ import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { Fold } from '@components/shared/Fold';
 import { BillTabs } from '@components/bills/BillTabs';
 import { PadSlice } from '@components/tasks/PadSlice';
@@ -67,6 +69,8 @@ export default function TasksScreen(): React.JSX.Element {
 
   // A ticked task stays put for a beat, then folds down under "done".
   const listData = useTaskPadRows(tasks, filter);
+  // An empty pad already has its own Mate, so he only hides when there's a list.
+  const mateSpot = useMateScene(MATE_SPOTS, listData.length > 0);
 
   const handleAdd = useCallback(
     async (input: NewTaskInput): Promise<void> => {
@@ -186,6 +190,12 @@ export default function TasksScreen(): React.JSX.Element {
               {t('tasks.title')}
             </Text>
 
+            {/* Before the tile so it hides his lower half: peeking over its top. */}
+            {mateSpot === 'peekOver' && (
+              <View style={mateStyles.behind}>
+                <MateSpot kind="peekOver" size={ms(38)} style={mateStyles.peek} />
+              </View>
+            )}
             <TasksGlance
               done={done.length}
               total={tasks.length}
@@ -213,7 +223,7 @@ export default function TasksScreen(): React.JSX.Element {
             )}
           </View>
         }
-        ListFooterComponent={listData.length > 0 ? <MateCameo page="tasks" /> : null}
+        ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="tasks" always /> : null}
         ListEmptyComponent={
           isLoading ? null : (
             // Mate keeps the empty pad company — the one Mate on this screen.
@@ -277,4 +287,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: mf(19), textAlign: 'center', marginTop: ms(8) },
   emptyText: { fontSize: mf(14), ...font.medium, textAlign: 'center', lineHeight: mf(20) },
+});
+
+// Where Mate may hide on a visit: peeking over the "2 of 6 done" tile, or at
+// the end of the pad.
+const MATE_SPOTS = ['peekOver', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  behind: { height: 0 },
+  peek: { start: '58%', top: -ms(26) },
 });

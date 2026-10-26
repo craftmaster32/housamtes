@@ -33,6 +33,8 @@ import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { PolaroidTile } from '@components/photos/PolaroidTile';
@@ -156,6 +158,8 @@ function PhotosScreen(): React.JSX.Element {
       data: chunkRows(items),
     }));
   }, [filtered, t, i18n.language]);
+  // No photos means the empty-state Mate is showing, so he only hides when there are some.
+  const mateSpot = useMateScene(MATE_SPOTS, sections.length > 0);
 
   const counts = useMemo<Record<PhotoCategory | 'general', number>>(
     () => ({
@@ -337,9 +341,13 @@ function PhotosScreen(): React.JSX.Element {
     ({ section }: { section: SectionListData<PhotoRow, PhotoSection> }) => (
       <View style={styles.sectionHeader}>
         <TapeLabel label={section.title} />
+        {/* Sitting at the end of the first date's tape, over the prints. */}
+        {mateSpot === 'sit' && section === sections[0] && (
+          <MateSpot kind="sit" size={ms(36)} style={mateStyles.sit} />
+        )}
       </View>
     ),
-    [styles]
+    [styles, mateSpot, sections]
   );
 
   const renderRow = useCallback(
@@ -444,7 +452,7 @@ function PhotosScreen(): React.JSX.Element {
           contentContainerStyle={styles.listContent}
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={EmptyComponent}
-          ListFooterComponent={sections.length > 0 ? <MateCameo page="photos" /> : null}
+          ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="photos" always /> : null}
           showsVerticalScrollIndicator={false}
           initialNumToRender={5}
           maxToRenderPerBatch={6}
@@ -481,3 +489,11 @@ function PhotosScreen(): React.JSX.Element {
 }
 
 export default withFeatureGuard('photos', PhotosScreen);
+
+// Where Mate may hide on a visit: sitting beside the first date tape, or under
+// the last prints.
+const MATE_SPOTS = ['sit', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  sit: { end: ms(6), bottom: ms(6) },
+});

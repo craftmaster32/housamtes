@@ -9,6 +9,8 @@ import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { BallotCard } from '@components/voting/BallotCard';
 import { ProposalSheet } from '@components/voting/ProposalSheet';
 import { PaperTag } from '@components/bills/recurring/PaperTag';
@@ -45,6 +47,8 @@ function VotingScreen(): React.JSX.Element {
   const myId = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
   const open = proposals.filter((p) => p.isOpen);
+  // No open votes means the empty-state Mate is showing.
+  const mateSpot = useMateScene(MATE_SPOTS, open.length > 0);
   const closed = proposals.filter((p) => !p.isOpen);
 
   const sections = useMemo<BallotSection[]>(
@@ -60,12 +64,18 @@ function VotingScreen(): React.JSX.Element {
   const toggleShowClosed = useCallback((): void => setShowClosed((v) => !v), []);
 
   const renderItem = useCallback(
-    ({ item }: { item: Proposal }): React.JSX.Element => (
+    ({ item, index, section }: { item: Proposal; index: number; section: BallotSection }) => (
       <View style={styles.item}>
+        {/* Before the first open ballot so it hides his lower half. */}
+        {mateSpot === 'peekOver' && section.key === 'open' && index === 0 && (
+          <View style={mateStyles.behind}>
+            <MateSpot kind="peekOver" size={ms(38)} style={mateStyles.peek} />
+          </View>
+        )}
         <BallotCard proposal={item} myId={myId} totalPeople={totalPeople} />
       </View>
     ),
-    [myId, totalPeople, styles]
+    [myId, totalPeople, styles, mateSpot]
   );
 
   const renderSectionHeader = useCallback(
@@ -134,7 +144,7 @@ function VotingScreen(): React.JSX.Element {
         stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
-        ListFooterComponent={open.length > 0 ? <MateCameo page="voting" /> : null}
+        ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="voting" always /> : null}
         ListHeaderComponent={
           <View>
             <BackLink label={t('common.home')} />
@@ -213,3 +223,12 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     sectionCount: { fontSize: mf(20), color: C.primary },
     chevron: { alignSelf: 'flex-end', marginBottom: ms(6) },
   });
+
+// Where Mate may hide on a visit: peeking over the first open ballot, or under
+// the last one.
+const MATE_SPOTS = ['peekOver', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  behind: { height: 0 },
+  peek: { end: ms(36), top: -ms(26) },
+});

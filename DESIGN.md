@@ -575,6 +575,13 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   to its torn bottom edge; or the end-of-list cameo. `MateSpot` eases him in
   once (the rope lowers with a small sway that settles), never tappable, never
   read out. Zero-height anchor Views place him without moving the layout.
+- Owner: "put him in other places as you see fit". Same picking, one spot or
+  the end-of-list cameo per visit: **Tasks** — peeking over the "2 of 6 done"
+  tile; **Grocery** — peeking over the Saved Lists tile; **Votes** — peeking
+  over the first open ballot; **Notes** — peeking over the cork board's frame;
+  **Photos** — sitting at the end of the first date's tape. Every page passes
+  `enabled = false` to `useMateScene` while its empty-state Mate shows, so
+  there's never a second Mate (this also fixed Parking and Bills).
 
 **Bottom menu (owner)**
 
