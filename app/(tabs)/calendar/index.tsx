@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, ScrollView, Pressable, FlatList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,8 @@ import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 
 export default function CalendarScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('calendar/index');
   const { t, i18n } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
@@ -264,6 +267,7 @@ export default function CalendarScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

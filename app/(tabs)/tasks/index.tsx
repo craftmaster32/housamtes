@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, FlatList, Platform, type ListRenderItemInfo } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +37,8 @@ const FILTERS: TaskFilter[] = ['all', 'active', 'completed'];
  * jobs and weekly / monthly repeating ones, on a to-do pad.
  */
 export default function TasksScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('tasks/index');
   const { t } = useTranslation();
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
@@ -173,6 +176,7 @@ export default function TasksScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
       <FlatList
+        ref={scrollRef}
         data={listData}
         keyExtractor={keyExtractor}
         renderItem={renderItem}

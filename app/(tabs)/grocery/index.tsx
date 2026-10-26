@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
@@ -94,6 +95,8 @@ interface SectionData {
 }
 
 function GroceryScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('grocery/index');
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -981,6 +984,7 @@ function GroceryScreen(): React.JSX.Element {
       >
         <SafeAreaView style={styles.root} edges={['top']}>
           <SectionList
+            ref={scrollRef}
             extraData={now}
             sections={sections}
             keyExtractor={(item) => item.id}

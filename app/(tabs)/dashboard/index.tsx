@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +27,8 @@ let dashboardEntrancePlayed = false;
 
 // ── Dashboard screen ────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('dashboard/index');
   const c = useThemedColors();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
@@ -58,6 +61,7 @@ export default function DashboardScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, SectionList, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,8 @@ interface BallotSection {
 }
 
 function VotingScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('voting/index');
   const { t } = useTranslation();
   const proposals = useVotingStore((s) => s.proposals);
   const isLoading = useVotingStore((s) => s.isLoading);
@@ -137,6 +140,7 @@ function VotingScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <SectionList
+        ref={scrollRef}
         sections={sections}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}

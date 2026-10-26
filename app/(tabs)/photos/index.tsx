@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
@@ -93,6 +94,8 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 function PhotosScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('photos/index');
   const { t, i18n } = useTranslation();
   const photos = usePhotoStore((s) => s.photos);
   const isLoading = usePhotoStore((s) => s.isLoading);
@@ -445,6 +448,7 @@ function PhotosScreen(): React.JSX.Element {
         </View>
 
         <SectionList<PhotoRow, PhotoSection>
+          ref={scrollRef}
           sections={sections}
           keyExtractor={(row, i) => `${row[0]?.id ?? 'empty'}-${i}`}
           renderItem={renderRow}

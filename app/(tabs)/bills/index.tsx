@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
@@ -57,6 +58,8 @@ type BillFilter = 'recurring' | 'one-off';
  * history grouped into day sections.
  */
 function BillsScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('bills/index');
   const c = useThemedColors();
   const { t } = useTranslation();
   const headingFont = useHeadingFont('semibold');
@@ -329,6 +332,7 @@ function BillsScreen(): React.JSX.Element {
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         {topBar}
         <ScrollView
+          ref={scrollRef}
           style={styles.flex}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -344,6 +348,7 @@ function BillsScreen(): React.JSX.Element {
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       {topBar}
       <FlatList
+        ref={scrollRef}
         style={styles.flex}
         data={billSections}
         keyExtractor={(section) => section.key}

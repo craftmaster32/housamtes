@@ -593,6 +593,10 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   a **P parking sign** instead of the car (`ParkingSignIcon`, outlined, filled in
   when on Parking; matches the Home parking tile). The + is the blue round
   button. New-things counts are red numbers circled in pen (`PenCount`).
+- Owner: tapping a page in the menu **takes you to its top** — also when it's
+  the page you're on, like a phone's own apps. `navigateToBase` sends a signal
+  (`utils/scrollToTop`) and each main page's list glides up
+  (`useScrollToTopOnNav`).
 
 ## 8. Working setup (for the next session)
 

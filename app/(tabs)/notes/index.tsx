@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +27,8 @@ const INK = lightColors.paperInk;
 const MUTED = lightColors.paperMuted;
 
 export default function NotesScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('notes/index');
   const { t } = useTranslation();
 
   const notes = useAnnouncementsStore((s) => s.items);
@@ -105,6 +108,7 @@ export default function NotesScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <FlatList
+        ref={scrollRef}
         data={notes}
         keyExtractor={(item) => item.id}
         renderItem={renderNote}

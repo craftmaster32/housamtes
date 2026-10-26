@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import {
   View,
   StyleSheet,
@@ -50,6 +51,8 @@ type FlatItem =
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 function ParkingScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('parking/index');
   const { t } = useTranslation();
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
@@ -173,6 +176,7 @@ function ParkingScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <FlatList
+        ref={scrollRef}
         data={listData}
         keyExtractor={keyExtractor}
         renderItem={renderItem}

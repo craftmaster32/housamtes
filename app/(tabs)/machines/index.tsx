@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,8 @@ import { sizes } from '@constants/sizes';
 import { mf, ms } from '@utils/responsive';
 
 export default function MachinesScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('machines/index');
   const { t } = useTranslation();
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
@@ -149,7 +152,11 @@ export default function MachinesScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <BackLink label={t('common.home')} />
         <Text style={[styles.title, headingFont]}>{t('machines.title')}</Text>
         <Text style={styles.subtitle}>{t('machines.subtitle')}</Text>

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, ScrollView, Pressable, Platform, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,6 +51,8 @@ function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
 }
 
 export default function ProfileScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('profile/index');
   const { t } = useTranslation();
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
@@ -142,7 +145,11 @@ export default function ProfileScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <BackLink label={t('common.home')} />
         <Text style={[styles.title, headingFont]}>{t('nav.profile')}</Text>
 
