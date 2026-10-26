@@ -27,8 +27,8 @@ const POSE_FOR_LINE: Record<number, CameoPose> = {
   7: 'peek',
   8: 'upside',
 };
-// Mate turns up on roughly half the visits, so he stays a small surprise.
-const SHOW_CHANCE = 0.55;
+// Same odds as useMateScene (3 visits in 6) when a page lets the cameo toss its own coin.
+const SHOW_CHANCE = 0.5;
 
 interface MateCameoProps {
   page: CameoPage;

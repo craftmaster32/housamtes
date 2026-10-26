@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 
-// Mate turns up on most visits (owner wants to see him), but not every one.
-const SHOW_CHANCE = 0.8;
+// Owner: he should turn up on about 3 visits in 6 — on every page that has him.
+const SHOW_CHANCE = 0.5;
 
 function pick<T extends string>(spots: readonly T[]): T | null {
   return spots.length > 0 && Math.random() < SHOW_CHANCE

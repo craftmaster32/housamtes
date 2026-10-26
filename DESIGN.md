@@ -568,7 +568,7 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   its scene.
 - Owner then wanted Mate to **pop up in the page itself**, not only at the end,
   "so it won't interfere with the app flow", at spots the owner drew on
-  screenshots. `useMateScene` picks one spot each time the page comes into view (or none, ~1 in 5 — pages stay open in the background, so picking only once at first open left him missing for good; fixed):
+  screenshots. `useMateScene` picks one spot each time the page comes into view (or none — owner: he shows on 3 visits in 6, on every page; pages stay open in the background, so picking only once at first open left him missing for good; fixed):
   **Parking** — hanging upside down on a rope off the spot card over the week,
   or sitting under the day pages; **Bills** — peeking over the top of the
   balance paper above the chart button (drawn behind the paper), or clinging
