@@ -178,6 +178,18 @@ short value big in handwriting (the invite code).
 - Every pen circle around a choice (`PenCircle`) is **drawn** when picked
   (owner): one quick stroke (~360 ms, ease-out) that overshoots where it
   started, like a real pen. Use it for any new circled choice.
+- **Every pen mark draws itself** (owner: "anywhere we can add"): ticks
+  (`PenTick` — tick boxes, grocery ticks, the Home grocery tile, saved lists,
+  checkout, photo select, the "Terms updated" list, which inks one line after
+  another), crosses (`PenCross` — ballots and the Home Votes tile: one stroke,
+  then the other, ~300 ms) and new tally marks. They share `usePenStroke`.
+  Marks already there when a page opens just show. The signup password line
+  slides to its new length.
+- **Moving between pages** (`RouteTransition`): going forward, the new page
+  rises ~18 px into place as it fades in; going back, it settles down from just
+  above (~300 ms, ease-out). Vertical only, so it never fights the browser's
+  sideways back-swipe. RN Animated, so it runs on the web (the earlier
+  reanimated version never did). Direction comes from `utils/routeDirection`.
 - Pinned notes: the next note (with its real text) waits under the top one and
   rises into place while the top one is flicked away (`NextNote`), so the swap
   is one continuous move — never "slide off, then a new note pops in".
@@ -477,7 +489,7 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   Condition (Property replaced the last two), the old `settings/index` page and
   NFC Parking. Premium stays (switched off by `PREMIUM_ENABLED`; it now bounces
   to the new Settings page).
-- **Later (owner said yes, not now):** smooth moves between pages.
+- Smooth moves between pages: done (see §5).
 
 **Home events + pop-ups (after the owner's preview check)**
 
