@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Platform, AppState, type AppStateStatus } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { Alert } from '@lib/alert';
@@ -160,16 +160,12 @@ export function useParkingActions(): ParkingActions {
         Alert.alert(t('parking.could_not_free'), t('parking.failed_release'));
       });
     };
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) {
-        doRelease();
-      }
-    } else {
-      Alert.alert(t('parking.kick_out_title', { name: occupantName }), t('parking.kick_out_body'), [
-        { text: t('parking.leave_it'), style: 'cancel' },
-        { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
-      ]);
-    }
+    // The app's own sticky note on web too — the browser's confirm box looked
+    // out of place and spoke the phone's language instead of the app's.
+    Alert.alert(t('parking.kick_out_title', { name: occupantName }), t('parking.kick_out_body'), [
+      { text: t('parking.leave_it'), style: 'cancel' },
+      { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
+    ]);
   }, [current, housemates, myName, release, houseId, t]);
 
   const handleSpotPress = useCallback((): void => {
@@ -183,49 +179,65 @@ export function useParkingActions(): ParkingActions {
     toggleMine().catch(() => {});
   }, [myId, handleReleaseOther, toggleMine]);
 
+  // A second quick tap on the same Cancel / vote / bin while the first is still
+  // saving is ignored, so it can't send twice and flash a false error.
+  const inFlightRef = useRef(new Set<string>());
+  const once = useCallback(async (key: string, run: () => Promise<void>): Promise<void> => {
+    if (inFlightRef.current.has(key)) return;
+    inFlightRef.current.add(key);
+    try {
+      await run();
+    } finally {
+      inFlightRef.current.delete(key);
+    }
+  }, []);
+
   const handleCancel = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        await cancelReservation(id, houseId ?? '');
-        removeCalendarEvent(`pk-${id}`).catch(() => {});
-      } catch (err) {
-        setError(getErrorMessage(err, t('parking.failed_cancel')));
-      }
-    },
-    [cancelReservation, houseId, removeCalendarEvent, t]
+    (id: string): Promise<void> =>
+      once(`cancel:${id}`, async () => {
+        try {
+          await cancelReservation(id, houseId ?? '');
+          removeCalendarEvent(`pk-${id}`).catch(() => {});
+        } catch (err) {
+          setError(getErrorMessage(err, t('parking.failed_cancel')));
+        }
+      }),
+    [once, cancelReservation, houseId, removeCalendarEvent, t]
   );
 
   const handleVote = useCallback(
-    async (id: string, vote: ParkingVoteChoice): Promise<void> => {
-      const reservation = reservations.find((r) => r.id === id);
-      if (!reservation) return;
-      try {
-        const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
-        if (resultStatus === 'approved') {
-          syncParkingApproved({
-            id: reservation.id,
-            requestedBy: resolveName(reservation.requestedBy, housemates),
-            date: reservation.date,
-            startTime: reservation.startTime,
-            endTime: reservation.endTime,
-          }).catch(() => {});
+    (id: string, vote: ParkingVoteChoice): Promise<void> =>
+      once(`vote:${id}`, async () => {
+        const reservation = reservations.find((r) => r.id === id);
+        if (!reservation) return;
+        try {
+          const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
+          if (resultStatus === 'approved') {
+            syncParkingApproved({
+              id: reservation.id,
+              requestedBy: resolveName(reservation.requestedBy, housemates),
+              date: reservation.date,
+              startTime: reservation.startTime,
+              endTime: reservation.endTime,
+            }).catch(() => {});
+          }
+        } catch (err) {
+          setError(getErrorMessage(err, t('parking.error_vote_failed')));
         }
-      } catch (err) {
-        setError(getErrorMessage(err, t('parking.error_vote_failed')));
-      }
-    },
-    [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]
+      }),
+    [once, voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]
   );
 
   const handleClear = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        await clearHistoryItem(id);
-      } catch (err) {
-        setError(getErrorMessage(err, t('parking.error_clear_failed')));
-      }
-    },
-    [clearHistoryItem, t]
+    (id: string): Promise<void> =>
+      once(`clear:${id}`, async () => {
+        try {
+          await clearHistoryItem(id);
+        } catch (err) {
+          setError(getErrorMessage(err, t('parking.error_clear_failed')));
+        }
+      }),
+    [once, clearHistoryItem, t]
   );
 
   const handleClearAll = useCallback((): void => {
@@ -234,14 +246,10 @@ export function useParkingActions(): ParkingActions {
         setError(getErrorMessage(err, t('parking.error_clear_all_failed')));
       });
     };
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('parking.clear_all_confirm_msg'))) doDelete();
-    } else {
-      Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('parking.clear_all'), style: 'destructive', onPress: doDelete },
-      ]);
-    }
+    Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('parking.clear_all'), style: 'destructive', onPress: doDelete },
+    ]);
   }, [clearAllHistory, houseId, t]);
 
   return {

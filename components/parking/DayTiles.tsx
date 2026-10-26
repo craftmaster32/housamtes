@@ -8,6 +8,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { byStartTime, parseDateParts, toDateString, todayString } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
+import { PRESS_DELAY } from './pressDelay';
 import { statusDotColor } from './reservationStatus';
 
 interface DayTilesProps {
@@ -60,6 +61,8 @@ export function DayTiles({ onDayPress }: DayTilesProps): React.JSX.Element {
             pressed && styles.pressed,
           ]}
           onPress={() => onDayPress(d.dateStr)}
+          // Scrolling across the week shouldn't flash the pages dark.
+          {...PRESS_DELAY}
           accessible
           accessibilityRole="button"
           accessibilityLabel={`${d.weekdayFull} ${d.dayNum} ${d.monthAbbr}`}

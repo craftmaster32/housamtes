@@ -7,6 +7,7 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { ParkingReservation, ParkingSession } from '@stores/parkingStore';
 import { mf, ms } from '@utils/responsive';
 import { ParkingBlockedBanner } from './ParkingBlockedBanner';
+import { PRESS_DELAY } from './pressDelay';
 import { SpotArt } from './SpotArt';
 
 interface SpotCardProps {
@@ -58,6 +59,9 @@ export function SpotCard({
       ]}
       onPress={onPress}
       accessible={false}
+      // A finger that lands here only to scroll shouldn't make the card dip;
+      // a real tap still switches the spot straight away.
+      {...PRESS_DELAY}
     >
       <View style={styles.top}>
         <View style={styles.copy}>

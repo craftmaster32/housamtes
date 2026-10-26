@@ -105,3 +105,33 @@ describe('useParkingActions — quick taps on the spot', () => {
     expect(mockState.current?.occupant).toBe('me');
   });
 });
+
+describe('useParkingActions — quick double taps on a reservation', () => {
+  it('cancels once even when Cancel is tapped twice quickly', async () => {
+    const cancel = mockStore.cancelReservation as jest.Mock;
+    cancel.mockReset();
+    cancel.mockImplementation(() => new Promise((r) => setTimeout(r, 20)));
+    const { result } = renderHook(() => useParkingActions());
+
+    await act(async () => {
+      void result.current.handleCancel('r1');
+      void result.current.handleCancel('r1');
+      await new Promise((r) => setTimeout(r, 40));
+    });
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBe('');
+  });
+
+  it('lets Cancel work again once the first one has finished', async () => {
+    const cancel = mockStore.cancelReservation as jest.Mock;
+    cancel.mockReset();
+    cancel.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useParkingActions());
+
+    await act(() => result.current.handleCancel('r1'));
+    await act(() => result.current.handleCancel('r1'));
+
+    expect(cancel).toHaveBeenCalledTimes(2);
+  });
+});

@@ -131,7 +131,7 @@ export function ReservationLine({
         {showOwnCancel && (
           <Pressable
             onPress={handleCancel}
-            style={styles.textBtn}
+            style={({ pressed }) => [styles.textBtn, pressed && styles.pressed]}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('parking.cancel_reservation')}
@@ -142,7 +142,7 @@ export function ReservationLine({
         {canAdminCancel && (
           <Pressable
             onPress={handleCancel}
-            style={styles.iconBtn}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('parking.admin_cancel_reservation')}
@@ -153,7 +153,7 @@ export function ReservationLine({
         {isHistory && (
           <Pressable
             onPress={handleClear}
-            style={styles.iconBtn}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('parking.clear_from_history')}
