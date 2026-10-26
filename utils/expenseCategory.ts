@@ -51,14 +51,23 @@ const RULES: Array<{ category: string; re: RegExp }> = [
 
 /**
  * The house category that best fits an expense title, or null when nothing is
- * recognised. Only returns categories the house actually has. A title that
- * reads like a shopping-list item ("milk", "toilet paper") counts as Groceries.
+ * recognised. Only returns categories the house actually has. First, a title
+ * that names one of the house's own categories gets it ("Gym membership" →
+ * Gym), so categories the house made up are recognised too. Then the built-in
+ * words ("Shufersal" → Groceries). A title that reads like a shopping-list item
+ * ("milk", "toilet paper") counts as Groceries.
  */
 export function guessExpenseCategory(title: string, available: string[]): string | null {
   const text = title.trim();
   if (!text) return null;
   const has = (name: string): string | undefined =>
     available.find((a) => a.toLowerCase() === name.toLowerCase());
+  // Longest names first, so "Outside Food" wins over a house category "Food".
+  const named = available
+    .filter((a) => a.trim() && a.toLowerCase() !== DEFAULT_EXPENSE_CATEGORY.toLowerCase())
+    .sort((a, b) => b.length - a.length)
+    .find((a) => words([`^${a.trim()}`]).test(text));
+  if (named) return named;
   for (const rule of RULES) {
     if (rule.re.test(text)) {
       const match = has(rule.category);

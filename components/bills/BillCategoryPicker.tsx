@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { resolveCategoryIcon, type ExpenseCategory } from '@stores/expenseCategoriesStore';
 import { localizeCategoryName } from '@utils/categoryName';
+import { DEFAULT_EXPENSE_CATEGORY } from '@utils/expenseCategory';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
@@ -42,7 +43,10 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
   // deleted from the managed list or predates it — otherwise the user loses
   // sight of their own selection.
   const items = useMemo<ExpenseCategory[]>((): ExpenseCategory[] => {
-    const list = [...categories];
+    // "Other" — what every new expense starts on — comes first (owner).
+    const isOther = (c: ExpenseCategory): boolean =>
+      c.name.toLowerCase() === DEFAULT_EXPENSE_CATEGORY.toLowerCase();
+    const list = [...categories.filter(isOther), ...categories.filter((c) => !isOther(c))];
     if (selected && !list.some((c) => c.name === selected)) {
       list.unshift({
         id: `__current_${selected}`,

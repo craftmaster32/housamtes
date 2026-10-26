@@ -60,6 +60,19 @@ describe('guessExpenseCategory', () => {
     expect(guessExpenseCategory('Revolt poster', HOUSE)).toBeNull(); // wolt
   });
 
+  it("recognises the house's own categories by name", () => {
+    const house = [...HOUSE, 'Gym', 'Cleaning'];
+    expect(guessExpenseCategory('Gym membership', house)).toBe('Gym');
+    expect(guessExpenseCategory('cleaning lady', house)).toBe('Cleaning');
+    // The name has to start a word (so plurals count), not sit inside one.
+    expect(guessExpenseCategory('Gymnastics shoes', ['Gym', 'Other'])).toBe('Gym'); // starts the word
+    expect(guessExpenseCategory('Stargym pass', ['Gym', 'Other'])).toBeNull();
+  });
+
+  it('never picks Other by name', () => {
+    expect(guessExpenseCategory('Other stuff', ['Other', 'Rent'])).toBeNull();
+  });
+
   it("only suggests categories the house has, matching the house's spelling", () => {
     expect(guessExpenseCategory('Taxi', ['Rent', 'Other'])).toBeNull();
     expect(guessExpenseCategory('Taxi', ['transport', 'Other'])).toBe('transport');
