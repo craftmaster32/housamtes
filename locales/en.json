@@ -1290,7 +1290,13 @@
     "no_label": "No",
     "vote_error": "Could not save your vote. Try again.",
     "yes_vote": "Yes",
-    "no_vote": "No"
+    "no_vote": "No",
+    "section_open": "Open",
+    "section_decided": "Decided",
+    "ballot": "Ballot",
+    "to_decide_one": "{{count}} to decide",
+    "to_decide_other": "{{count}} to decide",
+    "waiting_for": "Waiting for"
   },
   "condition": {
     "title": "House condition",

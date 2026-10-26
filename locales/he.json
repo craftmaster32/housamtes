@@ -1290,7 +1290,13 @@
     "no_label": "לא",
     "vote_error": "לא ניתן לשמור את ההצבעה. נסה שוב.",
     "yes_vote": "כן",
-    "no_vote": "לא"
+    "no_vote": "לא",
+    "section_open": "פתוחות",
+    "section_decided": "הוחלט",
+    "ballot": "פתק הצבעה",
+    "to_decide_one": "אחת להחלטה",
+    "to_decide_other": "{{count}} להחלטה",
+    "waiting_for": "ממתינים ל־"
   },
   "condition": {
     "title": "מצב הדירה",

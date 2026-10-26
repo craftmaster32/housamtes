@@ -1290,7 +1290,13 @@
     "no_label": "No",
     "vote_error": "No se pudo guardar tu voto. Intenta de nuevo.",
     "yes_vote": "Sí",
-    "no_vote": "No"
+    "no_vote": "No",
+    "section_open": "Abiertas",
+    "section_decided": "Decididas",
+    "ballot": "Papeleta",
+    "to_decide_one": "{{count}} por decidir",
+    "to_decide_other": "{{count}} por decidir",
+    "waiting_for": "Falta que voten"
   },
   "condition": {
     "title": "Estado de la vivienda",

@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Mate } from '@components/shared/Mate';
 import { BallotCard } from '@components/voting/BallotCard';
 import { ProposalSheet } from '@components/voting/ProposalSheet';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
 import { useAuthStore } from '@stores/authStore';
@@ -69,35 +70,57 @@ function VotingScreen(): React.JSX.Element {
   const renderSectionHeader = useCallback(
     ({ section }: { section: BallotSection }): React.JSX.Element | null => {
       if (section.key === 'open') {
-        return open.length === 0 && !isLoading ? (
-          <View style={styles.empty}>
-            <Mate size={ms(80)} />
-            <Text style={[styles.emptyTitle, hand]}>{t('voting.no_open')}</Text>
-            <Text style={styles.emptyText}>{t('voting.no_open_hint')}</Text>
+        if (open.length === 0) {
+          return isLoading ? null : (
+            <View style={styles.empty}>
+              <Mate size={ms(80)} />
+              <Text style={[styles.emptyTitle, hand]}>{t('voting.no_open')}</Text>
+              <Text style={styles.emptyText}>{t('voting.no_open_hint')}</Text>
+            </View>
+          );
+        }
+        return (
+          <View style={styles.section} accessibilityRole="header">
+            <Text style={[styles.sectionTitle, headingFont]}>{t('voting.section_open')}</Text>
+            <Text style={[styles.sectionCount, hand]}>
+              {t('voting.to_decide', { count: open.length })}
+            </Text>
           </View>
-        ) : null;
+        );
       }
       if (closed.length === 0) return null;
+      // Decided ballots fold away under their heading; tap it to show them.
       return (
         <Pressable
-          style={styles.closedToggle}
+          style={({ pressed }) => [styles.section, pressed && styles.dim]}
           onPress={toggleShowClosed}
           accessibilityRole="button"
-          accessibilityLabel={`${t('voting.past_votes')} (${closed.length})`}
+          accessibilityLabel={`${t('voting.section_decided')} (${closed.length})`}
           accessibilityState={{ expanded: showClosed }}
         >
-          <Text style={styles.closedToggleText}>
-            {t('voting.past_votes')} ({closed.length})
-          </Text>
+          <Text style={[styles.sectionTitle, headingFont]}>{t('voting.section_decided')}</Text>
+          <Text style={[styles.sectionCount, hand]}>{closed.length}</Text>
           <Ionicons
             name={showClosed ? 'chevron-up' : 'chevron-down'}
-            size={15}
+            size={16}
             color={C.textSecondary}
+            style={styles.chevron}
           />
         </Pressable>
       );
     },
-    [open.length, closed.length, isLoading, showClosed, toggleShowClosed, styles, hand, t, C]
+    [
+      open.length,
+      closed.length,
+      isLoading,
+      showClosed,
+      toggleShowClosed,
+      styles,
+      hand,
+      headingFont,
+      t,
+      C,
+    ]
   );
 
   return (
@@ -113,19 +136,13 @@ function VotingScreen(): React.JSX.Element {
         ListHeaderComponent={
           <View>
             <BackLink label={t('common.home')} />
-            <Text style={[styles.title, headingFont]}>{t('voting.title')}</Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.title, headingFont]}>{t('voting.title')}</Text>
+              <View style={styles.tag}>
+                <PaperTag label={t('voting.new_proposal')} onPress={handleOpenForm} />
+              </View>
+            </View>
             <Text style={styles.subtitle}>{t('voting.subtitle')}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.newBtn, pressed && styles.dim]}
-              onPress={handleOpenForm}
-              accessibilityRole="button"
-              accessibilityLabel={t('voting.new_proposal')}
-            >
-              <Ionicons name="add" size={20} color="#FFFFFF" />
-              <Text style={styles.newBtnText}>
-                {t('voting.new_proposal').replace(/^\+\s*/, '')}
-              </Text>
-            </Pressable>
             {!!error && <Text style={styles.errorText}>{error}</Text>}
             {isLoading && proposals.length === 0 && (
               <View style={styles.loading}>
@@ -151,27 +168,23 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     list: { paddingHorizontal: ms(20), paddingTop: ms(8), paddingBottom: ms(60) },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: ms(10),
+      marginTop: ms(4),
+    },
     title: {
+      flexShrink: 1,
       fontSize: mf(36),
       lineHeight: mf(46),
       paddingBottom: ms(2),
       letterSpacing: -0.5,
-      marginTop: ms(4),
       color: C.textPrimary,
     },
+    tag: { paddingBottom: ms(10) },
     subtitle: { fontSize: mf(14), lineHeight: mf(20), ...font.regular, color: C.textSecondary },
-    newBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      minHeight: 52,
-      borderRadius: ms(17),
-      backgroundColor: C.primary,
-      marginTop: ms(18),
-      marginBottom: ms(22),
-    },
-    newBtnText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
     dim: { opacity: 0.6 },
     errorText: { fontSize: mf(13), ...font.regular, color: C.danger, marginBottom: ms(12) },
     loading: { paddingVertical: ms(40), alignItems: 'center' },
@@ -186,13 +199,15 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       textAlign: 'center',
       paddingHorizontal: ms(16),
     },
-    closedToggle: {
+    section: {
       flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
+      alignItems: 'baseline',
+      gap: ms(10),
       minHeight: 44,
+      paddingTop: ms(18),
       marginBottom: ms(10),
     },
-    closedToggleText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
+    sectionTitle: { fontSize: mf(22), lineHeight: mf(28), color: C.textPrimary },
+    sectionCount: { fontSize: mf(20), color: C.primary },
+    chevron: { alignSelf: 'flex-end', marginBottom: ms(6) },
   });
