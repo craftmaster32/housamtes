@@ -20,6 +20,7 @@ const HIDDEN_ON = [
   '/grocery/shop',
   '/grocery/quick-buy',
   '/bills/', // add-expense, bill detail, and setup (not the bills list itself)
+  '/photos', // sat on the grid's corner and over Save/Delete while picking photos
 ];
 
 /**

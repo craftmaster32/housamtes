@@ -1,7 +1,7 @@
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -10,87 +10,116 @@ import { mf, ms } from '@utils/responsive';
 interface SelectionBarProps {
   count: number;
   label: string;
-  busy: boolean;
-  onCancel: () => void;
+  /** How many of the chosen photos you added — Delete only works on those. */
+  deletableCount: number;
+  saving: boolean;
+  deleting: boolean;
   onSave: () => void;
+  onDelete: () => void;
 }
 
-/** Bottom bar while picking prints to save: Cancel · "3 selected" · Save to Phone. */
+interface BarActionProps {
+  icon: 'download-outline' | 'trash-outline';
+  label: string;
+  a11yLabel: string;
+  color: string;
+  busy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}
+
+function BarAction({
+  icon,
+  label,
+  a11yLabel,
+  color,
+  busy,
+  disabled,
+  onPress,
+}: BarActionProps): React.JSX.Element {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [styles.action, (disabled || pressed) && styles.dim]}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ busy, disabled }}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={color} />
+      ) : (
+        <Ionicons name={icon} size={25} color={color} />
+      )}
+      <Text style={[styles.actionText, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * The toolbar a phone gallery shows while picking photos: Save on one side,
+ * "3 selected" in the middle, Delete on the other. Cancel lives in the header.
+ */
 export function SelectionBar({
   count,
   label,
-  busy,
-  onCancel,
+  deletableCount,
+  saving,
+  deleting,
   onSave,
+  onDelete,
 }: SelectionBarProps): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const heading = useHeadingFont('semibold');
-  const insets = useSafeAreaInsets();
-  const off = count === 0 || busy;
+  const busy = saving || deleting;
   return (
-    <View
-      style={[
-        styles.bar,
-        { backgroundColor: c.background, borderTopColor: c.border },
-        { paddingBottom: Math.max(insets.bottom, ms(14)) },
-      ]}
-    >
-      <Pressable
-        onPress={onCancel}
-        style={styles.cancel}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.cancel')}
-      >
-        <Text style={[styles.cancelText, { color: c.primary }]}>{t('common.cancel')}</Text>
-      </Pressable>
-      <Text style={[styles.label, heading, { color: c.textPrimary }]}>{label}</Text>
-      <Pressable
+    <View style={[styles.bar, { backgroundColor: c.background, borderTopColor: c.border }]}>
+      <BarAction
+        icon="download-outline"
+        label={t('common.save')}
+        a11yLabel={t('photos.download_photo')}
+        color={c.primary}
+        busy={saving}
+        disabled={count === 0 || busy}
         onPress={onSave}
-        disabled={off}
-        style={({ pressed }) => [
-          styles.save,
-          { backgroundColor: c.primary },
-          (off || pressed) && styles.dim,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={t('photos.download_photo')}
-        accessibilityState={{ busy, disabled: off }}
+      />
+      <Text
+        style={[styles.label, heading, { color: c.textPrimary }]}
+        accessibilityLiveRegion="polite"
       >
-        {busy ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={styles.saveText}>{t('photos.download_photo')}</Text>
-        )}
-      </Pressable>
+        {label}
+      </Text>
+      <BarAction
+        icon="trash-outline"
+        label={t('common.delete')}
+        a11yLabel={t('photos.delete_selected')}
+        color={c.danger}
+        busy={deleting}
+        disabled={deletableCount === 0 || busy}
+        onPress={onDelete}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: ms(20),
-    paddingTop: ms(12),
-    borderTopWidth: 1,
+    paddingHorizontal: ms(14),
+    paddingVertical: ms(6),
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  cancel: { minHeight: 44, justifyContent: 'center', paddingEnd: ms(8) },
-  cancelText: { fontSize: mf(15), ...font.semibold },
-  label: { fontSize: mf(18) },
-  save: {
-    minHeight: 44,
-    minWidth: ms(110),
-    paddingHorizontal: ms(16),
-    borderRadius: ms(15),
+  action: {
+    minWidth: ms(64),
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: ms(2),
   },
-  saveText: { fontSize: mf(14.5), ...font.semibold, color: '#FFFFFF' },
-  dim: { opacity: 0.5 },
+  actionText: { fontSize: mf(12), ...font.semibold },
+  label: { fontSize: mf(18) },
+  dim: { opacity: 0.4 },
 });

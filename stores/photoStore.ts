@@ -61,6 +61,9 @@ interface PhotoStore {
     houseId: string;
   }) => Promise<void>;
   remove: (id: string, storagePath: string) => Promise<void>;
+  // Deletes several photos at once and returns how many were really removed.
+  // Only the uploader may delete a photo (RLS), so others' rows are skipped.
+  removeMany: (items: Array<{ id: string; storagePath: string }>) => Promise<number>;
   // Uploads a receipt image, files it in the Photos → Receipts album, and
   // returns the canonical bucket URL so a bill can reference the same object.
   uploadReceipt: (params: {
@@ -339,6 +342,35 @@ export const usePhotoStore = create<PhotoStore>()(
           throw new Error('Could not delete the photo. Please try again.');
         }
         set({ photos: get().photos.filter((p) => p.id !== id) });
+      },
+      removeMany: async (items): Promise<number> => {
+        if (items.length === 0) return 0;
+        // Rows first: RLS quietly skips photos someone else added, and the
+        // returned ids tell us which files are really safe to delete.
+        const { data, error } = await supabase
+          .from('photos')
+          .delete()
+          .in(
+            'id',
+            items.map((p) => p.id)
+          )
+          .select('id');
+        if (error) {
+          captureError(error, { context: 'delete-photos', count: String(items.length) });
+          throw new Error('Could not delete the photos. Please try again.');
+        }
+        const deleted = new Set((data ?? []).map((r: { id: string }) => r.id));
+        const paths = items
+          .filter((p) => deleted.has(p.id) && p.storagePath)
+          .map((p) => p.storagePath);
+        if (paths.length > 0) {
+          const { error: storageError } = await supabase.storage.from(BUCKET).remove(paths);
+          if (storageError) {
+            captureError(storageError, { context: 'delete-photos', count: String(paths.length) });
+          }
+        }
+        set({ photos: get().photos.filter((p) => !deleted.has(p.id)) });
+        return deleted.size;
       },
     }),
     { name: 'photo-store' }

@@ -1549,7 +1549,16 @@
     "photos_selected_one": "1 seleccionada",
     "photos_selected_other": "{{count}} seleccionadas",
     "download_all_success_one": "1 foto guardada en tu galería.",
-    "download_all_success_other": "{{count}} fotos guardadas en tu galería."
+    "download_all_success_other": "{{count}} fotos guardadas en tu galería.",
+    "select": "Seleccionar",
+    "select_all": "Seleccionar todo",
+    "deselect_all": "Quitar selección",
+    "delete_selected": "Eliminar fotos seleccionadas",
+    "delete_many_title_one": "¿Eliminar 1 foto?",
+    "delete_many_title_other": "¿Eliminar {{count}} fotos?",
+    "delete_many_confirm": "Se eliminarán para todos.",
+    "delete_many_partial": "Solo puedes eliminar las fotos que subiste. Se eliminarán {{count}} de {{total}} para todos.",
+    "delete_many_none": "Solo puedes eliminar las fotos que subiste."
   },
   "profile": {
     "account_section": "CUENTA",

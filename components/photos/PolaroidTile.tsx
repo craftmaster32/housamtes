@@ -54,6 +54,9 @@ function PolaroidTileComponent({
         transition={100}
         accessibilityLabel={label}
       />
+      {selectMode && selected && (
+        <View style={[styles.wash, { width: inner, height: inner }]} pointerEvents="none" />
+      )}
       {selectMode && (
         <View style={styles.boxWrap} pointerEvents="none">
           <View style={[styles.box, selected && styles.boxOn]}>
@@ -87,6 +90,13 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.85 },
   img: { backgroundColor: '#E9E4DA' },
+  // A picked print gets a light blue wash, the way a phone gallery dims picks.
+  wash: {
+    position: 'absolute',
+    top: ms(6),
+    left: ms(6),
+    backgroundColor: 'rgba(59,111,191,0.22)',
+  },
   boxWrap: { position: 'absolute', end: ms(5), bottom: ms(2) },
   box: {
     width: ms(18),

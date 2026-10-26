@@ -1,16 +1,14 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
   SectionList,
-  Pressable,
   useWindowDimensions,
   type SectionListData,
   type ListRenderItemInfo,
 } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
@@ -30,8 +28,7 @@ import { PREMIUM_ENABLED } from '@constants/featureFlags';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
+import { usePhotoSelection } from '@hooks/usePhotoSelection';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
@@ -40,6 +37,7 @@ import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { PolaroidTile } from '@components/photos/PolaroidTile';
 import { TapeLabel } from '@components/photos/TapeLabel';
 import { SelectionBar } from '@components/photos/SelectionBar';
+import { PhotosHeader } from '@components/photos/PhotosHeader';
 import { getErrorMessage } from '@utils/errors';
 import { mf, ms } from '@utils/responsive';
 
@@ -66,29 +64,10 @@ const makeStyles = (C: ColorTokens) =>
     flex: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     top: { paddingHorizontal: PAGE_PAD, paddingTop: ms(8) },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: {
-      fontSize: mf(36),
-      lineHeight: mf(46),
-      paddingBottom: ms(2),
-      letterSpacing: -0.5,
-      marginTop: ms(4),
-      color: C.textPrimary,
-    },
-    headerActions: { flexDirection: 'row', gap: ms(10) },
-    headerBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: C.surface,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    pressed: { opacity: 0.7 },
     filters: { marginTop: ms(2), marginBottom: ms(4) },
     error: { color: C.danger, fontSize: mf(13), ...font.regular, marginTop: ms(6) },
     upsell: { marginTop: ms(10) },
-    listContent: { paddingHorizontal: PAGE_PAD, paddingBottom: ms(110) },
+    listContent: { paddingHorizontal: PAGE_PAD, paddingBottom: ms(40) },
     sectionHeader: { paddingTop: ms(18), paddingBottom: ms(14) },
     gridRow: { flexDirection: 'row', gap: TILE_GAP, marginBottom: TILE_GAP + ms(4) },
     empty: { alignItems: 'center', paddingTop: ms(48), gap: ms(10) },
@@ -147,7 +126,6 @@ function PhotosScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('semibold');
   const { width: screenW } = useWindowDimensions();
   // Three prints a row inside the page margins (capped for tablets / web).
   const tile = (Math.min(screenW, 560) - PAGE_PAD * 2 - TILE_GAP * (GRID_COLS - 1)) / GRID_COLS;
@@ -164,14 +142,6 @@ function PhotosScreen(): React.JSX.Element {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
-
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
-
-  // keep a stable ref to selectedIds for use in callbacks
-  const selectedIdsRef = useRef(selectedIds);
-  selectedIdsRef.current = selectedIds;
 
   const filtered = useMemo(
     () =>
@@ -211,55 +181,8 @@ function PhotosScreen(): React.JSX.Element {
     [photos]
   );
 
-  const exitSelectMode = useCallback((): void => {
-    setIsSelectMode(false);
-    setSelectedIds(new Set());
-  }, []);
-
-  const toggleSelect = useCallback((photoId: string): void => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(photoId)) {
-        next.delete(photoId);
-      } else {
-        next.add(photoId);
-      }
-      return next;
-    });
-  }, []);
-
-  const enterSelectMode = useCallback((photoId: string): void => {
-    setIsSelectMode(true);
-    setSelectedIds(new Set([photoId]));
-  }, []);
-
-  const handleBulkDownload = useCallback(async (): Promise<void> => {
-    const ids = selectedIdsRef.current;
-    if (ids.size === 0 || isBulkDownloading) return;
-    const toDownload = photos.filter((p) => ids.has(p.id));
-    setIsBulkDownloading(true);
-    try {
-      for (const photo of toDownload) {
-        await downloadPhotoToLibrary(photo.url);
-      }
-      exitSelectMode();
-      const count = toDownload.length;
-      Alert.alert(
-        t('photos.download_success_title'),
-        count === 1
-          ? t('photos.download_all_success_one')
-          : t('photos.download_all_success_other', { count })
-      );
-    } catch (err) {
-      const isPermission = err instanceof Error && err.name === 'permission_denied';
-      Alert.alert(
-        t('common.error', 'Error'),
-        isPermission ? t('photos.download_permission_denied') : t('photos.download_error')
-      );
-    } finally {
-      setIsBulkDownloading(false);
-    }
-  }, [isBulkDownloading, photos, exitSelectMode, t]);
+  const selection = usePhotoSelection(photos, filtered, user?.id);
+  const { isSelectMode, selectedIds, toggle: toggleSelect, start: enterSelectMode } = selection;
 
   // Straight-to-upload: whatever the user picks in the system gallery (single
   // or multi-select) is uploaded immediately. Captions/albums come later.
@@ -402,6 +325,8 @@ function PhotosScreen(): React.JSX.Element {
     [isSelectMode, enterSelectMode]
   );
 
+  const onStartSelect = useCallback((): void => enterSelectMode(), [enterSelectMode]);
+
   const onSelectCategory = useCallback(
     (key: PhotoCategory | 'general') => setSelectedCategory(key),
     []
@@ -483,27 +408,16 @@ function PhotosScreen(): React.JSX.Element {
       <View style={styles.flex}>
         <View style={styles.top}>
           <BackLink label={t('common.home')} />
-          <View style={styles.header}>
-            <Text style={[styles.title, headingFont]}>{t('photos.title')}</Text>
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={pickFromCamera}
-                style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={t('photos.take_photo')}
-              >
-                <Ionicons name="camera-outline" size={22} color={C.primary} />
-              </Pressable>
-              <Pressable
-                onPress={pickFromLibrary}
-                style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel={t('photos.choose_from_library')}
-              >
-                <Ionicons name="images-outline" size={22} color={C.primary} />
-              </Pressable>
-            </View>
-          </View>
+          <PhotosHeader
+            isSelectMode={isSelectMode}
+            allSelected={selection.allSelected}
+            canSelect={filtered.length > 0}
+            onStartSelect={onStartSelect}
+            onToggleAll={selection.toggleAll}
+            onCancelSelect={selection.exit}
+            onCamera={pickFromCamera}
+            onLibrary={pickFromLibrary}
+          />
           <View style={styles.filters}>
             <ChoiceWords
               options={filterWords}
@@ -569,9 +483,11 @@ function PhotosScreen(): React.JSX.Element {
           <SelectionBar
             count={selectedCount}
             label={selectionLabel}
-            busy={isBulkDownloading}
-            onCancel={exitSelectMode}
-            onSave={handleBulkDownload}
+            deletableCount={selection.deletableCount}
+            saving={selection.isSaving}
+            deleting={selection.isDeleting}
+            onSave={selection.saveSelected}
+            onDelete={selection.deleteSelected}
           />
         )}
       </View>

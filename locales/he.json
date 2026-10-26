@@ -1549,7 +1549,16 @@
     "photos_selected_one": "1 נבחרה",
     "photos_selected_other": "{{count}} נבחרו",
     "download_all_success_one": "תמונה אחת נשמרה לגלריה.",
-    "download_all_success_other": "{{count}} תמונות נשמרו לגלריה."
+    "download_all_success_other": "{{count}} תמונות נשמרו לגלריה.",
+    "select": "בחירה",
+    "select_all": "בחר הכל",
+    "deselect_all": "בטל בחירה",
+    "delete_selected": "מחק את התמונות שנבחרו",
+    "delete_many_title_one": "למחוק תמונה אחת?",
+    "delete_many_title_other": "למחוק {{count}} תמונות?",
+    "delete_many_confirm": "הן יוסרו לכולם.",
+    "delete_many_partial": "אפשר למחוק רק תמונות שהעליתם. {{count}} מתוך {{total}} יוסרו לכולם.",
+    "delete_many_none": "אפשר למחוק רק תמונות שהעליתם."
   },
   "profile": {
     "account_section": "חשבון",

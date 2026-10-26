@@ -1549,7 +1549,16 @@
     "photos_selected_one": "1 selected",
     "photos_selected_other": "{{count}} selected",
     "download_all_success_one": "1 photo saved to your library.",
-    "download_all_success_other": "{{count}} photos saved to your library."
+    "download_all_success_other": "{{count}} photos saved to your library.",
+    "select": "Select",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "delete_selected": "Delete selected photos",
+    "delete_many_title_one": "Delete 1 photo?",
+    "delete_many_title_other": "Delete {{count}} photos?",
+    "delete_many_confirm": "They'll be removed for everyone.",
+    "delete_many_partial": "Only photos you added can be deleted. {{count}} of {{total}} will be removed for everyone.",
+    "delete_many_none": "You can only delete photos you added."
   },
   "profile": {
     "account_section": "ACCOUNT",

@@ -21,6 +21,7 @@ const mockCreateSignedUrls = jest.fn();
 const mockCreateSignedUrl = jest.fn();
 const mockUpload = jest.fn();
 const mockGetPublicUrl = jest.fn();
+const mockStorageRemove = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
@@ -31,6 +32,7 @@ jest.mock('@lib/supabase', () => ({
         createSignedUrl: (...a: unknown[]): unknown => mockCreateSignedUrl(...a),
         upload: (...a: unknown[]): unknown => mockUpload(...a),
         getPublicUrl: (...a: unknown[]): unknown => mockGetPublicUrl(...a),
+        remove: (...a: unknown[]): unknown => mockStorageRemove(...a),
       }),
     },
     channel: (): unknown => {
@@ -280,5 +282,65 @@ describe('photoStore — uploadReceipt', () => {
     });
 
     await expect(usePhotoStore.getState().uploadReceipt(params)).rejects.toThrow(/under 20 MB/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// removeMany — delete several photos at once from select mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('photoStore — removeMany', () => {
+  const photo = (id: string, userId = 'user-1'): Record<string, string | null> => ({
+    id,
+    url: `signed-${id}`,
+    storagePath: `house-1/${id}.jpg`,
+    caption: null,
+    category: 'general',
+    uploadedBy: 'Alice',
+    userId,
+    createdAt: '2026-07-01T00:00:00Z',
+  });
+
+  beforeEach(() => {
+    usePhotoStore.setState({
+      photos: [photo('p1'), photo('p2'), photo('p3', 'user-2')] as never,
+    });
+    mockStorageRemove.mockResolvedValue({ error: null });
+  });
+
+  it('deletes the rows and their files and drops them from the gallery', async () => {
+    mockFrom.mockReturnValue(ok([{ id: 'p1' }, { id: 'p2' }]));
+
+    const removed = await usePhotoStore.getState().removeMany([
+      { id: 'p1', storagePath: 'house-1/p1.jpg' },
+      { id: 'p2', storagePath: 'house-1/p2.jpg' },
+    ]);
+
+    expect(removed).toBe(2);
+    expect(mockStorageRemove).toHaveBeenCalledWith(['house-1/p1.jpg', 'house-1/p2.jpg']);
+    expect(usePhotoStore.getState().photos.map((p) => p.id)).toEqual(['p3']);
+  });
+
+  it("keeps a photo the database refused to delete (someone else's) and its file", async () => {
+    mockFrom.mockReturnValue(ok([{ id: 'p1' }]));
+
+    const removed = await usePhotoStore.getState().removeMany([
+      { id: 'p1', storagePath: 'house-1/p1.jpg' },
+      { id: 'p3', storagePath: 'house-1/p3.jpg' },
+    ]);
+
+    expect(removed).toBe(1);
+    expect(mockStorageRemove).toHaveBeenCalledWith(['house-1/p1.jpg']);
+    expect(usePhotoStore.getState().photos.map((p) => p.id)).toEqual(['p2', 'p3']);
+  });
+
+  it('throws a friendly error and keeps every photo when the delete fails', async () => {
+    mockFrom.mockReturnValue(fail('network'));
+
+    await expect(
+      usePhotoStore.getState().removeMany([{ id: 'p1', storagePath: 'house-1/p1.jpg' }])
+    ).rejects.toThrow(/Could not delete the photos/);
+    expect(mockStorageRemove).not.toHaveBeenCalled();
+    expect(usePhotoStore.getState().photos).toHaveLength(3);
   });
 });
