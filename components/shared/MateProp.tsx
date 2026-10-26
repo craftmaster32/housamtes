@@ -1,6 +1,6 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type MatePropKind = 'camera' | 'receipt' | 'broom' | 'car' | 'ballot' | 'pin';
+export type MatePropKind = 'camera' | 'receipt' | 'broom' | 'car' | 'ballot' | 'pin' | 'bag';
 
 interface MatePropProps {
   kind: MatePropKind;
@@ -82,6 +82,22 @@ export function MateProp({
           <Path d="M20 22 L20 36" {...line} stroke={stroke} />
           <Circle cx={20} cy={14} r={9} fill={accent} {...line} />
           <Circle cx={17} cy={11} r={2.2} fill={paper} />
+        </>
+      )}
+      {kind === 'bag' && (
+        <>
+          <Path
+            d="M17 12 L15 4 M20 12 L21 3 M23 12 L26 5"
+            stroke="#4F9A5B"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+          />
+          <Path d="M8 13 H32 L30 36 H10 Z" fill="#E2C99A" {...line} />
+          <Path
+            d="M8 13 L11 17 L14 13 L17 17 L20 13 L23 17 L26 13 L29 17 L32 13"
+            {...line}
+            strokeWidth={1.4}
+          />
         </>
       )}
     </Svg>

@@ -57,6 +57,7 @@ import { AisleSign } from '@components/grocery/AisleSign';
 import { ReminderClip } from '@components/grocery/ReminderClip';
 import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
 import { useHandFont } from '@hooks/useHandFont';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
@@ -1072,6 +1073,7 @@ function GroceryScreen(): React.JSX.Element {
                     </View>
                   </BagSlice>
                 )}
+                {sections.length > 0 && <MateCameo page="grocery" />}
                 <View style={styles.bottomPad} />
               </View>
             }

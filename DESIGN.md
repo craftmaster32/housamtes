@@ -559,6 +559,13 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   push pin (Notes) — with a one-line joke in handwriting (`mate.*` keys, four
   per page). Never tappable, never above content, and only when the list has
   items, so the empty-state Mate is still the only Mate on that screen.
+- Owner: "make more, change Mate's position — maybe he fell from something".
+  Now eight lines per page and five scenes (`MateCameoPose`): holding the
+  thing (lines 1–4), **fallen** on his side seeing stars with the thing
+  dropped beside him (5), **asleep** with "z z Z" (6), **peeking** in from
+  the screen's edge, half out of view (7), **hanging upside down** on a
+  string (8). Grocery joined (paper bag with carrots). Every joke matches
+  its scene.
 
 **Bottom menu (owner)**
 
