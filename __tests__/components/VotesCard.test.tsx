@@ -20,21 +20,21 @@ jest.mock('react-native-svg', () => {
 jest.mock('@expo/vector-icons', () => ({ Ionicons: (): null => null }));
 jest.mock('@stores/navigationStore', () => ({ navigateToBase: jest.fn() }));
 jest.mock('@lib/alert', () => ({ Alert: { alert: jest.fn() } }));
-jest.mock('@lib/i18n', () => ({ isRTL: () => false }));
+jest.mock('@lib/i18n', () => ({ isRTL: (): boolean => false }));
 jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: (): { t: (key: string) => string } => ({ t: (key: string): string => key }),
 }));
 jest.mock('@stores/languageStore', () => ({
-  useLanguageStore: (sel: (s: unknown) => unknown) => sel({ language: 'en' }),
+  useLanguageStore: (sel: (s: unknown) => unknown): unknown => sel({ language: 'en' }),
 }));
 jest.mock('@stores/authStore', () => ({
-  useAuthStore: (sel: (s: unknown) => unknown) => sel({ profile: { id: 'me' } }),
+  useAuthStore: (sel: (s: unknown) => unknown): unknown => sel({ profile: { id: 'me' } }),
 }));
 
 const mockCastVote = jest.fn((): Promise<void> => Promise.resolve());
 let mockProposals: Proposal[] = [];
 jest.mock('@stores/votingStore', () => ({
-  useVotingStore: (sel: (s: unknown) => unknown) =>
+  useVotingStore: (sel: (s: unknown) => unknown): unknown =>
     sel({ proposals: mockProposals, castVote: mockCastVote }),
 }));
 

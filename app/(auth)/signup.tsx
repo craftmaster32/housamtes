@@ -12,6 +12,7 @@ import { font } from '@constants/typography';
 import { AuthScreen } from '@components/auth/AuthScreen';
 import { AuthField } from '@components/auth/AuthField';
 import { StepTrail } from '@components/auth/StepTrail';
+import { PasswordStrength } from '@components/auth/PasswordStrength';
 import { TextLink } from '@components/auth/TextLink';
 import { InkTickBox } from '@components/shared/InkTickBox';
 import { SheetButton } from '@components/shared/SheetButton';
@@ -20,20 +21,6 @@ import { markTourPending } from '@utils/tour';
 import { mf, ms } from '@utils/responsive';
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
-
-type PasswordStrength = 'weak' | 'fair' | 'strong';
-
-function getPasswordStrength(pw: string): PasswordStrength {
-  const hasMinLength = pw.length >= 8;
-  const hasUpper = /[A-Z]/.test(pw);
-  const hasNumber = /[0-9]/.test(pw);
-  const hasSpecial = /[^A-Za-z0-9]/.test(pw);
-  const score = [hasMinLength, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-
-  if (!hasMinLength || score <= 1) return 'weak';
-  if (score <= 3) return 'fair';
-  return 'strong';
-}
 
 export default function SignupScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -79,7 +66,6 @@ export default function SignupScreen(): React.JSX.Element {
     [t]
   );
 
-  const strength = password.length > 0 ? getPasswordStrength(password) : null;
   const passwordError =
     passwordTouched && password.length > 0 && password.length < 8
       ? t('auth.password_min_length')
@@ -158,9 +144,6 @@ export default function SignupScreen(): React.JSX.Element {
       }
     }
   }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t, focusField]);
-
-  const strengthColor =
-    strength === 'weak' ? C.danger : strength === 'fair' ? C.warning : C.success;
 
   return (
     <AuthScreen
@@ -245,26 +228,7 @@ export default function SignupScreen(): React.JSX.Element {
         {!!passwordError && (
           <Text style={[styles.fieldError, { color: C.danger }]}>{passwordError}</Text>
         )}
-        {strength && (
-          <View style={styles.strengthRow}>
-            <View style={[styles.strengthTrack, { backgroundColor: C.border }]}>
-              <View
-                style={[
-                  styles.strengthFill,
-                  { backgroundColor: strengthColor },
-                  strength === 'weak'
-                    ? styles.third
-                    : strength === 'fair'
-                      ? styles.twoThirds
-                      : styles.full,
-                ]}
-              />
-            </View>
-            <Text style={[styles.strengthLabel, hand, { color: strengthColor }]}>
-              {t(`auth.strength_${strength}`)}
-            </Text>
-          </View>
-        )}
+        <PasswordStrength password={password} />
       </View>
 
       <AuthField
@@ -354,13 +318,6 @@ const styles = StyleSheet.create({
   suggestionAction: { minHeight: 36, justifyContent: 'center', paddingHorizontal: ms(4) },
   suggestionLink: { fontSize: mf(19) },
   fieldError: { fontSize: mf(13.5), ...font.medium, marginTop: ms(6) },
-  strengthRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10), marginTop: ms(8) },
-  strengthTrack: { flex: 1, height: 3, borderRadius: 2, overflow: 'hidden' },
-  strengthFill: { height: 3, borderRadius: 2 },
-  third: { width: '33%' },
-  twoThirds: { width: '66%' },
-  full: { width: '100%' },
-  strengthLabel: { fontSize: mf(18), minWidth: ms(52) },
   agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(10) },
   agreeText: { flex: 1, fontSize: mf(14), ...font.regular, lineHeight: mf(21), paddingTop: ms(10) },
   agreeLink: { ...font.semibold, textDecorationLine: 'underline' },

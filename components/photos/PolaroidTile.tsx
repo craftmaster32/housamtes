@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Path } from 'react-native-svg';
 import { lightColors } from '@constants/colors';
 import type { Photo } from '@stores/photoStore';
 import { ms } from '@utils/responsive';
+import { PenTick } from '@components/shared/PenTick';
 
 interface PolaroidTileProps {
   photo: Photo;
@@ -57,18 +57,13 @@ function PolaroidTileComponent({
       {selectMode && (
         <View style={styles.boxWrap} pointerEvents="none">
           <View style={[styles.box, selected && styles.boxOn]}>
-            {selected && (
-              <Svg width={ms(24)} height={ms(24)} viewBox="0 0 26 26" style={styles.tick}>
-                <Path
-                  d="M4 13 L10.5 20 L23 3"
-                  stroke={lightColors.primary}
-                  strokeWidth={3.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </Svg>
-            )}
+            <PenTick
+              checked={selected}
+              size={ms(24)}
+              color={lightColors.primary}
+              style={styles.tick}
+              strokeWidth={3.2}
+            />
           </View>
         </View>
       )}

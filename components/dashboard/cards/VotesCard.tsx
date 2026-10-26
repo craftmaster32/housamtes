@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import Svg, { Path } from 'react-native-svg';
+import { PenCross } from '@components/shared/PenCross';
 import { useTranslation } from 'react-i18next';
 import { navigateToBase } from '@stores/navigationStore';
 import { useAuthStore } from '@stores/authStore';
@@ -106,17 +106,7 @@ export function VotesCard({
                 <View
                   style={[styles.groceryBox, { borderColor: on ? c.primary : c.textSecondary }]}
                 >
-                  {on && (
-                    <Svg width={ms(24)} height={ms(24)} viewBox="0 0 26 26" style={local.cross}>
-                      <Path
-                        d="M4 5 L21 22 M21 4 L5 21"
-                        stroke={c.primary}
-                        strokeWidth={3}
-                        strokeLinecap="round"
-                        fill="none"
-                      />
-                    </Svg>
-                  )}
+                  <PenCross checked={on} size={ms(24)} color={c.primary} style={local.cross} />
                 </View>
                 <Text style={[local.word, { color: c.textPrimary }]}>{label}</Text>
               </Pressable>

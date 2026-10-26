@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   TextInput as RNTextInput,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +32,7 @@ import { font } from '@constants/typography';
 import { parseAmount, parseAndValidateAddBill, type AddBillPayload } from '@utils/validation';
 import { getErrorMessage } from '@utils/errors';
 import { mf, ms } from '@utils/responsive';
+import { PenTick } from '@components/shared/PenTick';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
 
@@ -315,18 +315,7 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
                 accessibilityLabel={it.name}
               >
                 <View style={[styles.box, { borderColor: C.textSecondary }]}>
-                  {on && (
-                    <Svg width={ms(24)} height={ms(24)} viewBox="0 0 26 26" style={styles.tick}>
-                      <Path
-                        d="M4 13 L10.5 20 L23 3"
-                        stroke={C.primary}
-                        strokeWidth={3}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                    </Svg>
-                  )}
+                  <PenTick checked={on} size={ms(24)} color={C.primary} style={styles.tick} />
                 </View>
                 <Text style={[styles.pickName, { color: C.textPrimary }]} numberOfLines={1}>
                   {it.name}

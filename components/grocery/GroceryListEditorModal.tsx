@@ -12,7 +12,6 @@ import {
   type ViewStyle,
   type TextInput as RNTextInput,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +24,7 @@ import { SheetHeader } from '@components/bills/recurring/SheetHeader';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
 
 import { mf, ms } from '@utils/responsive';
+import { PenTick } from '@components/shared/PenTick';
 
 export type ListEditorMode = 'create' | 'edit';
 
@@ -232,18 +232,7 @@ export function GroceryListEditorModal({
               accessibilityHint={t('grocery.keep_private_hint')}
             >
               <View style={[styles.box, { borderColor: C.textSecondary }]}>
-                {isPrivate && (
-                  <Svg width={ms(24)} height={ms(24)} viewBox="0 0 26 26" style={styles.tick}>
-                    <Path
-                      d="M4 13 L10.5 20 L23 3"
-                      stroke={C.primary}
-                      strokeWidth={3}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </Svg>
-                )}
+                <PenTick checked={isPrivate} size={ms(24)} color={C.primary} style={styles.tick} />
               </View>
               <View style={styles.privateText}>
                 <Text style={[styles.privateLabel, { color: C.textPrimary }]}>

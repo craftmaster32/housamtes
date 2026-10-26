@@ -1,5 +1,5 @@
 import { View, StyleSheet, Pressable } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { PenTick } from '@components/shared/PenTick';
 import { useThemedColors } from '@constants/colors';
 import { ms } from '@utils/responsive';
 
@@ -14,7 +14,8 @@ interface InkTickBoxProps {
 
 /**
  * An on/off choice as a box drawn in ink, ticked in blue pen when on — used
- * instead of a phone switch on the paper-style pages.
+ * instead of a phone switch on the paper-style pages. The tick is drawn in one
+ * pen stroke when it goes on and lifts off when it goes off.
  */
 export function InkTickBox({
   checked,
@@ -35,18 +36,7 @@ export function InkTickBox({
       accessibilityHint={accessibilityHint}
     >
       <View style={[styles.box, { borderColor: checked ? c.textPrimary : c.textSecondary }]}>
-        {checked && (
-          <Svg width={ms(26)} height={ms(26)} viewBox="0 0 26 26" style={styles.tick}>
-            <Path
-              d="M4 13 L10.5 20 L23 3"
-              stroke={c.primary}
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </Svg>
-        )}
+        <PenTick checked={checked} size={ms(26)} color={c.primary} style={styles.tick} />
       </View>
     </Pressable>
   );

@@ -1,6 +1,6 @@
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
-import Svg, { Path } from 'react-native-svg';
+import { PenCross } from '@components/shared/PenCross';
 import { lightColors } from '@constants/colors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { UserAvatar } from '@components/shared/UserAvatar';
@@ -61,17 +61,7 @@ export function BallotChoice({
       <Text style={[styles.label, heading]}>{label}</Text>
       {!closed && (
         <View style={styles.box}>
-          {mine && (
-            <Svg width={ms(34)} height={ms(34)} viewBox="0 0 26 26" style={styles.cross}>
-              <Path
-                d="M4 5 L21 22 M21 4 L5 21"
-                stroke={P.primary}
-                strokeWidth={3}
-                strokeLinecap="round"
-                fill="none"
-              />
-            </Svg>
-          )}
+          <PenCross checked={mine} size={ms(34)} color={P.primary} style={styles.cross} />
         </View>
       )}
       <View style={styles.tally}>
