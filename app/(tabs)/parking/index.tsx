@@ -15,6 +15,8 @@ import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { EmptyState } from '@components/ui';
 import { PaperTag } from '@components/bills/recurring/PaperTag';
@@ -106,6 +108,7 @@ function ParkingScreen(): React.JSX.Element {
     [reservations, today]
   );
   const history = useMemo(() => reservations.filter((r) => r.date < today), [reservations, today]);
+  const mateSpot = useMateScene(MATE_SPOTS);
   const listData = useMemo(
     (): FlatItem[] => [
       ...upcoming.map((r) => ({ _k: 'res' as const, res: r, isHistory: false })),
@@ -203,7 +206,20 @@ function ParkingScreen(): React.JSX.Element {
               </View>
             )}
 
+            {/* Mate on a rope, dropped off the spot card over the week (sometimes). */}
+            {mateSpot === 'rope' && (
+              <View style={styles.mateAnchor}>
+                <MateSpot kind="rope" size={ms(34)} ropeLength={ms(44)} style={styles.mateRope} />
+              </View>
+            )}
+
             <DayTiles onDayPress={handleDatePress} />
+
+            {mateSpot === 'sit' && (
+              <View style={styles.mateAnchor}>
+                <MateSpot kind="sit" size={ms(34)} style={styles.mateSit} />
+              </View>
+            )}
 
             <View style={styles.sectionHeader}>
               <Text
@@ -216,7 +232,9 @@ function ParkingScreen(): React.JSX.Element {
             </View>
           </View>
         }
-        ListFooterComponent={listData.length > 0 ? <MateCameo page="parking" /> : null}
+        ListFooterComponent={
+          mateSpot === 'footer' && listData.length > 0 ? <MateCameo page="parking" always /> : null
+        }
         ListEmptyComponent={
           isLoading ? (
             <EmptyState mode="loading" title={t('common.loading')} />
@@ -255,7 +273,14 @@ function ParkingScreen(): React.JSX.Element {
   );
 }
 
+// Where Mate may hide on a visit: on a rope off the spot card, sitting under
+// the week, or at the end of the reservations (one at most, sometimes none).
+const MATE_SPOTS = ['rope', 'sit', 'footer'] as const;
+
 const styles = StyleSheet.create({
+  mateAnchor: { height: 0, zIndex: 2 },
+  mateRope: { end: '24%', top: -ms(12) },
+  mateSit: { start: '20%', top: -ms(14) },
   container: { flex: 1 },
   list: {
     paddingHorizontal: ms(16),

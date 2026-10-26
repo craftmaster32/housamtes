@@ -32,6 +32,8 @@ const SHOW_CHANCE = 0.55;
 
 interface MateCameoProps {
   page: CameoPage;
+  /** The page already picked the end of the list for Mate (`useMateScene`) — skip the coin toss. */
+  always?: boolean;
 }
 
 /**
@@ -42,12 +44,12 @@ interface MateCameoProps {
  * Use it only where the page doesn't already show Mate (e.g. not with an empty
  * state), so there's still at most one Mate per screen.
  */
-export function MateCameo({ page }: MateCameoProps): React.JSX.Element | null {
+export function MateCameo({ page, always = false }: MateCameoProps): React.JSX.Element | null {
   const { t } = useTranslation();
   const c = useThemedColors();
   const hand = useHandFont();
   const [line] = useState<number | null>(() =>
-    Math.random() < SHOW_CHANCE ? 1 + Math.floor(Math.random() * LINES_PER_PAGE) : null
+    always || Math.random() < SHOW_CHANCE ? 1 + Math.floor(Math.random() * LINES_PER_PAGE) : null
   );
   if (line === null) return null;
   const pose = POSE_FOR_LINE[line] ?? 'hold';

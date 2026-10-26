@@ -33,6 +33,8 @@ import { useThemedColors } from '@constants/colors';
 import { BackLink } from '@components/shared/BackLink';
 import { Mate } from '@components/shared/Mate';
 import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -90,6 +92,7 @@ function BillsScreen(): React.JSX.Element {
   const [filter, setFilter] = useState<BillFilter>('one-off');
   // Search state lives here; category state is owned by the hook.
   const [search, setSearch] = useState('');
+  const mateSpot = useMateScene(MATE_SPOTS);
   const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
   useEffect((): void => {
     if (openRecurring === '1') setFilter('recurring');
@@ -230,6 +233,12 @@ function BillsScreen(): React.JSX.Element {
       style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
     >
       <BackLink label={t('common.home')} />
+      {/* Before the paper so it covers his lower half: peeking over its top. */}
+      {mateSpot === 'peekOver' && (
+        <View style={styles.mateBehind}>
+          <MateSpot kind="peekOver" size={ms(40)} style={styles.matePeek} />
+        </View>
+      )}
       <BalancePaper
         settled={iAmSettled}
         isOwed={isOwed}
@@ -241,6 +250,12 @@ function BillsScreen(): React.JSX.Element {
         showSettle={showSettle}
         onToggleSettle={handleToggleSettle}
       />
+      {/* After the paper: hanging on to its torn bottom edge. */}
+      {mateSpot === 'cling' && (
+        <View style={styles.mateAnchor}>
+          <MateSpot kind="cling" size={ms(36)} style={styles.mateCling} />
+        </View>
+      )}
 
       {/* Recurring household bills */}
       {filter === 'recurring' && (
@@ -335,7 +350,11 @@ function BillsScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={ListHeader}
-        ListFooterComponent={billSections.length > 0 ? <MateCameo page="bills" /> : null}
+        ListFooterComponent={
+          mateSpot === 'footer' && billSections.length > 0 ? (
+            <MateCameo page="bills" always />
+          ) : null
+        }
         ListEmptyComponent={
           bills.length + payments.length > 0 ? (
             <EmptyState
@@ -362,7 +381,15 @@ function BillsScreen(): React.JSX.Element {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+// Where Mate may hide on a visit: peeking over the balance paper by the chart
+// button, clinging to its torn edge, or at the end of the expenses.
+const MATE_SPOTS = ['peekOver', 'cling', 'footer'] as const;
+
 const styles = StyleSheet.create({
+  mateAnchor: { height: 0, zIndex: 2 },
+  mateBehind: { height: 0 },
+  matePeek: { end: ms(36), top: -ms(28) },
+  mateCling: { end: ms(26), top: -ms(16) },
   container: { flex: 1 },
   flex: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },

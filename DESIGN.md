@@ -566,6 +566,15 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   the screen's edge, half out of view (7), **hanging upside down** on a
   string (8). Grocery joined (paper bag with carrots). Every joke matches
   its scene.
+- Owner then wanted Mate to **pop up in the page itself**, not only at the end,
+  "so it won't interfere with the app flow", at spots the owner drew on
+  screenshots. `useMateScene` picks one spot per visit (or none, ~1 in 3):
+  **Parking** — hanging upside down on a rope off the spot card over the week,
+  or sitting under the day pages; **Bills** — peeking over the top of the
+  balance paper above the chart button (drawn behind the paper), or clinging
+  to its torn bottom edge; or the end-of-list cameo. `MateSpot` eases him in
+  once (the rope lowers with a small sway that settles), never tappable, never
+  read out. Zero-height anchor Views place him without moving the layout.
 
 **Bottom menu (owner)**
 
