@@ -15,6 +15,7 @@ import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
 import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
+import * as Font from 'expo-font';
 import { useFonts } from 'expo-font';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -157,6 +158,7 @@ export default function RootLayout(): React.JSX.Element | null {
     }
   }, [language]);
 
+  // Fonts the first screen needs — the splash waits for these only.
   const [fontsLoaded] = useFonts({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_400Regular: require('../assets/fonts/Inter_400Regular.ttf'),
@@ -166,13 +168,9 @@ export default function RootLayout(): React.JSX.Element | null {
     Inter_600SemiBold: require('../assets/fonts/Inter_600SemiBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_700Bold: require('../assets/fonts/Inter_700Bold.ttf'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
     // Fraunces — display serif for headings (Latin only; Hebrew falls back to Heebo).
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
     // Caveat — handwriting for paper touches (sticky note). Latin only.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Caveat_700Bold: require('../assets/fonts/Caveat_700Bold.ttf'),
@@ -188,9 +186,23 @@ export default function RootLayout(): React.JSX.Element | null {
     Heebo_800ExtraBold: require('../assets/fonts/Heebo_800ExtraBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     ionicons: require('../assets/fonts/Ionicons.ttf'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
   });
+
+  // The rest (rare weights and the big Material icon font, ~1.7 MB together)
+  // load in the background once the app is showing, so opening it is quicker.
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    Font.loadAsync({
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
+    }).catch(() => {
+      /* a missing extra weight only falls back to a near one */
+    });
+  }, [fontsLoaded]);
 
   // On web, register Heebo as the Hebrew-script provider under Inter family names.
   // The browser uses unicode-range to pick Heebo for Hebrew glyphs automatically.
