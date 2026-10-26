@@ -10,8 +10,6 @@ import { mf, ms } from '@utils/responsive';
 interface SelectionBarProps {
   count: number;
   label: string;
-  /** How many of the chosen photos you added — Delete only works on those. */
-  deletableCount: number;
   saving: boolean;
   deleting: boolean;
   onSave: () => void;
@@ -63,7 +61,6 @@ function BarAction({
 export function SelectionBar({
   count,
   label,
-  deletableCount,
   saving,
   deleting,
   onSave,
@@ -96,7 +93,7 @@ export function SelectionBar({
         a11yLabel={t('photos.delete_selected')}
         color={c.danger}
         busy={deleting}
-        disabled={deletableCount === 0 || busy}
+        disabled={count === 0 || busy}
         onPress={onDelete}
       />
     </View>

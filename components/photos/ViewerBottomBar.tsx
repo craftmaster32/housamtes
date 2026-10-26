@@ -9,7 +9,7 @@ import { Filmstrip } from '@components/photos/Filmstrip';
 import type { Photo } from '@stores/photoStore';
 import { mf, ms } from '@utils/responsive';
 
-type ActionIcon = 'download-outline' | 'trash-outline' | 'flag-outline';
+type ActionIcon = 'download-outline' | 'trash-outline';
 
 interface ToolProps {
   icon: ActionIcon;
@@ -51,32 +51,28 @@ interface ViewerBottomBarProps {
   photos: Photo[];
   current: number;
   caption: string | null;
-  isMine: boolean;
   isDownloading: boolean;
   bottomInset: number;
   labelFor: (photo: Photo) => string;
   onPick: (index: number) => void;
   onDownload: () => void;
   onDelete: () => void;
-  onReport: () => void;
 }
 
 /**
  * Under the open photo: its caption handwritten on a strip of tape, the
- * thumbnail strip, then Save · "3 of 12" · Delete (or Report for others' photos).
+ * thumbnail strip, then Save · "3 of 12" · Delete.
  */
 export function ViewerBottomBar({
   photos,
   current,
   caption,
-  isMine,
   isDownloading,
   bottomInset,
   labelFor,
   onPick,
   onDownload,
   onDelete,
-  onReport,
 }: ViewerBottomBarProps): React.JSX.Element {
   const { t } = useTranslation();
   const hand = useHandFont();
@@ -104,23 +100,13 @@ export function ViewerBottomBar({
         <Text style={styles.counter}>
           {photos.length > 1 ? `${current + 1} / ${photos.length}` : ''}
         </Text>
-        {isMine ? (
-          <Tool
-            icon="trash-outline"
-            label={t('common.delete')}
-            a11yLabel={t('photos.delete_photo')}
-            color="#FF8A84"
-            onPress={onDelete}
-          />
-        ) : (
-          <Tool
-            icon="flag-outline"
-            label={t('photos.report_action')}
-            a11yLabel={t('photos.report_title')}
-            color="rgba(255,255,255,0.85)"
-            onPress={onReport}
-          />
-        )}
+        <Tool
+          icon="trash-outline"
+          label={t('common.delete')}
+          a11yLabel={t('photos.delete_photo')}
+          color="#FF8A84"
+          onPress={onDelete}
+        />
       </View>
     </View>
   );

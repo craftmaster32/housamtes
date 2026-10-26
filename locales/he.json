@@ -1556,9 +1556,7 @@
     "delete_selected": "מחק את התמונות שנבחרו",
     "delete_many_title_one": "למחוק תמונה אחת?",
     "delete_many_title_other": "למחוק {{count}} תמונות?",
-    "delete_many_confirm": "הן יוסרו לכולם.",
-    "delete_many_partial": "אפשר למחוק רק תמונות שהעליתם. {{count}} מתוך {{total}} יוסרו לכולם.",
-    "delete_many_none": "אפשר למחוק רק תמונות שהעליתם."
+    "delete_many_confirm": "הן יוסרו לכולם."
   },
   "profile": {
     "account_section": "חשבון",

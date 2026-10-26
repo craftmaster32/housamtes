@@ -8,8 +8,6 @@ import { getErrorMessage } from '@utils/errors';
 export interface PhotoSelection {
   isSelectMode: boolean;
   selectedIds: Set<string>;
-  /** How many of the chosen photos this person added (the only ones they may delete). */
-  deletableCount: number;
   allSelected: boolean;
   isSaving: boolean;
   isDeleting: boolean;
@@ -23,14 +21,10 @@ export interface PhotoSelection {
 
 /**
  * Select mode for the Photos grid, like a phone's gallery: pick prints, then
- * save them all to the phone or delete them all at once. Only photos you added
- * can be deleted; the confirm note says so when the pick mixes in others'.
+ * save them all to the phone or delete them all at once (any housemate can
+ * delete any photo — owner's choice).
  */
-export function usePhotoSelection(
-  photos: Photo[],
-  visible: Photo[],
-  currentUserId: string | undefined
-): PhotoSelection {
+export function usePhotoSelection(photos: Photo[], visible: Photo[]): PhotoSelection {
   const { t } = useTranslation();
   const removeMany = usePhotoStore((s) => s.removeMany);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -41,10 +35,6 @@ export function usePhotoSelection(
   selectedRef.current = selectedIds;
 
   const chosen = useMemo(() => photos.filter((p) => selectedIds.has(p.id)), [photos, selectedIds]);
-  const deletable = useMemo(
-    () => chosen.filter((p) => !!currentUserId && p.userId === currentUserId),
-    [chosen, currentUserId]
-  );
   const allSelected = visible.length > 0 && visible.every((p) => selectedIds.has(p.id));
 
   const exit = useCallback((): void => {
@@ -99,20 +89,12 @@ export function usePhotoSelection(
 
   const deleteSelected = useCallback((): void => {
     if (chosen.length === 0 || isDeleting) return;
-    if (deletable.length === 0) {
-      Alert.alert(t('photos.delete_photo'), t('photos.delete_many_none'));
-      return;
-    }
-    const count = deletable.length;
+    const count = chosen.length;
     const title =
       count === 1
         ? t('photos.delete_many_title_one')
         : t('photos.delete_many_title_other', { count });
-    const body =
-      count < chosen.length
-        ? t('photos.delete_many_partial', { count, total: chosen.length })
-        : t('photos.delete_many_confirm');
-    Alert.alert(title, body, [
+    Alert.alert(title, t('photos.delete_many_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -120,7 +102,7 @@ export function usePhotoSelection(
         onPress: async (): Promise<void> => {
           setIsDeleting(true);
           try {
-            await removeMany(deletable.map((p) => ({ id: p.id, storagePath: p.storagePath })));
+            await removeMany(chosen.map((p) => ({ id: p.id, storagePath: p.storagePath })));
             exit();
           } catch (err) {
             Alert.alert(t('common.error'), getErrorMessage(err, t('photos.delete_error')));
@@ -130,12 +112,11 @@ export function usePhotoSelection(
         },
       },
     ]);
-  }, [chosen, deletable, isDeleting, removeMany, exit, t]);
+  }, [chosen, isDeleting, removeMany, exit, t]);
 
   return {
     isSelectMode,
     selectedIds,
-    deletableCount: deletable.length,
     allSelected,
     isSaving,
     isDeleting,

@@ -1556,9 +1556,7 @@
     "delete_selected": "Delete selected photos",
     "delete_many_title_one": "Delete 1 photo?",
     "delete_many_title_other": "Delete {{count}} photos?",
-    "delete_many_confirm": "They'll be removed for everyone.",
-    "delete_many_partial": "Only photos you added can be deleted. {{count}} of {{total}} will be removed for everyone.",
-    "delete_many_none": "You can only delete photos you added."
+    "delete_many_confirm": "They'll be removed for everyone."
   },
   "profile": {
     "account_section": "ACCOUNT",

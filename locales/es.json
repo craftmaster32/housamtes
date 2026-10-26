@@ -1556,9 +1556,7 @@
     "delete_selected": "Eliminar fotos seleccionadas",
     "delete_many_title_one": "¿Eliminar 1 foto?",
     "delete_many_title_other": "¿Eliminar {{count}} fotos?",
-    "delete_many_confirm": "Se eliminarán para todos.",
-    "delete_many_partial": "Solo puedes eliminar las fotos que subiste. Se eliminarán {{count}} de {{total}} para todos.",
-    "delete_many_none": "Solo puedes eliminar las fotos que subiste."
+    "delete_many_confirm": "Se eliminarán para todos."
   },
   "profile": {
     "account_section": "CUENTA",

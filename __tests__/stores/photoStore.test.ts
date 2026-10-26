@@ -321,7 +321,7 @@ describe('photoStore — removeMany', () => {
     expect(usePhotoStore.getState().photos.map((p) => p.id)).toEqual(['p3']);
   });
 
-  it("keeps a photo the database refused to delete (someone else's) and its file", async () => {
+  it('keeps a photo the database refused to delete, and its file', async () => {
     mockFrom.mockReturnValue(ok([{ id: 'p1' }]));
 
     const removed = await usePhotoStore.getState().removeMany([

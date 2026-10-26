@@ -181,7 +181,7 @@ function PhotosScreen(): React.JSX.Element {
     [photos]
   );
 
-  const selection = usePhotoSelection(photos, filtered, user?.id);
+  const selection = usePhotoSelection(photos, filtered);
   const { isSelectMode, selectedIds, toggle: toggleSelect, start: enterSelectMode } = selection;
 
   // Straight-to-upload: whatever the user picks in the system gallery (single
@@ -456,8 +456,6 @@ function PhotosScreen(): React.JSX.Element {
           <PhotoViewer
             photos={filtered}
             initialIndex={viewIndex}
-            currentUserId={user?.id}
-            houseId={houseId}
             onClose={onCloseViewer}
             onDelete={handleDelete}
           />
@@ -483,7 +481,6 @@ function PhotosScreen(): React.JSX.Element {
           <SelectionBar
             count={selectedCount}
             label={selectionLabel}
-            deletableCount={selection.deletableCount}
             saving={selection.isSaving}
             deleting={selection.isDeleting}
             onSave={selection.saveSelected}

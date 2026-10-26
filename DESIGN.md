@@ -535,15 +535,16 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   in the header; picked prints get a light blue wash plus the pen tick. The
   bottom bar is Save · "3 selected" · Delete (red), sitting in the page (not
   floating), so nothing covers it.
-- **Delete several at once** (owner): only photos you added can be deleted
-  (database rule); the sticky note says how many of the picked ones will go
-  ("2 of 3"), and Delete is greyed when none are yours (`usePhotoSelection`,
-  `photoStore.removeMany`).
+- **Delete several at once** (owner) with one confirm (`usePhotoSelection`,
+  `photoStore.removeMany`). Owner then asked for **Delete on every photo**:
+  any housemate can delete any photo in their house (migration
+  `20261026130000_house_members_delete_photos`), and **Report is gone** — it
+  only wrote to Sentry, which nobody reads.
 - The open photo felt "weak and cheap": now a darkroom stage (#0B0B0C) where
   the photo grows in from the grid and shrinks back when closed; the day in
   the serif on top ("Today", "Maya · 14:48"), the caption handwritten on
   masking tape, a strip of thumbnails to jump between photos (`Filmstrip`),
-  and Save · 2 / 6 · Delete (or Report) as big icon + word buttons.
+  and Save · 2 / 6 · Delete as big icon + word buttons.
 
 **Bottom menu (owner)**
 

@@ -19,7 +19,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { format, isToday, isYesterday } from 'date-fns';
 import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
-import { captureError } from '@lib/errorTracking';
 import { Alert } from '@lib/alert';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
@@ -46,8 +45,6 @@ const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
 export interface PhotoViewerProps {
   photos: Photo[];
   initialIndex: number;
-  currentUserId: string | undefined;
-  houseId: string | null;
   onClose: () => void;
   onDelete: (photo: Photo) => void;
 }
@@ -66,8 +63,6 @@ const styles = StyleSheet.create({
 export function PhotoViewer({
   photos,
   initialIndex,
-  currentUserId,
-  houseId,
   onClose,
   onDelete,
 }: PhotoViewerProps): React.JSX.Element {
@@ -254,29 +249,6 @@ export function PhotoViewer({
     }
   }, [photo, isDownloading, t]);
 
-  const handleReport = useCallback((): void => {
-    if (!photo) return;
-    Alert.alert(t('photos.report_title'), t('photos.report_message', { name: photo.uploadedBy }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('photos.report_action'),
-        style: 'destructive',
-        onPress: (): void => {
-          captureError(new Error('User photo report'), {
-            type: 'photo_report',
-            reportedPhotoId: photo.id,
-            reportedUploaderId: photo.userId,
-            reporterUserId: currentUserId ?? '',
-            houseId: houseId ?? '',
-          });
-          Alert.alert(t('photos.report_submitted_title'), t('photos.report_submitted_message'), [
-            { text: t('common.ok') },
-          ]);
-        },
-      },
-    ]);
-  }, [photo, currentUserId, houseId, t]);
-
   const handleDelete = useCallback((): void => {
     if (photo) onDelete(photo);
   }, [onDelete, photo]);
@@ -349,14 +321,12 @@ export function PhotoViewer({
               photos={photos}
               current={currentIndex}
               caption={photo.caption}
-              isMine={photo.userId === currentUserId}
               isDownloading={isDownloading}
               bottomInset={Math.max(insets.bottom, ms(12)) + ms(4)}
               labelFor={labelFor}
               onPick={jumpTo}
               onDownload={handleDownload}
               onDelete={handleDelete}
-              onReport={handleReport}
             />
           </Animated.View>
         )}
