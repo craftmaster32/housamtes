@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +40,8 @@ interface MateCameoProps {
  * Mate at the very end of a list in a little scene — holding something from
  * the page (a camera on Photos, a broom on Tasks…), fallen over, asleep,
  * peeking in from the edge or hanging upside down — with a one-line joke. He only shows
- * sometimes, sits below everything, and can't be tapped — never in the way.
+ * sometimes and sits below everything; tapping him makes him react (and, holding
+ * his thing, say another line).
  * Use it only where the page doesn't already show Mate (e.g. not with an empty
  * state), so there's still at most one Mate per screen.
  */
@@ -48,9 +49,16 @@ export function MateCameo({ page, always = false }: MateCameoProps): React.JSX.E
   const { t } = useTranslation();
   const c = useThemedColors();
   const hand = useHandFont();
-  const [line] = useState<number | null>(() =>
+  const [line, setLine] = useState<number | null>(() =>
     always || Math.random() < SHOW_CHANCE ? 1 + Math.floor(Math.random() * LINES_PER_PAGE) : null
   );
+  // Tapping him: a new joke that keeps his scene (holding lines 1–4 stay holding).
+  const handleTap = useCallback((): void => {
+    setLine((current) => {
+      if (current === null || current > 4) return current;
+      return (current % 4) + 1;
+    });
+  }, []);
   if (line === null) return null;
   const pose = POSE_FOR_LINE[line] ?? 'hold';
   const say = (
@@ -58,11 +66,13 @@ export function MateCameo({ page, always = false }: MateCameoProps): React.JSX.E
       {t(`mate.${page}_${line}`)}
     </Text>
   );
-  const figure = <MateCameoPose pose={pose} prop={PROP_FOR[page]} size={ms(48)} />;
+  const figure = (
+    <MateCameoPose pose={pose} prop={PROP_FOR[page]} size={ms(48)} onTap={handleTap} />
+  );
   return (
     <View
       style={[styles.wrap, pose === 'peek' && styles.peekWrap]}
-      pointerEvents="none"
+      pointerEvents="box-none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

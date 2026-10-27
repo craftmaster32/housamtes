@@ -18,8 +18,8 @@ interface MateSpotProps {
 /**
  * Mate hiding somewhere on a page (not at the end of the list): hanging on a
  * rope off a card, peeking over the top of a paper, clinging to its torn
- * edge, or sitting under the calendar. He eases into place once and can never
- * be tapped or read out, so the page works exactly as before.
+ * edge, or sitting under the calendar. He eases into place once; tapping him
+ * makes him react, and screen readers skip him, so the page works as before.
  *
  * Put it inside a zero-height anchor View right before (to be behind) or right
  * after (to be in front of) the thing he's playing with.
@@ -71,7 +71,7 @@ export function MateSpot({ kind, size, style, ropeLength = 40 }: MateSpotProps):
   return (
     <Animated.View
       style={[styles.spot, style, motion]}
-      pointerEvents="none"
+      pointerEvents="box-none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

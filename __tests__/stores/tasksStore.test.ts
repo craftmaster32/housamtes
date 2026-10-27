@@ -28,6 +28,11 @@ jest.mock('@lib/supabase', () => ({
   },
 }));
 
+const mockCelebrate = jest.fn();
+jest.mock('@lib/celebrate', () => ({
+  celebrate: (...a: unknown[]): unknown => mockCelebrate(...a),
+}));
+
 const mockNotify = jest.fn().mockResolvedValue(undefined);
 jest.mock('@lib/notifyHousemates', () => ({
   notifyHousemates: (...a: unknown[]): Promise<void> => mockNotify(...a),
@@ -270,6 +275,28 @@ describe('tasksStore — toggleTask', () => {
     expect(updated.isComplete).toBe(true);
     expect(updated.completedAt).not.toBeNull();
     expect(updated.completedBy).toBe(ME);
+  });
+
+  it('has Mate celebrate when the last open task is done', async () => {
+    mockCelebrate.mockClear();
+    useTasksStore.setState({
+      tasks: [task({ id: 't1' }), task({ id: 't2', isComplete: true })],
+    });
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
+
+    await useTasksStore.getState().toggleTask('t1');
+
+    expect(mockCelebrate).toHaveBeenCalledWith('tasks');
+  });
+
+  it('does not celebrate while other tasks are still open', async () => {
+    mockCelebrate.mockClear();
+    useTasksStore.setState({ tasks: [task({ id: 't1' }), task({ id: 't2' })] });
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
+
+    await useTasksStore.getState().toggleTask('t1');
+
+    expect(mockCelebrate).not.toHaveBeenCalled();
   });
 
   it('keeps the completed task in state (history) rather than removing it', async () => {

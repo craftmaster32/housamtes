@@ -1,5 +1,6 @@
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg';
 import { useThemedColors, darkColors } from '@constants/colors';
+import { mateOutfitFor, type MateOutfit } from '@utils/mateOutfit';
 
 // Mate — the little house who lives in the app. Drawn on a 120×120 grid with a
 // slightly wobbly ink line so he reads as hand-drawn. This is the still
@@ -9,6 +10,77 @@ const VIEW = 120;
 const ARM_PIVOT = '97 73';
 const INK = '#22201D';
 const CHEEK = '#F0A9A5';
+const HAT_PINK = '#F07FA6';
+const HAT_GOLD = '#F2C14E';
+const CAP_BLUE = '#33507F';
+const CAP_WHITE = '#FBF8F2';
+const SCARF_RED = '#D2544B';
+
+/** A party hat, a nightcap or a scarf round the chimney — drawn on the 120 grid. */
+function Outfit({ kind }: { kind: Exclude<MateOutfit, null> }): React.JSX.Element {
+  if (kind === 'partyHat') {
+    return (
+      <>
+        <Path
+          d="M46 29 L72 28 L58 2 Z"
+          fill={HAT_PINK}
+          stroke={INK}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M51 19 L63 17 M55 10 L61 9"
+          stroke={HAT_GOLD}
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
+        <Circle cx={58} cy={3} r={3.6} fill={HAT_GOLD} stroke={INK} strokeWidth={2} />
+      </>
+    );
+  }
+  if (kind === 'nightcap') {
+    return (
+      <>
+        <Path d="M60 10 Q45 6 40 18" stroke={INK} strokeWidth={10} strokeLinecap="round" />
+        <Path d="M60 10 Q45 6 40 18" stroke={CAP_BLUE} strokeWidth={6} strokeLinecap="round" />
+        <Path
+          d="M44 29 Q46 9 62 9 Q70 10 71 28 Z"
+          fill={CAP_BLUE}
+          stroke={INK}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+        />
+        <Path d="M44 28 Q58 24 71 27" stroke={CAP_WHITE} strokeWidth={4} strokeLinecap="round" />
+        <Circle cx={39} cy={20} r={4.2} fill={CAP_WHITE} stroke={INK} strokeWidth={2} />
+      </>
+    );
+  }
+  // A scarf wrapped under the roof, one end hanging down his front.
+  return (
+    <>
+      <Path
+        d="M30 66 L26 85 L35 86 L38 67 Z"
+        fill={SCARF_RED}
+        stroke={INK}
+        strokeWidth={2.2}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M24 61 Q60 66 97 61 L97 69 Q60 74 24 69 Z"
+        fill={SCARF_RED}
+        stroke={INK}
+        strokeWidth={2.2}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M40 63 L40 71 M58 64 L58 72 M76 64 L76 72 M28 78 L36 79"
+        stroke={CAP_WHITE}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </>
+  );
+}
 
 interface MateDrawingProps {
   size: number;
@@ -19,6 +91,8 @@ interface MateDrawingProps {
   onDark?: boolean;
   /** Roof colour override. */
   roofColor?: string;
+  /** What he wears; by default it follows the clock and the season. */
+  outfit?: MateOutfit;
 }
 
 export function MateDrawing({
@@ -27,7 +101,9 @@ export function MateDrawing({
   eyesClosed = false,
   onDark,
   roofColor,
+  outfit,
 }: MateDrawingProps): React.JSX.Element {
+  const wearing = outfit === undefined ? mateOutfitFor(new Date()) : outfit;
   const c = useThemedColors();
   const dark = onDark ?? c.background === darkColors.background;
   const roof = roofColor ?? (dark ? '#7FA4E3' : c.primary);
@@ -91,6 +167,7 @@ export function MateDrawing({
         strokeWidth={3}
         strokeLinecap="round"
       />
+      {wearing && <Outfit kind={wearing} />}
     </Svg>
   );
 }

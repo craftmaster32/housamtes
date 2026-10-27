@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+import { celebrate } from '@lib/celebrate';
 
 export interface Vote {
   person: string; // user UUID
@@ -262,6 +263,8 @@ export const useVotingStore = create<VotingStore>()(
             p.id === proposalId ? { ...p, isOpen: false } : p
           ),
         });
+        const closed = get().proposals.find((p) => p.id === proposalId);
+        if (closed && summarizeProposalVotes(closed.votes).result === 'passed') celebrate('vote');
       },
       remove: async (proposalId): Promise<void> => {
         const { error } = await supabase.from('proposals').delete().eq('id', proposalId);

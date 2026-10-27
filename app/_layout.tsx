@@ -35,6 +35,7 @@ import { TopBar } from '@components/shared/TopBar';
 import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { AlertHost } from '@components/shared/AlertHost';
+import { MateCelebration } from '@components/shared/MateCelebration';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { RouteTransition } from '@components/shared/RouteTransition';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
@@ -559,6 +560,7 @@ export default function RootLayout(): React.JSX.Element | null {
             {showChrome && <BottomTabBar />}
             {showChrome && <MorePopup />}
             {showChrome && <ProfilePopup />}
+            {showChrome && <MateCelebration />}
             <AlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>

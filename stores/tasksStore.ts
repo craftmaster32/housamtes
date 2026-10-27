@@ -7,6 +7,7 @@ import { useAuthStore } from '@stores/authStore';
 import { z } from 'zod';
 import { houseTaskSchema } from '@utils/validation';
 import type { HouseTaskRow } from '../types/database';
+import { celebrate } from '@lib/celebrate';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskFilter = 'all' | 'active' | 'completed';
@@ -243,6 +244,7 @@ export const useTasksStore = create<TasksStore>()(
             t.id === id ? { ...t, isComplete: isDone, completedAt, completedBy } : t
           ),
         });
+        if (isDone && get().tasks.every((t) => t.isComplete)) celebrate('tasks');
       },
       assignTask: async (id, userId): Promise<void> => {
         const task = get().tasks.find((t) => t.id === id);

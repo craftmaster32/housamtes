@@ -2190,6 +2190,25 @@
     "grocery_5": "Tropecé con las bolsas de la compra.",
     "grocery_6": "Despiértame cuando lleguen los snacks.",
     "grocery_7": "¿Hay chocolate en la lista?",
-    "grocery_8": "Buscando el último huevo."
+    "grocery_8": "Buscando el último huevo.",
+    "tap_hint": "Tócalo para ver qué hace"
+  },
+  "celebrate": {
+    "bill_1": "Cuenta saldada. La casa te lo agradece.",
+    "bill_2": "¡Pagado! Voy a enmarcar este recibo.",
+    "bill_3": "Una cosa menos por la que discutir.",
+    "bill_4": "¡Saldado! El dinero habló y escuchaste.",
+    "tasks_1": "Todas las tareas hechas. ¿¡Quién eres!?",
+    "tasks_2": "¡Todo listo! Siesta para todos.",
+    "tasks_3": "La lista está vacía. Qué orgullo.",
+    "tasks_4": "Hecho y hecho. Leyenda.",
+    "grocery_1": "Todo en la bolsa. ¡Picoteo asegurado!",
+    "grocery_2": "Lista tachada. La nevera te lo agradece.",
+    "grocery_3": "¡Todo comprado! Hoy nadie pasa hambre.",
+    "grocery_4": "Campeón de la compra de la casa.",
+    "vote_1": "¡Aprobado! Gana la democracia.",
+    "vote_2": "La casa ha hablado. ¡Sí!",
+    "vote_3": "Moción aprobada. Voy por el mazo.",
+    "vote_4": "¡Aprobado! Que alguien dé un discurso."
   }
 }

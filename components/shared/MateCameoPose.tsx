@@ -15,6 +15,8 @@ interface MateCameoPoseProps {
   prop: MatePropKind;
   /** Mate's drawn size. */
   size: number;
+  /** Tapping Mate (he reacts) also calls this, e.g. to say a new line. */
+  onTap?: () => void;
 }
 
 /** Little stars circling a dizzy head. */
@@ -35,9 +37,9 @@ function Dizzy({ size, color }: { size: number; color: string }): React.JSX.Elem
 /**
  * Mate in one of his little situations at the end of a list: holding the
  * page's thing, fallen over (seeing stars), asleep (z z Z), peeking in from
- * the edge, or hanging upside down on a string. Purely decorative.
+ * the edge, or hanging upside down on a string. Tap him and he reacts.
  */
-export function MateCameoPose({ pose, prop, size }: MateCameoPoseProps): React.JSX.Element {
+export function MateCameoPose({ pose, prop, size, onTap }: MateCameoPoseProps): React.JSX.Element {
   const c = useThemedColors();
   const hand = useHandFont();
   const propSize = size * 0.54;
@@ -60,7 +62,7 @@ export function MateCameoPose({ pose, prop, size }: MateCameoPoseProps): React.J
           {thing}
         </View>
         <View style={[styles.abs, { start: size * 0.55, bottom: -size * 0.08 }, styles.onSide]}>
-          <Mate size={size} wave={false} />
+          <Mate size={size} wave={false} onTap={onTap} />
         </View>
         <View style={[styles.abs, { start: size * 0.7, top: 0 }]}>
           <Dizzy size={size * 0.75} color="#E8B23A" />
@@ -95,7 +97,7 @@ export function MateCameoPose({ pose, prop, size }: MateCameoPoseProps): React.J
     return (
       <View style={[styles.clip, { width: size * 0.72, height: size * 1.1 }]}>
         <View style={[styles.abs, { start: 0, top: size * 0.12 }, styles.lean]}>
-          <Mate size={size} />
+          <Mate size={size} onTap={onTap} />
         </View>
       </View>
     );
@@ -113,7 +115,7 @@ export function MateCameoPose({ pose, prop, size }: MateCameoPoseProps): React.J
           ]}
         />
         <View style={[styles.abs, { start: 0, top: size * 0.4 }, styles.flip]}>
-          <Mate size={size} wave={false} />
+          <Mate size={size} wave={false} onTap={onTap} />
         </View>
         <View style={[styles.abs, { end: 0, bottom: 0, transform: [{ rotate: '160deg' }] }]}>
           {thing}
@@ -124,7 +126,7 @@ export function MateCameoPose({ pose, prop, size }: MateCameoPoseProps): React.J
 
   return (
     <View style={{ width: size * 1.33, height: size }}>
-      <Mate size={size} />
+      <Mate size={size} onTap={onTap} />
       <View style={[styles.abs, styles.held, { end: -size * 0.04, top: -size * 0.2 }]}>
         {thing}
       </View>

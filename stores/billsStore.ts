@@ -5,6 +5,7 @@ import { notifyHousemates } from '@lib/notifyHousemates';
 import { useSettingsStore } from '@stores/settingsStore';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+import { celebrate } from '@lib/celebrate';
 
 /** How the payer chose to divide the bill. `null` = legacy bill (pre-split_type). */
 export type BillSplitType = 'equal' | 'custom' | 'percentage';
@@ -316,6 +317,7 @@ export const useBillsStore = create<BillsStore>()(
             b.id === id ? { ...b, settled: true, settledBy: settledByUserId, settledAt: now } : b
           ),
         });
+        celebrate('bill');
         if (settledByUserId) {
           notifyHousemates({
             houseId,

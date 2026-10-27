@@ -2190,6 +2190,25 @@
     "grocery_5": "Tripped over the shopping bags.",
     "grocery_6": "Wake me when the snacks arrive.",
     "grocery_7": "Is there chocolate on the list?",
-    "grocery_8": "Looking for the last egg."
+    "grocery_8": "Looking for the last egg.",
+    "tap_hint": "Tap to see what he does"
+  },
+  "celebrate": {
+    "bill_1": "Bill settled. The house thanks you.",
+    "bill_2": "Paid up! I'm framing this receipt.",
+    "bill_3": "One less thing to argue about.",
+    "bill_4": "Settled! Money talks, you listened.",
+    "tasks_1": "Every task done. Who are you?!",
+    "tasks_2": "All clear! Nap time for everyone.",
+    "tasks_3": "The list is empty. I'm so proud.",
+    "tasks_4": "Done and done. Legend.",
+    "grocery_1": "Everything in the bag. Snacks secured!",
+    "grocery_2": "List ticked off. Fridge says thanks.",
+    "grocery_3": "All bought! Nobody starves tonight.",
+    "grocery_4": "Shopping champion of the house.",
+    "vote_1": "It passed! Democracy wins again.",
+    "vote_2": "The house has spoken. Yes!",
+    "vote_3": "Motion carried. I'll get the gavel.",
+    "vote_4": "Passed! Somebody make a speech."
   }
 }

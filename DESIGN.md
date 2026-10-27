@@ -557,7 +557,7 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   sits at the very end of a list holding something from that page — camera
   (Photos), receipt (Bills), broom (Tasks), toy car (Parking), ballot (Votes),
   push pin (Notes) — with a one-line joke in handwriting (`mate.*` keys, four
-  per page). Never tappable, never above content, and only when the list has
+  per page). Never above content (tappable since the Mate update below), and only when the list has
   items, so the empty-state Mate is still the only Mate on that screen.
 - Owner: "make more, change Mate's position — maybe he fell from something".
   Now eight lines per page and five scenes (`MateCameoPose`): holding the
@@ -573,7 +573,7 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   or sitting under the day pages; **Bills** — peeking over the top of the
   balance paper above the chart button (drawn behind the paper), or clinging
   to its torn bottom edge; or the end-of-list cameo. `MateSpot` eases him in
-  once (the rope lowers with a small sway that settles), never tappable, never
+  once (the rope lowers with a small sway that settles), tappable, never
   read out. Zero-height anchor Views place him without moving the layout.
 - Owner: "put him in other places as you see fit". Same picking, one spot or
   the end-of-list cameo per visit: **Tasks** — peeking over the "2 of 6 done"
@@ -595,6 +595,23 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   sign; the spotlight ring is a circle round the icon. Texts no longer say
   parking and chat live under More (chat is the round blue button).
 - `TourScreensMore.tsx` holds the Profile step; the ring is `TourHighlight.tsx`.
+
+**Mate update (owner: "work more on Mate")**
+
+- **Tap him**: every Mate (home, empty states, hiding spots, end-of-list
+  cameos) waves, hops, wiggles or smiles with his eyes shut — never the same
+  trick twice in a row — with a light haptic tick. Tapping a cameo that holds
+  the page's thing also swaps his joke. Screen readers still skip the
+  decorative hiding spots and cameos.
+- **Celebrations** (`lib/celebrate.ts` + `MateCelebration`, mounted once at
+  the root): when you settle a bill, tick the last open task, tick the last
+  grocery item, or close a vote that passed, Mate pops up above the bottom
+  menu for ~3 s with a line on a blue note (`celebrate.*`, four per kind,
+  three languages). Can't be tapped, never blocks the page. It's the one
+  allowed exception to "one Mate per screen", because it only lasts a moment.
+- **Outfits** (`utils/mateOutfit.ts`, drawn in `MateDrawing`): party hat on
+  31 Dec and 1 Jan, nightcap from 22:00 to 06:00, red scarf under his roof in
+  Dec–Feb. The first rule that matches wins.
 
 **Bottom menu (owner)**
 

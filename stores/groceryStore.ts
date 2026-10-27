@@ -6,6 +6,7 @@ import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
+import { celebrate } from '@lib/celebrate';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -639,7 +640,9 @@ export const useGroceryStore = create<GroceryStore>()(
             items: get().items.map((i) => (i.id === id ? { ...i, isChecked: !newChecked } : i)),
           });
           captureError(error, { context: 'toggle-grocery-item', id });
+          return;
         }
+        if (newChecked && get().items.every((i) => i.isChecked)) celebrate('grocery');
       },
 
       incrementBought: async (id): Promise<void> => {
