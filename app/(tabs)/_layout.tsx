@@ -47,6 +47,7 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="settings/terms" options={{ href: null }} />
       <Tabs.Screen name="settings/categories" options={{ href: null }} />
       <Tabs.Screen name="settings/members" options={{ href: null }} />
+      <Tabs.Screen name="settings/nfc-parking" options={{ href: null }} />
       <Tabs.Screen name="bills/[id]" options={{ href: null }} />
       <Tabs.Screen name="profile/index" />
       <Tabs.Screen name="profile/spending" options={{ href: null }} />
