@@ -253,8 +253,6 @@
     "spending_body": "Echa un vistazo al gráfico mensual para ver a dónde va todo: tu parte y la de toda la casa, sin hojas de cálculo.",
     "grocery_title": "No te quedes sin leche otra vez",
     "grocery_body": "Apunta lo que se te acaba y pulsa ＋. Todos ven la lista: ve marcando mientras compras.",
-    "calendar_title": "Todos en la misma página",
-    "calendar_body": "Gastos, parking y planes: todo en un calendario compartido. Toca Añadir evento para empezar.",
     "skip": "Saltar",
     "next": "Siguiente",
     "start": "¡Vamos!",
@@ -263,7 +261,18 @@
     "demo_water": "Agua",
     "back": "Atrás",
     "explore_title": "Y hay mucho más",
-    "explore_body": "Parking, tareas, chat y votaciones están en Más. Tócalo cuando quieras para explorar."
+    "explore_body": "Calendario, máquinas, notas, votaciones y más están en ⋯. El chat es el botón azul redondo de cada página.",
+    "parking_title": "¿Quién está en la plaza?",
+    "parking_body": "La tarjeta dice si la plaza está libre, es tuya u ocupada. Tócala para aparcar o salir, y toca un día para verlo o reservarlo.",
+    "tasks_title": "Tareas, en orden",
+    "tasks_body": "Una lista para tareas y pendientes. Añade una, dásela a alguien y márcala con boli cuando esté hecha.",
+    "photos_title": "El álbum de la casa",
+    "photos_body": "Recibos, daños y buenos recuerdos en un solo sitio. Toca Seleccionar para guardar o borrar varias a la vez.",
+    "demo_task_bins": "Sacar la basura",
+    "demo_task_bins_when": "Cada jueves",
+    "demo_task_bathroom": "Limpiar el baño",
+    "demo_task_bathroom_when": "Para el sábado",
+    "demo_task_plants": "Regar las plantas"
   },
   "house_setup": {
     "title": "Configura tu hogar",

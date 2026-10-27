@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import type { TFunction } from 'i18next';
@@ -12,70 +11,21 @@ import type { MonthSpend } from '@stores/spendingStore';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { DotLeader } from '@components/shared/DotLeader';
 import { ReceiptRoll } from '@components/bills/ReceiptRoll';
-import { PaperTag } from '@components/bills/recurring/PaperTag';
 import { BagSlice } from '@components/grocery/BagSlice';
 import { GraphChart } from '@components/spending/GraphChart';
-import { WallCalendar, type DayMark } from '@components/calendar/WallCalendar';
-import { toYMD } from '@components/calendar/calendarMeta';
+import { ParkingSignIcon } from '@components/shared/tabbar/ParkingSignIcon';
+import { asWord } from '@utils/asWord';
+import { Highlight } from './TourHighlight';
+import { TourParkingScreen, TourTasksScreen, TourPhotosScreen } from './TourScreensMore';
 
-export type TourScreenId = 'bills' | 'spending' | 'grocery' | 'calendar';
-export type BarHighlight = 'add' | 'more' | null;
+export type TourScreenId = 'bills' | 'spending' | 'parking' | 'grocery' | 'tasks' | 'photos';
+export type BarHighlight = 'add' | 'parking' | 'more' | null;
 
 // Background app content is shown at this opacity so the screen reads as the
 // real app, while the spotlighted control (full opacity + ring) stands out.
 const DIM = 0.5;
 
-// ── Pulsing spotlight ring drawn around the highlighted control ──────────────
-// Opacity-only pulse (no scale) so it hugs targets of any width correctly, and
-// a small, tight outset so it never sits on neighbouring content.
-interface HighlightProps {
-  C: ColorTokens;
-  radius: number;
-  children: React.ReactNode;
-  circle?: boolean;
-}
-
-export const Highlight: React.FC<HighlightProps> = ({ C, radius, children, circle }) => {
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 1200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return (): void => loop.stop();
-  }, [pulse]);
-
-  const glow = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.55] });
-  const rGlow = circle ? 999 : radius + 4;
-  const rStatic = circle ? 999 : radius + 2;
-
-  return (
-    <View style={[styles.highlightWrap, circle && styles.highlightCircle]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.ring, { borderColor: C.primary, borderRadius: rGlow, opacity: glow }]}
-      />
-      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: rStatic }]}>
-        {children}
-      </View>
-    </View>
-  );
-};
-
-// ── The persistent bottom nav bar ────────────────────────────────────────────
+// ── The bottom menu, as it is in the app: icons only, a blue round +, the P sign ──
 export function TourBottomBar({
   C,
   highlight,
@@ -88,18 +38,29 @@ export function TourBottomBar({
   moreLabel: string;
 }): React.JSX.Element {
   const tab = (name: keyof typeof Ionicons.glyphMap): React.JSX.Element => (
-    <View style={styles.barTab}>
-      <Ionicons name={name} size={24} color={C.textSecondary} style={{ opacity: DIM }} />
+    <View style={[styles.barTab, styles.dim]}>
+      <Ionicons name={name} size={24} color={C.textSecondary} />
     </View>
   );
   const addBtn = (
-    <View
-      style={[styles.addBtn, { backgroundColor: C.surface, borderColor: C.border }]}
-      accessibilityLabel={addLabel}
-    >
-      <Ionicons name="add" size={28} color={C.primary} />
+    <View style={[styles.addBtn, { backgroundColor: C.primary }]} accessibilityLabel={addLabel}>
+      <Ionicons name="add" size={30} color="#FFFFFF" />
     </View>
   );
+  const parking =
+    highlight === 'parking' ? (
+      <View style={styles.barTab}>
+        <Highlight C={C} radius={11} circle>
+          <View style={styles.tabHi}>
+            <ParkingSignIcon size={24} color={C.primary} active />
+          </View>
+        </Highlight>
+      </View>
+    ) : (
+      <View style={[styles.barTab, styles.dim]}>
+        <ParkingSignIcon size={24} color={C.textSecondary} active={false} />
+      </View>
+    );
   return (
     <View style={[styles.bar, { backgroundColor: C.background, borderTopColor: C.border }]}>
       {tab('home-outline')}
@@ -110,14 +71,14 @@ export function TourBottomBar({
             {addBtn}
           </Highlight>
         ) : (
-          <View style={styles.barAddDim}>{addBtn}</View>
+          <View style={styles.dim}>{addBtn}</View>
         )}
       </View>
-      {tab('car-outline')}
+      {parking}
       {highlight === 'more' ? (
         <View style={styles.barTab}>
-          <Highlight C={C} radius={11}>
-            <View style={styles.moreHi} accessibilityLabel={moreLabel}>
+          <Highlight C={C} radius={11} circle>
+            <View style={styles.tabHi} accessibilityLabel={moreLabel}>
               <Ionicons name="ellipsis-horizontal" size={24} color={C.primary} />
             </View>
           </Highlight>
@@ -300,40 +261,6 @@ function GroceryScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
-// ── Calendar — the wall calendar; the spotlight is the New event tag ──────────
-function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
-  const now = new Date();
-  const day = (d: number): string => toYMD(new Date(now.getFullYear(), now.getMonth(), d));
-  const marks: Record<string, DayMark[]> = {
-    [day(8)]: [{ title: t('tour.demo_internet'), color: P.primary }],
-    [day(14)]: [{ title: t('nav.grocery'), color: P.positive }],
-    [day(22)]: [{ title: t('tour.demo_water'), color: '#8B6BB8' }],
-  };
-  return (
-    <View style={styles.body}>
-      <View style={styles.calHead}>
-        <PageTitle C={C} title={t('calendar.title')} />
-        <Highlight C={C} radius={10}>
-          <PaperTag label={t('calendar.add_event')} onPress={noop} />
-        </Highlight>
-      </View>
-      <View style={{ opacity: DIM }} pointerEvents="none">
-        <WallCalendar
-          year={now.getFullYear()}
-          month={now.getMonth()}
-          selected={toYMD(now)}
-          today={toYMD(now)}
-          marks={marks}
-          rtl={false}
-          onSelect={noop}
-          onPrev={noop}
-          onNext={noop}
-        />
-      </View>
-    </View>
-  );
-}
-
 // ── Welcome backdrop — a faint Home with the notebook balance ─────────────────
 export function WelcomeBg({ C, t, currency }: ScreenProps): React.JSX.Element {
   const heading = useHeadingFont('semibold');
@@ -358,6 +285,7 @@ export function MoreMenuScreen({ t }: ScreenProps): React.JSX.Element {
   const heading = useHeadingFont('semibold');
   const tiles: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string; color: string }> = [
     { icon: 'cart-outline', label: t('nav.grocery'), color: '#E8892B' },
+    { icon: 'sync-outline', label: t('nav.machines'), color: '#3B6FBF' },
     { icon: 'calendar-outline', label: t('nav.calendar'), color: '#3B6FBF' },
     { icon: 'images-outline', label: t('nav.photos'), color: '#AF52DE' },
     { icon: 'list-outline', label: t('nav.tasks'), color: '#2FA37A' },
@@ -368,7 +296,7 @@ export function MoreMenuScreen({ t }: ScreenProps): React.JSX.Element {
   return (
     <View style={styles.body}>
       <NotebookPaper>
-        <Text style={[styles.menuTitle, heading]}>{t('nav.more')}</Text>
+        <Text style={[styles.menuTitle, heading]}>{asWord(t('nav.house_section'))}</Text>
         <View style={styles.menuGrid}>
           {tiles.map((tile) => (
             <View key={tile.label} style={styles.menuItem}>
@@ -400,18 +328,18 @@ export function TourScreen({
       return <BillsScreen C={C} t={t} currency={currency} />;
     case 'spending':
       return <SpendingScreen C={C} t={t} currency={currency} />;
+    case 'parking':
+      return <TourParkingScreen C={C} t={t} />;
     case 'grocery':
       return <GroceryScreen C={C} t={t} currency={currency} />;
-    case 'calendar':
-      return <CalendarScreen C={C} t={t} currency={currency} />;
+    case 'tasks':
+      return <TourTasksScreen C={C} t={t} />;
+    case 'photos':
+      return <TourPhotosScreen C={C} t={t} />;
   }
 }
 
 const styles = StyleSheet.create({
-  highlightWrap: { alignSelf: 'stretch' },
-  highlightCircle: { alignSelf: 'center' },
-  ring: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderWidth: 2 },
-  ringStatic: { borderWidth: 2 },
   body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.lg },
   gap: { gap: sizes.md },
   header: { gap: 2 },
@@ -448,13 +376,12 @@ const styles = StyleSheet.create({
   },
   barTab: { flex: 1, alignItems: 'center' },
   barCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  barAddDim: { opacity: DIM },
-  moreHi: { padding: 5, borderRadius: 8 },
+  dim: { opacity: DIM },
+  tabHi: { padding: 8 },
   addBtn: {
     width: 54,
     height: 54,
     borderRadius: 27,
-    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -491,11 +418,4 @@ const styles = StyleSheet.create({
   gName: { flex: 1, fontSize: 15, ...font.semibold, color: '#2E2416' },
   gDone: { textDecorationLine: 'line-through', opacity: 0.6 },
   gQty: { fontSize: 20, color: P.primary },
-  // Calendar
-  calHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 10,
-  },
 });

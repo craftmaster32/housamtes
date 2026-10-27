@@ -253,8 +253,6 @@
     "spending_body": "Peek at the monthly chart to see where it all goes — your share and the whole house, no spreadsheets.",
     "grocery_title": "Never run out of milk again",
     "grocery_body": "Jot down what you're out of and hit ＋. Everyone sees the list — tick things off as you shop.",
-    "calendar_title": "Everyone on the same page",
-    "calendar_body": "Bills, parking and plans all land on one shared calendar. Tap Add Event to pop something on it.",
     "skip": "Skip",
     "next": "Next",
     "start": "Let's go",
@@ -263,7 +261,18 @@
     "demo_water": "Water",
     "back": "Back",
     "explore_title": "There's even more",
-    "explore_body": "Parking, chores, chat and voting all live under More — give it a tap to explore."
+    "explore_body": "Calendar, machines, notes, votes and more live under ⋯. Chat is the round blue button on every page.",
+    "parking_title": "Who's in the spot?",
+    "parking_body": "The card says if the spot is free, yours or taken. Tap the card to park or leave — and tap a day to see or reserve it.",
+    "tasks_title": "Chores, sorted",
+    "tasks_body": "One list for chores and to-dos. Add one, hand it to someone, and tick it off in pen when it's done.",
+    "photos_title": "The house album",
+    "photos_body": "Receipts, damage and good memories in one place. Tap Select to save or delete a few at once.",
+    "demo_task_bins": "Take the bins out",
+    "demo_task_bins_when": "Every Thursday",
+    "demo_task_bathroom": "Clean the bathroom",
+    "demo_task_bathroom_when": "Due Sat",
+    "demo_task_plants": "Water the plants"
   },
   "house_setup": {
     "title": "Set up your home",

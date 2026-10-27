@@ -583,6 +583,21 @@ a mockup step. Their object is **the front door** (`components/auth/`):
   `enabled = false` to `useMateScene` while its empty-state Mate shows, so
   there's never a second Mate (this also fixed Parking and Bills).
 
+**Welcome tour (redone to match the new pages)**
+
+- Owner: "make the walking tour according to the new pages". Steps: Welcome →
+  Bills (+ spotlit) → Spending → **Parking** (the real spot card spotlit, the
+  week below, P sign spotlit in the bar) → Grocery → **Tasks** (the "2 of 5
+  done" tile, a to-do pad) → **Photos** (Select · camera · library spotlit,
+  prints under a date tape) → the ⋯ menu as the real "House" notebook page
+  (Machines added). Calendar's own step went; it's listed under ⋯.
+- The tour's bottom bar now matches the app: icons only, blue round +, the P
+  sign; the spotlight ring is a circle round the icon. Texts no longer say
+  parking and chat live under More (chat is the round blue button).
+- New pages reuse the real pieces (`SpotCard`, `DayTiles`, `TasksGlance`,
+  `PhotosHeader`, `TapeLabel`) in `TourScreensMore.tsx`; the ring is
+  `TourHighlight.tsx`.
+
 **Bottom menu (owner)**
 
 - Owner wants **icons only, no words**; rejected three looks (words + marker,
