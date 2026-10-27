@@ -36,6 +36,7 @@ export function useWelcomeTour(): WelcomeTour {
       }
       if (!active) return;
       await markWhatsNewSeen();
+      if (!active) return;
       Alert.alert(
         t('dashboard.whats_new_title'),
         t('dashboard.whats_new_body'),
