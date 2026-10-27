@@ -262,17 +262,8 @@
     "back": "Atrás",
     "explore_title": "Y hay mucho más",
     "explore_body": "Calendario, máquinas, notas, votaciones y más están en ⋯. El chat es el botón azul redondo de cada página.",
-    "parking_title": "¿Quién está en la plaza?",
-    "parking_body": "La tarjeta dice si la plaza está libre, es tuya u ocupada. Tócala para aparcar o salir, y toca un día para verlo o reservarlo.",
-    "tasks_title": "Tareas, en orden",
-    "tasks_body": "Una lista para tareas y pendientes. Añade una, dásela a alguien y márcala con boli cuando esté hecha.",
-    "photos_title": "El álbum de la casa",
-    "photos_body": "Recibos, daños y buenos recuerdos en un solo sitio. Toca Seleccionar para guardar o borrar varias a la vez.",
-    "demo_task_bins": "Sacar la basura",
-    "demo_task_bins_when": "Cada jueves",
-    "demo_task_bathroom": "Limpiar el baño",
-    "demo_task_bathroom_when": "Para el sábado",
-    "demo_task_plants": "Regar las plantas"
+    "profile_title": "Tú y tus ajustes",
+    "profile_body": "Toca tu foto arriba en Inicio. Tu perfil y los ajustes de la app están ahí."
   },
   "house_setup": {
     "title": "Configura tu hogar",

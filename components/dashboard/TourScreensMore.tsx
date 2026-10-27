@@ -1,82 +1,90 @@
 import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import type { TFunction } from 'i18next';
-import { lightColors, type ColorTokens } from '@constants/colors';
+import type { ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useHandFont } from '@hooks/useHandFont';
-import { SpotCard } from '@components/parking/SpotCard';
-import { DayTiles } from '@components/parking/DayTiles';
-import { TasksGlance } from '@components/tasks/TasksGlance';
-import { PhotosHeader } from '@components/photos/PhotosHeader';
-import { TapeLabel } from '@components/photos/TapeLabel';
+import { useAuthStore } from '@stores/authStore';
 import { Highlight } from './TourHighlight';
 
-// The tour's pages for Parking, Tasks and Photos — the real app pieces, shown
-// faintly, with the spotlight on the one thing to try.
+// The tour's "Profile & Settings" page: the top of Home with your picture
+// spotlit, and the little menu that drops from it — the same pop-up as the app.
 const DIM = 0.5;
-const P = lightColors;
-const noop = (): void => {};
+
+// Same greeting as the top of Home.
+function greetingKey(): string {
+  const h = new Date().getHours();
+  return h < 12 ? 'greeting_morning' : h < 18 ? 'greeting_afternoon' : 'greeting_evening';
+}
 
 interface ScreenProps {
   C: ColorTokens;
   t: TFunction;
 }
 
-function Title({ C, title }: { C: ColorTokens; title: string }): React.JSX.Element {
+export function TourProfileScreen({ C, t }: ScreenProps): React.JSX.Element {
   const heading = useHeadingFont('semibold');
-  return (
-    <Text style={[styles.title, heading, { color: C.textPrimary, opacity: DIM }]}>{title}</Text>
-  );
-}
-
-// ── Parking — the painted bay is the spotlight (tap it to park), the week below ──
-export function TourParkingScreen({ C, t }: ScreenProps): React.JSX.Element {
-  return (
-    <View style={styles.body} pointerEvents="none">
-      <Title C={C} title={t('parking.title')} />
-      <Highlight C={C} radius={24}>
-        <SpotCard
-          current={null}
-          isMine={false}
-          occupantName=""
-          statusLine={t('parking.free_real_estate')}
-          blockedReservation={null}
-          myId=""
-          nameOf={(): string => ''}
-          onPress={noop}
-        />
-      </Highlight>
-      <View style={{ opacity: DIM }}>
-        <DayTiles onDayPress={noop} />
-      </View>
+  const profile = useAuthStore((s) => s.profile);
+  const email = useAuthStore((s) => s.user?.email ?? '');
+  const name = profile?.name ?? t('common.you');
+  const avatar = (
+    <View style={[styles.avatar, { backgroundColor: profile?.avatarColor ?? C.primary }]}>
+      <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
     </View>
   );
-}
-
-// ── Tasks — the "2 of 5 done" tile is the spotlight, the to-do pad below ──────
-export function TourTasksScreen({ C, t }: ScreenProps): React.JSX.Element {
-  const hand = useHandFont();
-  const rows: Array<{ title: string; when: string; done: boolean }> = [
-    { title: t('tour.demo_task_bins'), when: t('tour.demo_task_bins_when'), done: false },
-    { title: t('tour.demo_task_bathroom'), when: t('tour.demo_task_bathroom_when'), done: false },
-    { title: t('tour.demo_task_plants'), when: '', done: true },
+  const rows: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string; danger?: boolean }> = [
+    { icon: 'person-outline', label: t('nav.profile') },
+    { icon: 'settings-outline', label: t('nav.settings') },
+    { icon: 'log-out-outline', label: t('profile.sign_out'), danger: true },
   ];
   return (
     <View style={styles.body} pointerEvents="none">
-      <Title C={C} title={t('tasks.title')} />
-      <Highlight C={C} radius={22}>
-        <TasksGlance done={2} total={5} />
-      </Highlight>
-      <View style={[styles.pad, { opacity: DIM }]}>
+      {/* The top of Home: your picture (spotlit), the house, the bell. */}
+      <View style={styles.top}>
+        <Highlight C={C} radius={22} circle>
+          {avatar}
+        </Highlight>
+        <View style={[styles.houseLine, { backgroundColor: C.border }]} />
+        <View style={[styles.bell, { backgroundColor: C.surface }]}>
+          <Ionicons name="notifications-outline" size={21} color={C.textPrimary} />
+        </View>
+      </View>
+      <Text style={[styles.greeting, heading, { color: C.textPrimary }]}>
+        {`${t(`dashboard.${greetingKey()}`)}, ${name.split(' ')[0]}`}
+      </Text>
+
+      {/* The menu that drops from your picture. */}
+      <View style={[styles.panel, { backgroundColor: C.surface }]}>
+        <View style={[styles.header, { borderBottomColor: C.border }]}>
+          <View
+            style={[styles.smallAvatar, { backgroundColor: profile?.avatarColor ?? C.primary }]}
+          >
+            <Text style={styles.smallAvatarText}>{name.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.headerText}>
+            <Text style={[styles.name, { color: C.textPrimary }]} numberOfLines={1}>
+              {name}
+            </Text>
+            {!!email && (
+              <Text style={[styles.email, { color: C.textSecondary }]} numberOfLines={1}>
+                {email}
+              </Text>
+            )}
+          </View>
+        </View>
         {rows.map((r) => (
-          <View key={r.title} style={styles.padRow}>
-            <View style={styles.box}>{r.done && <Text style={styles.tick}>✓</Text>}</View>
-            <View style={styles.padText}>
-              <Text style={[styles.padTitle, r.done && styles.struck]}>{r.title}</Text>
-              {!!r.when && <Text style={[styles.padWhen, hand]}>{r.when}</Text>}
-            </View>
+          <View key={r.label} style={[styles.row, r.danger && styles.dim]}>
+            <Ionicons
+              name={r.icon}
+              size={18}
+              color={r.danger ? C.negative : C.textSecondary}
+              style={styles.rowIcon}
+            />
+            <Text style={[styles.rowLabel, { color: r.danger ? C.negative : C.textPrimary }]}>
+              {r.label}
+            </Text>
           </View>
         ))}
       </View>
@@ -84,79 +92,67 @@ export function TourTasksScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
-// ── Photos — the header (Select · camera · library) is the spotlight ─────────
-export function TourPhotosScreen({ C, t }: ScreenProps): React.JSX.Element {
-  const prints = ['#C9A27E', '#7FA7C9', '#A3B88C'];
-  return (
-    <View style={styles.body} pointerEvents="none">
-      <Highlight C={C} radius={14}>
-        <PhotosHeader
-          isSelectMode={false}
-          allSelected={false}
-          canSelect
-          onStartSelect={noop}
-          onToggleAll={noop}
-          onCancelSelect={noop}
-          onCamera={noop}
-          onLibrary={noop}
-        />
-      </Highlight>
-      <View style={[styles.album, { opacity: DIM }]}>
-        <TapeLabel label={t('photos.today')} />
-        <View style={styles.prints}>
-          {prints.map((tint, i) => (
-            <View key={tint} style={[styles.print, { transform: [{ rotate: TILTS[i] }] }]}>
-              <View style={[styles.printImg, { backgroundColor: tint }]} />
-            </View>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-const TILTS = ['-1.4deg', '0.9deg', '-0.5deg'];
-
 const styles = StyleSheet.create({
-  body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.lg },
-  title: { fontSize: 32, lineHeight: 41, letterSpacing: -0.5 },
-  // Tasks pad (stays light in dark, like the real one)
-  pad: {
-    backgroundColor: P.paper,
-    borderTopWidth: 6,
-    borderTopColor: P.primary,
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+  body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.md },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  padRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
-  box: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderRadius: 4,
-    borderColor: P.paperInk,
-    transform: [{ rotate: '-2deg' }],
+  avatarText: { fontSize: 17, ...font.bold, color: '#FFFFFF' },
+  houseLine: { flex: 1, height: 10, borderRadius: 5, opacity: DIM },
+  bell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: DIM,
   },
-  tick: { position: 'absolute', left: 1, top: -8, fontSize: 20, color: P.primary, ...font.bold },
-  padText: { flex: 1 },
-  padTitle: { fontSize: 15, ...font.semibold, color: P.paperInk },
-  padWhen: { fontSize: 17, lineHeight: 20, color: P.primary },
-  struck: { textDecorationLine: 'line-through', opacity: 0.6 },
-  // Photos
-  album: { gap: 14 },
-  prints: { flexDirection: 'row', gap: 12 },
-  print: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 6,
-    paddingBottom: 16,
-    borderRadius: 2,
+  greeting: { fontSize: 30, lineHeight: 38, letterSpacing: -0.5, opacity: DIM },
+  // The drop-down menu, as in ProfilePopup.
+  panel: {
+    alignSelf: 'flex-start',
+    width: 230,
+    borderRadius: 16,
+    paddingVertical: sizes.xs,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.16,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    elevation: 24,
   },
-  printImg: { aspectRatio: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.sm,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: sizes.xs,
+  },
+  smallAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallAvatarText: { fontSize: 15, ...font.bold, color: '#FFFFFF' },
+  headerText: { flex: 1 },
+  name: { fontSize: sizes.fontSm, ...font.semibold },
+  email: { fontSize: sizes.fontXs, ...font.regular, marginTop: 1 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.sm,
+    paddingHorizontal: sizes.md,
+    minHeight: sizes.touchTarget,
+  },
+  rowIcon: { width: 20, textAlign: 'center' },
+  rowLabel: { flex: 1, fontSize: sizes.fontSm, ...font.medium },
+  dim: { opacity: DIM },
 });

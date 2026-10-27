@@ -16,9 +16,9 @@ import { GraphChart } from '@components/spending/GraphChart';
 import { ParkingSignIcon } from '@components/shared/tabbar/ParkingSignIcon';
 import { asWord } from '@utils/asWord';
 import { Highlight } from './TourHighlight';
-import { TourParkingScreen, TourTasksScreen, TourPhotosScreen } from './TourScreensMore';
+import { TourProfileScreen } from './TourScreensMore';
 
-export type TourScreenId = 'bills' | 'spending' | 'parking' | 'grocery' | 'tasks' | 'photos';
+export type TourScreenId = 'bills' | 'spending' | 'grocery' | 'profile';
 export type BarHighlight = 'add' | 'parking' | 'more' | null;
 
 // Background app content is shown at this opacity so the screen reads as the
@@ -328,14 +328,10 @@ export function TourScreen({
       return <BillsScreen C={C} t={t} currency={currency} />;
     case 'spending':
       return <SpendingScreen C={C} t={t} currency={currency} />;
-    case 'parking':
-      return <TourParkingScreen C={C} t={t} />;
     case 'grocery':
       return <GroceryScreen C={C} t={t} currency={currency} />;
-    case 'tasks':
-      return <TourTasksScreen C={C} t={t} />;
-    case 'photos':
-      return <TourPhotosScreen C={C} t={t} />;
+    case 'profile':
+      return <TourProfileScreen C={C} t={t} />;
   }
 }
 

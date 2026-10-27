@@ -585,18 +585,16 @@ a mockup step. Their object is **the front door** (`components/auth/`):
 
 **Welcome tour (redone to match the new pages)**
 
-- Owner: "make the walking tour according to the new pages". Steps: Welcome →
-  Bills (+ spotlit) → Spending → **Parking** (the real spot card spotlit, the
-  week below, P sign spotlit in the bar) → Grocery → **Tasks** (the "2 of 5
-  done" tile, a to-do pad) → **Photos** (Select · camera · library spotlit,
-  prints under a date tape) → the ⋯ menu as the real "House" notebook page
-  (Machines added). Calendar's own step went; it's listed under ⋯.
-- The tour's bottom bar now matches the app: icons only, blue round +, the P
+- Owner: "make the walking tour according to the new pages", then took out
+  Parking, Tasks and Photos and asked for where Profile and Settings are
+  ("the popup only"). Steps: Welcome → Bills (+ spotlit) → Spending →
+  Grocery → **Profile & Settings** (the top of Home with your picture
+  spotlit, and the drop-down from it: Profile · Settings · Sign out) → the ⋯
+  menu as the real "House" notebook page (Machines added).
+- The tour's bottom bar matches the app: icons only, blue round +, the P
   sign; the spotlight ring is a circle round the icon. Texts no longer say
   parking and chat live under More (chat is the round blue button).
-- New pages reuse the real pieces (`SpotCard`, `DayTiles`, `TasksGlance`,
-  `PhotosHeader`, `TapeLabel`) in `TourScreensMore.tsx`; the ring is
-  `TourHighlight.tsx`.
+- `TourScreensMore.tsx` holds the Profile step; the ring is `TourHighlight.tsx`.
 
 **Bottom menu (owner)**
 

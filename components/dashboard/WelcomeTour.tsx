@@ -35,16 +35,14 @@ interface Step {
   screen?: TourScreenId;
 }
 
-// The tour follows the app as it is now: the bottom menu's pages first, then
-// the favourites from the ⋯ menu, then the ⋯ menu itself.
+// The tour follows the app as it is now: the main money and shopping pages,
+// where your profile and settings are, then the ⋯ menu.
 const STEPS: Step[] = [
   { id: 'welcome' },
   { id: 'bills', screen: 'bills' },
   { id: 'spending', screen: 'spending' },
-  { id: 'parking', screen: 'parking' },
   { id: 'grocery', screen: 'grocery' },
-  { id: 'tasks', screen: 'tasks' },
-  { id: 'photos', screen: 'photos' },
+  { id: 'profile', screen: 'profile' },
   { id: 'explore' },
 ];
 
@@ -95,13 +93,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
     [width, rtl, back, next]
   );
   const barHighlight: BarHighlight =
-    step.id === 'bills'
-      ? 'add'
-      : step.id === 'parking'
-        ? 'parking'
-        : step.id === 'explore'
-          ? 'more'
-          : null;
+    step.id === 'bills' ? 'add' : step.id === 'explore' ? 'more' : null;
 
   // Horizontal swipe: back one step, or forward. Only claims the gesture on a
   // clear horizontal drag, so taps and the buttons keep working.
