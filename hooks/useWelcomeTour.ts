@@ -34,8 +34,8 @@ export function useWelcomeTour(): WelcomeTour {
         if (active) setBusy(false);
         return;
       }
+      // Left Home before the check finished: offer the note next visit instead.
       if (!active) return;
-      await markWhatsNewSeen();
       Alert.alert(
         t('dashboard.whats_new_title'),
         t('dashboard.whats_new_body'),
@@ -49,6 +49,7 @@ export function useWelcomeTour(): WelcomeTour {
         ],
         { onDismiss: (): void => setBusy(false) }
       );
+      markWhatsNewSeen();
     })();
     return (): void => {
       active = false;
