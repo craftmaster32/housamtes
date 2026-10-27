@@ -461,7 +461,11 @@
     "card_on": "En el panel",
     "card_off": "Oculta",
     "note_position": "Nota {{n}} de {{count}}",
-    "next_note_hint": "Muestra la siguiente nota"
+    "next_note_hint": "Muestra la siguiente nota",
+    "whats_new_title": "Un aspecto totalmente nuevo",
+    "whats_new_body": "Llegó HouseMates 3.0: hemos rediseñado todas las páginas. ¿Quieres un recorrido rápido por las novedades?",
+    "whats_new_show": "Enséñamelo",
+    "whats_new_later": "Quizás luego"
   },
   "happening": {
     "now": "Ahora",

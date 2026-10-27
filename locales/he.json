@@ -461,7 +461,11 @@
     "card_on": "בלוח",
     "card_off": "מוסתר",
     "note_position": "פתק {{n}} מתוך {{count}}",
-    "next_note_hint": "מציג את הפתק הבא"
+    "next_note_hint": "מציג את הפתק הבא",
+    "whats_new_title": "מראה חדש לגמרי",
+    "whats_new_body": "HouseMates 3.0 כאן: כל העמודים עוצבו מחדש. רוצים סיור קצר במה שחדש?",
+    "whats_new_show": "תראו לי",
+    "whats_new_later": "אולי אחר כך"
   },
   "happening": {
     "now": "עכשיו",

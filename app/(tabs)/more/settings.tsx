@@ -22,6 +22,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import type { AppLanguage } from '@lib/i18n';
 import { Alert } from '@lib/alert';
 import { useThemedColors } from '@constants/colors';
+import { APP_VERSION } from '@constants/appVersion';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
@@ -245,7 +246,7 @@ export default function SettingsScreen(): React.JSX.Element {
         </View>
         <View style={styles.smallPrint}>
           <Text style={[styles.version, { color: c.textSecondary }]}>
-            {t('settings.version')} 1.0.0
+            {t('settings.version')} {APP_VERSION}
           </Text>
           <View style={styles.links}>
             <Pressable

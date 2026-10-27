@@ -461,7 +461,11 @@
     "card_on": "On dashboard",
     "card_off": "Hidden",
     "note_position": "Note {{n}} of {{count}}",
-    "next_note_hint": "Shows the next note"
+    "next_note_hint": "Shows the next note",
+    "whats_new_title": "A fresh new look",
+    "whats_new_body": "HouseMates 3.0 is here: every page has been redrawn. Want a quick tour of what's new?",
+    "whats_new_show": "Show me around",
+    "whats_new_later": "Maybe later"
   },
   "happening": {
     "now": "Now",

@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { markTourPending, shouldShowTour, markTourSeen } from '@utils/tour';
+import {
+  markTourPending,
+  shouldShowTour,
+  markTourSeen,
+  shouldShowWhatsNew,
+  markWhatsNewSeen,
+} from '@utils/tour';
 
 const TOUR_KEY = 'housemates_new_user_tour';
 
@@ -31,5 +37,22 @@ describe('new-user welcome tour flag', () => {
     expect(await shouldShowTour()).toBe(false);
     // A returning user logging in should still not trigger it.
     expect(await shouldShowTour()).toBe(false);
+  });
+});
+
+describe('"new look" note for the 3.0 redesign', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('shows once to people who used the app before', async () => {
+    expect(await shouldShowWhatsNew()).toBe(true);
+    await markWhatsNewSeen();
+    expect(await shouldShowWhatsNew()).toBe(false);
+  });
+
+  it('is skipped for brand-new accounts, who get the tour instead', async () => {
+    await markTourPending();
+    expect(await shouldShowWhatsNew()).toBe(false);
   });
 });

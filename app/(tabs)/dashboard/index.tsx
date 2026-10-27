@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -14,7 +14,7 @@ import { DashboardCarousel } from '@components/dashboard/DashboardCarousel';
 import { HappeningNow } from '@components/dashboard/HappeningNow';
 import { WelcomeTour } from '@components/dashboard/WelcomeTour';
 import { NotificationPermissionPrompt } from '@components/shared/NotificationPermissionPrompt';
-import { shouldShowTour, markTourSeen } from '@utils/tour';
+import { useWelcomeTour } from '@hooks/useWelcomeTour';
 
 import { ms } from '@utils/responsive';
 // The dashboard is the app's home base and, in a tabs navigator, can re-mount
@@ -33,23 +33,8 @@ export default function DashboardScreen(): React.JSX.Element {
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
-  // One-time welcome tour for users who just signed up.
-  const [showTour, setShowTour] = useState(false);
-  const [tourPending, setTourPending] = useState(true);
-  useEffect(() => {
-    let active = true;
-    shouldShowTour().then((show) => {
-      if (active && show) setShowTour(true);
-      if (active) setTourPending(false);
-    });
-    return (): void => {
-      active = false;
-    };
-  }, []);
-  const handleTourDone = useCallback((): void => {
-    setShowTour(false);
-    markTourSeen();
-  }, []);
+  // Welcome tour for new accounts, or the one-time "new look" note.
+  const { showTour, busy: tourBusy, handleTourDone } = useWelcomeTour();
 
   // Only animate the entrance the first time home is shown this session; later
   // returns render instantly so pressing Back to come home feels snappy.
@@ -102,7 +87,7 @@ export default function DashboardScreen(): React.JSX.Element {
         </Animated.View>
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
-      <NotificationPermissionPrompt blocked={showTour || tourPending} />
+      <NotificationPermissionPrompt blocked={showTour || tourBusy} />
     </SafeAreaView>
   );
 }
