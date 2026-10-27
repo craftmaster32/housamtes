@@ -82,12 +82,14 @@ export function AlertHost(): React.JSX.Element | null {
   const handlePress = useCallback((button: AlertButton): void => close(button.onPress), [close]);
 
   // Tapping outside (or Android back) counts as Cancel when there is one; a
-  // plain message with one button counts as pressing it.
+  // plain message with one button counts as pressing it — unless that button
+  // deletes, which a stray tap must never do.
   const handleDismiss = useCallback((): void => {
     if (!request) return;
     const cancel = request.buttons.find((b) => b.style === 'cancel');
+    const only = request.buttons.length === 1 ? request.buttons[0] : undefined;
     if (cancel) close(cancel.onPress);
-    else if (request.buttons.length === 1) close(request.buttons[0].onPress);
+    else if (only && only.style !== 'destructive') close(only.onPress);
     else close(request.onDismiss);
   }, [request, close]);
 
