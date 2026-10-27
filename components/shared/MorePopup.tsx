@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, Platform } from 'react-native';
 import type { ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { usePathname } from 'expo-router';
@@ -17,6 +17,8 @@ import { useGroceryStore } from '@stores/groceryStore';
 import { useTasksStore } from '@stores/tasksStore';
 import { useBadgeStore, countNew, countNewSimple, type BadgeFeature } from '@stores/badgeStore';
 import { useColors } from '@hooks/useColors';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
@@ -112,6 +114,12 @@ export function MorePopup(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const isOpen = useMorePopupStore((s) => s.isOpen);
   const close = useMorePopupStore((s) => s.close);
+  // The web build doesn't flip `end` for Hebrew, so there the side is picked by
+  // hand — otherwise the close button sat over the title on the right. The
+  // phone app flips `end` itself.
+  const rtl = isRTL(useLanguageStore((s) => s.language));
+  const closeSide =
+    Platform.OS !== 'web' ? styles.closeEnd : rtl ? styles.closeRtl : styles.closeLtr;
   const pathname = usePathname();
   const heading = useHeadingFont('semibold');
   const hand = useHandFont();
@@ -288,6 +296,7 @@ export function MorePopup(): React.JSX.Element {
               onPress={handleClose}
               style={({ pressed }) => [
                 styles.close,
+                closeSide,
                 { backgroundColor: c.surface },
                 pressed && styles.closePressed,
               ]}
@@ -384,7 +393,6 @@ const styles = StyleSheet.create({
   close: {
     position: 'absolute',
     top: ms(14),
-    end: ms(16),
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -392,6 +400,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
+  closeEnd: { end: ms(16) },
+  closeLtr: { right: ms(16) },
+  closeRtl: { left: ms(16) },
   closePressed: { opacity: 0.7 },
   page: { paddingTop: ms(12), paddingStart: ms(52), paddingEnd: ms(14), paddingBottom: ms(16) },
   title: { fontSize: mf(28), lineHeight: mf(36), letterSpacing: -0.4, marginBottom: ms(4) },
