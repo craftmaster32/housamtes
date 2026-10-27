@@ -459,6 +459,8 @@ All push notifications are configurable per user in Settings.
 ## PHASE 7 — Polish & Public Prep
 
 - Onboarding flow (3-screen intro for first-time users)
+- "What's new" note: after a major update (3.0 redesign), people who used the app before see a one-time pop-up on Home offering the tour; brand-new accounts get the tour instead
+- App version shown at the bottom of Settings, read from the app's own config
 - App Store assets (icon, screenshots, description)
 - Privacy policy screen (in-app)
 - Terms of service screen (in-app)
