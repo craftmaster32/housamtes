@@ -46,6 +46,13 @@
         overflow: hidden;
       }
 
+      /*
+        The bottom tab bar is pinned to the viewport bottom on web. On large
+        screens the app is a centred, phone-width column (see APP_MAX_WIDTH in
+        utils/responsive.ts and the frame in app/_layout.tsx), so the bar is
+        capped to the same 480px and auto-centred with it — left/right:0 plus
+        auto side margins centres a fixed element inside its max-width.
+      */
       [data-testid="bottom-tab-bar"] {
         position: fixed !important;
         left: 0 !important;
@@ -53,6 +60,9 @@
         bottom: 0 !important;
         z-index: 20 !important;
         width: 100% !important;
+        max-width: 480px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
         padding-bottom: 12px !important;
         padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
       }

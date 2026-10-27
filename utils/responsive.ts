@@ -61,3 +61,54 @@ export const mf = (size: number): number => ms(size, 0.4);
 // bleed carousel). Prefer `ms`/`mf` for everything else.
 export const deviceWidth = width;
 export const deviceHeight = height;
+
+// ── Large-screen framing ─────────────────────────────────────────────────────
+// The whole app is a phone-shaped, single-column layout. On anything wider than
+// a phone — desktop web, an iPad, a large monitor — letting it stretch edge to
+// edge looks broken (a 44px button floating in a sea of empty canvas). Instead
+// we cap the app to a comfortable phone-like column and centre it, painting the
+// space around it with `appBackdrop`. The design was tuned at 402pt; 480 gives a
+// little breathing room without the layout losing its phone proportions.
+export const APP_MAX_WIDTH = 480;
+
+/**
+ * Width the app frame should occupy for a given window width: the full window on
+ * a phone, capped at APP_MAX_WIDTH once the window is wider. Pure + exported so
+ * it can be unit-tested; the layout feeds it the live `useWindowDimensions`
+ * width so it also reacts to rotation and browser-window resizing.
+ */
+export const contentWidthForWindow = (windowWidth: number): number => {
+  if (!Number.isFinite(windowWidth) || windowWidth <= 0) return APP_MAX_WIDTH;
+  return Math.min(windowWidth, APP_MAX_WIDTH);
+};
+
+/**
+ * True when the window is wider than the phone frame — i.e. the backdrop and the
+ * centred-frame chrome (side borders) should show. Pure + exported for testing.
+ */
+export const isLargeScreen = (windowWidth: number): boolean =>
+  Number.isFinite(windowWidth) && windowWidth > APP_MAX_WIDTH;
+
+// ── Desktop shell ────────────────────────────────────────────────────────────
+// At true computer widths the phone frame stops being the right shape: the
+// standard desktop composition is a persistent left sidebar + a content column.
+// This only kicks in on the web build at desktop widths — phones and tablets
+// (including iPads) keep the phone frame above, exactly as before. 1024px is the
+// conventional desktop breakpoint.
+export const DESKTOP_MIN_WIDTH = 1024;
+
+// The fixed width of the desktop left navigation rail.
+export const SIDENAV_WIDTH = 264;
+
+// On desktop the content sits in a column beside the sidebar. It's capped so
+// phone-designed screens don't stretch absurdly wide on a large monitor, but
+// wide enough to use the space and keep the side margins reading as padding
+// (same surface colour) rather than empty gaps.
+export const DESKTOP_CONTENT_MAX_WIDTH = 1120;
+
+/**
+ * True when the app should use the desktop shell (sidebar + content column)
+ * instead of the phone frame. Pure + exported for testing.
+ */
+export const isDesktop = (windowWidth: number): boolean =>
+  Number.isFinite(windowWidth) && windowWidth >= DESKTOP_MIN_WIDTH;

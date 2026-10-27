@@ -219,6 +219,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     dot: { height: ms(7), borderRadius: ms(4) },
     splitRow: { flexDirection: 'row', gap: ms(12) },
     flex1: { flex: 1 },
+    cardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
 
     // empty state
     emptyCard: {
@@ -797,7 +798,15 @@ function renderCard(
 }
 
 // ── Carousel ──────────────────────────────────────────────────────────────────
-export function DashboardCarousel(): React.JSX.Element {
+interface DashboardCarouselProps {
+  // Desktop: lay every enabled card out in a grid on the page instead of a
+  // horizontal, swipeable carousel.
+  grid?: boolean;
+}
+
+export function DashboardCarousel({
+  grid = false,
+}: DashboardCarouselProps = {}): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const rtl = isRTL(useLanguageStore((s) => s.language));
@@ -929,6 +938,17 @@ export function DashboardCarousel(): React.JSX.Element {
           <Ionicons name="add-circle-outline" size={26} color={c.textSecondary} />
           <Text style={styles.emptyText}>{t('dashboard.add_cards_prompt')}</Text>
         </Pressable>
+      ) : grid ? (
+        // Desktop: every card visible in a two-column grid — no carousel.
+        width > 0 && (
+          <View style={styles.cardGrid}>
+            {enabled.map((key) => (
+              <View key={key} style={{ width: Math.floor((width - GAP) / 2) }}>
+                {renderCard(key, styles, c, false)}
+              </View>
+            ))}
+          </View>
+        )
       ) : (
         width > 0 && (
           <>
