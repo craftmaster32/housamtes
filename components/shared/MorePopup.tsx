@@ -392,7 +392,8 @@ const styles = StyleSheet.create({
   handle: { width: ms(40), height: ms(5), borderRadius: ms(3) },
   close: {
     position: 'absolute',
-    top: ms(14),
+    // Sits on the paper's top corner, clear of the title (owner).
+    top: ms(35),
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -400,9 +401,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  closeEnd: { end: ms(16) },
-  closeLtr: { right: ms(16) },
-  closeRtl: { left: ms(16) },
+  closeEnd: { end: ms(30) },
+  closeLtr: { right: ms(30) },
+  closeRtl: { left: ms(30) },
   closePressed: { opacity: 0.7 },
   page: { paddingTop: ms(12), paddingStart: ms(52), paddingEnd: ms(14), paddingBottom: ms(16) },
   title: { fontSize: mf(28), lineHeight: mf(36), letterSpacing: -0.4, marginBottom: ms(4) },
