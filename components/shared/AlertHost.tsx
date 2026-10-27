@@ -82,12 +82,14 @@ export function AlertHost(): React.JSX.Element | null {
   const handlePress = useCallback((button: AlertButton): void => close(button.onPress), [close]);
 
   // Tapping outside (or Android back) counts as Cancel when there is one; a
-  // plain message with one button counts as pressing it.
+  // plain (non-destructive) sole button is treated as confirmed. A destructive
+  // sole button is never auto-fired on dismiss — the user must tap it.
   const handleDismiss = useCallback((): void => {
     if (!request) return;
     const cancel = request.buttons.find((b) => b.style === 'cancel');
     if (cancel) close(cancel.onPress);
-    else if (request.buttons.length === 1) close(request.buttons[0].onPress);
+    else if (request.buttons.length === 1 && request.buttons[0].style !== 'destructive')
+      close(request.buttons[0].onPress);
     else close(request.onDismiss);
   }, [request, close]);
 
