@@ -93,7 +93,6 @@ async function notifyTaskAdded(
       .from('house_members')
       .select('user_id')
       .eq('house_id', houseId);
-    // Can't list members: skip it rather than send the assignee two messages.
     if (error) return;
     includeUserIds = ((data ?? []) as { user_id: string }[])
       .map((m) => m.user_id)
