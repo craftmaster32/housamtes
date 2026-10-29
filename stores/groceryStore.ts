@@ -660,6 +660,9 @@ export const useGroceryStore = create<GroceryStore>()(
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
+        if (isChecked && !item.isChecked && get().items.every((i) => i.isChecked)) {
+          celebrate('grocery');
+        }
         scheduleBoughtWrite(id, get, set);
       },
 
@@ -697,6 +700,9 @@ export const useGroceryStore = create<GroceryStore>()(
         set({
           items: get().items.map((i) => (i.id === id ? { ...i, boughtCount: next, isChecked } : i)),
         });
+        if (isChecked && !item.isChecked && get().items.every((i) => i.isChecked)) {
+          celebrate('grocery');
+        }
         scheduleBoughtWrite(id, get, set);
       },
 

@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import Svg, { Path } from 'react-native-svg';
 import { useThemedColors, lightColors } from '@constants/colors';
@@ -75,7 +75,9 @@ export function MateCameoPose({ pose, prop, size, onTap }: MateCameoPoseProps): 
     return (
       <View style={{ width: size * 1.55, height: size * 1.15 }}>
         <View style={[styles.abs, { start: 0, bottom: 0, transform: [{ rotate: '-7deg' }] }]}>
-          <MateDrawing size={size} eyesClosed />
+          <Pressable onPress={onTap}>
+            <MateDrawing size={size} eyesClosed />
+          </Pressable>
         </View>
         <Text style={[styles.abs, styles.zzz, hand, { color: c.textSecondary, end: 0, top: 0 }]}>
           z z Z
