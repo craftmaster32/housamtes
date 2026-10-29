@@ -457,6 +457,21 @@ describe('celebrating a finished list through the counter', () => {
     }
   });
 
+  it('celebrates when setBoughtCount saves the last counted item', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 1, isChecked: false });
+      mockFrom.mockReturnValue(ok(null));
+
+      await useGroceryStore.getState().setBoughtCount('item-1', 2);
+      await jest.runAllTimersAsync();
+
+      expect(mockCelebrate).toHaveBeenCalledWith('grocery');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('does not celebrate when the write fails', async () => {
     jest.useFakeTimers();
     try {
