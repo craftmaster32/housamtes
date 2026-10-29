@@ -93,13 +93,12 @@ async function notifyTaskAdded(
       .from('house_members')
       .select('user_id')
       .eq('house_id', houseId);
-    // Can't list members: tell everyone rather than no one.
-    if (!error) {
-      includeUserIds = ((data ?? []) as { user_id: string }[])
-        .map((m) => m.user_id)
-        .filter((id) => id !== me.id && id !== assignedTo);
-      if (includeUserIds.length === 0) return;
-    }
+    // Can't list members: skip it rather than send the assignee two messages.
+    if (error) return;
+    includeUserIds = ((data ?? []) as { user_id: string }[])
+      .map((m) => m.user_id)
+      .filter((id) => id !== me.id && id !== assignedTo);
+    if (includeUserIds.length === 0) return;
   }
   await notifyHousemates({
     houseId,

@@ -230,6 +230,31 @@ describe('tasksStore — addTask', () => {
     );
   });
 
+  it('skips the "added" message when the housemates cannot be looked up', async () => {
+    mockFrom.mockReturnValueOnce(ok(taskRow({ assigned_to: ALEX, title: 'Fix tap' })));
+    mockFrom.mockReturnValueOnce(fail('network down'));
+
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'medium',
+        assignedTo: ALEX,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: null,
+      },
+      HOUSE
+    );
+
+    await flush();
+    // Only the assignee's own message — never two for the same person.
+    expect(mockNotify).toHaveBeenCalledTimes(1);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ notificationType: 'task_assigned' })
+    );
+  });
+
   it('sends no "added" message when the assignee is the only other housemate', async () => {
     mockFrom.mockReturnValueOnce(ok(taskRow({ assigned_to: ALEX, title: 'Fix tap' })));
     mockFrom.mockReturnValueOnce(ok([{ user_id: ME }, { user_id: ALEX }]));
