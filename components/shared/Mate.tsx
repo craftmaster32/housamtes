@@ -23,6 +23,8 @@ interface MateProps {
   tappable?: boolean;
   /** Called after he reacts to a tap (e.g. to say a new line). */
   onTap?: () => void;
+  /** Eyes shut and no blinking; a tap wakes him for his little trick. */
+  asleep?: boolean;
 }
 
 // Wave: a few decaying swings of the arm, like a quick "hi!".
@@ -58,6 +60,7 @@ export function Mate({
   wave = true,
   tappable = true,
   onTap,
+  asleep = false,
 }: MateProps): React.JSX.Element {
   const { t } = useTranslation();
   const reduceMotion = useReduceMotion();
@@ -92,7 +95,7 @@ export function Mate({
 
   // A blink every few seconds keeps him alive without drawing the eye.
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || asleep) return;
     let reopen: ReturnType<typeof setTimeout> | undefined;
     const id = setInterval(() => {
       setEyesClosed(true);
@@ -102,7 +105,7 @@ export function Mate({
       clearInterval(id);
       if (reopen) clearTimeout(reopen);
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, asleep]);
 
   const handlePress = useCallback((): void => {
     // Never the same trick twice in a row.
@@ -116,7 +119,11 @@ export function Mate({
 
   const drawing = (
     <View style={{ transform: [{ translateY: pose.hop }, { rotate: `${pose.tilt}deg` }] }}>
-      <MateDrawing size={size} armAngle={pose.armAngle} eyesClosed={eyesClosed || pose.happy} />
+      <MateDrawing
+        size={size}
+        armAngle={pose.armAngle}
+        eyesClosed={asleep ? pose === REST : eyesClosed || pose.happy}
+      />
     </View>
   );
 
