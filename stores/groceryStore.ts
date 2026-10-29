@@ -174,6 +174,7 @@ function tombstone(id: string): void {
   // must not fire against a now-missing row.
   _pendingCounts.delete(id);
   _pendingChecked.delete(id);
+  _checkedByCount.delete(id);
   const timer = _boughtTimers.get(id);
   if (timer) {
     clearTimeout(timer);
@@ -542,6 +543,7 @@ export const useGroceryStore = create<GroceryStore>()(
         _boughtTimers.clear();
         _pendingCounts.clear();
         _pendingChecked.clear();
+        _checkedByCount.clear();
         _recentlyDeleted.clear();
         if (_channel) {
           supabase.removeChannel(_channel);

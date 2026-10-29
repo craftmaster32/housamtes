@@ -473,6 +473,25 @@ describe('celebrating a finished list through the counter', () => {
     }
   });
 
+  it('does not celebrate later for a tick whose write a failed delete cancelled', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 1 });
+      mockFrom.mockReturnValueOnce(fail('offline')); // the delete fails, item comes back
+      mockFrom.mockReturnValue(ok(null));
+
+      await useGroceryStore.getState().incrementBought('item-1');
+      await expect(useGroceryStore.getState().deleteItem('item-1')).rejects.toThrow();
+      // Tapping + on the restored (already bought) item is no new tick.
+      await useGroceryStore.getState().incrementBought('item-1');
+      await jest.runAllTimersAsync();
+
+      expect(mockCelebrate).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('does not celebrate again for an item that was already bought', async () => {
     jest.useFakeTimers();
     try {
