@@ -75,6 +75,43 @@ function rowToTask(r: HouseTaskRow): HouseTask {
   };
 }
 
+/**
+ * Tell the house a task was added (what the old Chores list did). The person
+ * it's given to is left out — they get the "gave you a task" message instead.
+ * Uses the same switch as the old chore notifications.
+ */
+async function notifyTaskAdded(
+  houseId: string,
+  taskTitle: string,
+  assignedTo: string | null
+): Promise<void> {
+  const me = useAuthStore.getState().profile;
+  if (!me?.id) return;
+  let includeUserIds: string[] | undefined;
+  if (assignedTo && assignedTo !== me.id) {
+    const { data, error } = await supabase
+      .from('house_members')
+      .select('user_id')
+      .eq('house_id', houseId);
+    // Can't list members: tell everyone rather than no one.
+    if (!error) {
+      includeUserIds = ((data ?? []) as { user_id: string }[])
+        .map((m) => m.user_id)
+        .filter((id) => id !== me.id && id !== assignedTo);
+      if (includeUserIds.length === 0) return;
+    }
+  }
+  await notifyHousemates({
+    houseId,
+    excludeUserId: me.id,
+    includeUserIds,
+    copyKey: 'chore_added',
+    copyParams: { name: me.name ?? '', choreName: taskTitle },
+    data: { screen: 'tasks' },
+    notificationType: 'chore_overdue',
+  });
+}
+
 /** Notify the assignee that a task landed on their plate (Phase 6). */
 function notifyAssignee(houseId: string, assignedTo: string, taskTitle: string): void {
   const me = useAuthStore.getState().profile;
@@ -210,6 +247,9 @@ export const useTasksStore = create<TasksStore>()(
         if (task.assignedTo) {
           notifyAssignee(houseId, task.assignedTo, task.title);
         }
+        notifyTaskAdded(houseId, task.title, task.assignedTo).catch((err) =>
+          captureError(err, { context: 'notify-task-added', houseId })
+        );
       },
       toggleTask: async (id): Promise<void> => {
         const task = get().tasks.find((t) => t.id === id);

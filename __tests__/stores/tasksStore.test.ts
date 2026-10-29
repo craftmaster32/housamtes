@@ -7,6 +7,8 @@
  *    updates state before the DB confirms
  *  - assignTask notifies the assignee (task_assigned) but never notifies
  *    when you assign a task to yourself
+ *  - addTask tells the rest of the house a task was added (chore_added),
+ *    leaving out you and the assignee (who gets task_assigned instead)
  *  - deleteTask keeps state consistent on failure
  */
 
@@ -43,6 +45,10 @@ jest.mock('@lib/notifyHousemates', () => ({
 const ME = '11111111-1111-4111-8111-111111111111';
 const ALEX = '22222222-2222-4222-8222-222222222222';
 const HOUSE = 'house-1';
+const SAM = '33333333-3333-4333-8333-333333333333';
+
+// The "task added" push is fired without awaiting; let it run.
+const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 function task(overrides: Partial<HouseTask> = {}): HouseTask {
   return {
@@ -178,11 +184,24 @@ describe('tasksStore — addTask', () => {
     expect(tasks).toHaveLength(2);
     expect(tasks[0].id).toBe('t-new');
     expect(tasks[0].priority).toBe('high');
-    expect(mockNotify).not.toHaveBeenCalled(); // no assignee → no push
+    await flush();
+    // No assignee → the whole house (except me) hears it was added.
+    expect(mockNotify).toHaveBeenCalledTimes(1);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        houseId: HOUSE,
+        excludeUserId: ME,
+        includeUserIds: undefined,
+        copyKey: 'chore_added',
+        copyParams: expect.objectContaining({ choreName: 'Fix tap' }),
+        notificationType: 'chore_overdue',
+      })
+    );
   });
 
-  it('notifies only the assignee when the task is assigned to a housemate', async () => {
-    mockFrom.mockReturnValue(ok(taskRow({ assigned_to: ALEX, title: 'Fix tap' })));
+  it('gives the assignee their own message and tells everyone else it was added', async () => {
+    mockFrom.mockReturnValueOnce(ok(taskRow({ assigned_to: ALEX, title: 'Fix tap' })));
+    mockFrom.mockReturnValueOnce(ok([{ user_id: ME }, { user_id: ALEX }, { user_id: SAM }]));
 
     await useTasksStore.getState().addTask(
       {
@@ -197,13 +216,41 @@ describe('tasksStore — addTask', () => {
       HOUSE
     );
 
-    expect(mockNotify).toHaveBeenCalledTimes(1);
+    await flush();
+    expect(mockNotify).toHaveBeenCalledTimes(2);
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({
         houseId: HOUSE,
         includeUserIds: [ALEX],
         notificationType: 'task_assigned',
       })
+    );
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ includeUserIds: [SAM], copyKey: 'chore_added' })
+    );
+  });
+
+  it('sends no "added" message when the assignee is the only other housemate', async () => {
+    mockFrom.mockReturnValueOnce(ok(taskRow({ assigned_to: ALEX, title: 'Fix tap' })));
+    mockFrom.mockReturnValueOnce(ok([{ user_id: ME }, { user_id: ALEX }]));
+
+    await useTasksStore.getState().addTask(
+      {
+        title: 'Fix tap',
+        description: '',
+        priority: 'medium',
+        assignedTo: ALEX,
+        dueDate: null,
+        recurrence: 'once',
+        recurrenceDay: null,
+      },
+      HOUSE
+    );
+
+    await flush();
+    expect(mockNotify).toHaveBeenCalledTimes(1);
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ notificationType: 'task_assigned' })
     );
   });
 
@@ -232,7 +279,7 @@ describe('tasksStore — addTask', () => {
     expect(ids).toEqual(['t-new', 'older']); // no duplicate
   });
 
-  it('does NOT notify when I assign the task to myself', async () => {
+  it('sends no "gave you a task" message when I assign the task to myself', async () => {
     mockFrom.mockReturnValue(ok(taskRow({ assigned_to: ME })));
 
     await useTasksStore.getState().addTask(
@@ -248,7 +295,12 @@ describe('tasksStore — addTask', () => {
       HOUSE
     );
 
-    expect(mockNotify).not.toHaveBeenCalled();
+    await flush();
+    expect(mockNotify).not.toHaveBeenCalledWith(
+      expect.objectContaining({ notificationType: 'task_assigned' })
+    );
+    // The rest of the house still hears it was added.
+    expect(mockNotify).toHaveBeenCalledWith(expect.objectContaining({ copyKey: 'chore_added' }));
   });
 });
 
