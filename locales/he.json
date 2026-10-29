@@ -75,7 +75,8 @@
     "something_went_wrong": "משהו השתבש.",
     "error_boundary_message": "אירעה שגיאה בלתי צפויה. נסה שוב.",
     "clear": "נקה",
-    "change_language": "שינוי שפה"
+    "change_language": "שינוי שפה",
+    "remove": "הסרה"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -280,7 +281,19 @@
     "enter_invite_code": "הכנס קוד הזמנה",
     "code_not_found": "קוד לא נמצא. בדוק שוב ונסה.",
     "failed_create": "יצירת הבית נכשלה",
-    "failed_join": "ההצטרפות לבית נכשלה"
+    "failed_join": "ההצטרפות לבית נכשלה",
+    "house_name_label": "שם הבית",
+    "house_name_hint": "כתבו שם לבית שלכם",
+    "code_hint": "קוד מורכב מ־8 אותיות ומספרים.",
+    "color_updated": "לשותף אחר כבר היה הצבע שלך, אז קיבלת את הצבע הזה.",
+    "find_house": "חיפוש בית",
+    "confirm_join_title": "להצטרף לבית הזה?",
+    "confirm_join_subtitle": "קוד ההזמנה {{code}} שייך לבית:",
+    "member_count_one": "שותף אחד",
+    "member_count_other": "{{count}} שותפים",
+    "confirm_join": "הצטרפות לבית",
+    "wrong_house": "זה לא הבית הנכון",
+    "too_many_attempts": "יותר מדי ניסיונות. נא להמתין {{seconds}} שניות."
   },
   "dashboard": {
     "greeting_morning": "בוקר טוב",
@@ -744,7 +757,8 @@
     "split_each_people": "{{amount}} לכל אחד · {{count}} אנשים",
     "split_between_people": "בין {{count}} אנשים",
     "split_sheet_title": "איך שולם?",
-    "split_change_hint": "שינוי מי שילם ואיך מחלקים"
+    "split_change_hint": "שינוי מי שילם ואיך מחלקים",
+    "no_categories_hint": "אין עדיין קטגוריות. אפשר להוסיף בהגדרות."
   },
   "parking": {
     "title": "חניה",
@@ -821,7 +835,12 @@
     "reject_request": "דחה בקשת חניה",
     "clear_all_history": "נקה את כל ההיסטוריה",
     "free_the_spot": "שחרר את החניה",
-    "tap_see_day_schedule": "{{weekday}} {{day}} {{month}} — לחץ לצפייה בלוח היום"
+    "tap_see_day_schedule": "{{weekday}} {{day}} {{month}} — לחץ לצפייה בלוח היום",
+    "a11y_claim": "תפיסת מקום החניה",
+    "a11y_release": "שחרור מקום החניה",
+    "a11y_release_housemate": "שחרור מקום החניה של השותף",
+    "a11y_hint": "מפעיל או מבטל את שמירת החניה שלך",
+    "a11y_hint_housemate": "משחרר את שמירת החניה של השותף"
   },
   "grocery": {
     "title": "רשימת קניות",
@@ -1123,7 +1142,8 @@
       "camera_failed": "לא ניתן היה לפתוח את המצלמה או התמונות. נסו שוב.",
       "mark_all_bought": "סימון הכל כנקנה: {{name}}",
       "add_hint": "מוסיף אותו לרשימה המשותפת"
-    }
+    },
+    "remind_me": "תזכירו לי"
   },
   "chores": {
     "title": "מטלות",
@@ -1233,7 +1253,8 @@
     "author_you": "אתה",
     "empty": "הלוח ריק — הצמידו משהו ששווה לזכור.",
     "empty_hint": "הצמידו את סיסמת ה־WiFi, יום פינוי האשפה או כל דבר שהבית תמיד שוכח.",
-    "cap_hint": "הלוח שומר את {{count}} הפתקים החדשים ביותר — הישנים יורדים אוטומטית."
+    "cap_hint": "הלוח שומר את {{count}} הפתקים החדשים ביותר — הישנים יורדים אוטומטית.",
+    "failed_delete": "לא ניתן למחוק את הפתק. נסו שוב."
   },
   "maintenance": {
     "title": "תחזוקה",
@@ -1560,7 +1581,9 @@
     "delete_selected": "מחק את התמונות שנבחרו",
     "delete_many_title_one": "למחוק תמונה אחת?",
     "delete_many_title_other": "למחוק {{count}} תמונות?",
-    "delete_many_confirm": "הן יוסרו לכולם."
+    "delete_many_confirm": "הן יוסרו לכולם.",
+    "photo_thumbnail": "תמונה {{index}}",
+    "remove_photo": "הסרת תמונה"
   },
   "profile": {
     "account_section": "חשבון",
@@ -1844,7 +1867,10 @@
     "notify_appliance_done_sub": "כשמחזור של כביסה, מייבש או מדיח מסתיים",
     "notify_grocery_stale": "פריטים שמחכים יותר מדי",
     "notify_grocery_stale_sub": "כשמשהו נמצא ברשימה 3 ימים ומעלה",
-    "notifications_footer": "השינויים נשמרים מיד. התראות מגיעות רק לטלפון שבו האפליקציה מותקנת."
+    "notifications_footer": "השינויים נשמרים מיד. התראות מגיעות רק לטלפון שבו האפליקציה מותקנת.",
+    "notifications_hint_enable": "מפעיל התראות בדפדפן הזה",
+    "notifications_hint_disable": "מכבה התראות בדפדפן הזה",
+    "notifications_disable_failed": "לא ניתן לכבות את ההתראות. נסו שוב."
   },
   "members": {
     "title": "הרשאות חברים",

@@ -75,7 +75,8 @@
     "something_went_wrong": "Algo salió mal.",
     "error_boundary_message": "Ocurrió un error inesperado. Intenta de nuevo.",
     "clear": "Borrar",
-    "change_language": "Cambiar idioma"
+    "change_language": "Cambiar idioma",
+    "remove": "Quitar"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -280,7 +281,19 @@
     "enter_invite_code": "Ingresa el código de invitación",
     "code_not_found": "Código no encontrado. Verifica e intenta de nuevo.",
     "failed_create": "No se pudo crear la casa",
-    "failed_join": "No se pudo unir a la casa"
+    "failed_join": "No se pudo unir a la casa",
+    "house_name_label": "Nombre de la casa",
+    "house_name_hint": "Escribe un nombre para tu casa",
+    "code_hint": "Los códigos tienen 8 letras y números.",
+    "color_updated": "Alguien de la casa ya tenía tu color, así que te dimos este.",
+    "find_house": "Buscar casa",
+    "confirm_join_title": "¿Unirte a esta casa?",
+    "confirm_join_subtitle": "El código {{code}} pertenece a:",
+    "member_count_one": "{{count}} compañero",
+    "member_count_other": "{{count}} compañeros",
+    "confirm_join": "Unirme a esta casa",
+    "wrong_house": "No es esta",
+    "too_many_attempts": "Demasiados intentos. Espera {{seconds}} segundos."
   },
   "dashboard": {
     "greeting_morning": "Buenos días",
@@ -744,7 +757,8 @@
     "split_each_people": "{{amount}} cada uno · {{count}} personas",
     "split_between_people": "Entre {{count}} personas",
     "split_sheet_title": "¿Cómo se pagó?",
-    "split_change_hint": "Cambiar quién pagó y cómo se divide"
+    "split_change_hint": "Cambiar quién pagó y cómo se divide",
+    "no_categories_hint": "Aún no hay categorías. Añade una en Ajustes."
   },
   "parking": {
     "title": "Estacionamiento",
@@ -821,7 +835,12 @@
     "reject_request": "Rechazar solicitud de estacionamiento",
     "clear_all_history": "Borrar todo el historial",
     "free_the_spot": "Liberar la plaza de estacionamiento",
-    "tap_see_day_schedule": "{{weekday}} {{day}} {{month}} — toca para ver el horario del día"
+    "tap_see_day_schedule": "{{weekday}} {{day}} {{month}} — toca para ver el horario del día",
+    "a11y_claim": "Reservar la plaza de aparcamiento",
+    "a11y_release": "Liberar la plaza de aparcamiento",
+    "a11y_release_housemate": "Liberar la plaza de tu compañero",
+    "a11y_hint": "Activa o quita tu reserva de aparcamiento",
+    "a11y_hint_housemate": "Libera la reserva de tu compañero"
   },
   "grocery": {
     "title": "Lista de compras",
@@ -1123,7 +1142,8 @@
       "camera_failed": "No se pudo abrir la cámara o las fotos. Inténtalo de nuevo.",
       "mark_all_bought": "Marcar todo: {{name}}",
       "add_hint": "Lo añade a la lista compartida"
-    }
+    },
+    "remind_me": "Recuérdame"
   },
   "chores": {
     "title": "Tareas",
@@ -1233,7 +1253,8 @@
     "author_you": "Tú",
     "empty": "El tablón está en blanco — fija algo que valga la pena recordar.",
     "empty_hint": "Fija la clave del WiFi, el día de la basura o cualquier cosa que la casa siempre olvida.",
-    "cap_hint": "El tablón guarda las {{count}} notas más recientes; las más antiguas se archivan solas."
+    "cap_hint": "El tablón guarda las {{count}} notas más recientes; las más antiguas se archivan solas.",
+    "failed_delete": "No se pudo borrar la nota. Inténtalo de nuevo."
   },
   "maintenance": {
     "title": "Mantenimiento",
@@ -1560,7 +1581,9 @@
     "delete_selected": "Eliminar fotos seleccionadas",
     "delete_many_title_one": "¿Eliminar 1 foto?",
     "delete_many_title_other": "¿Eliminar {{count}} fotos?",
-    "delete_many_confirm": "Se eliminarán para todos."
+    "delete_many_confirm": "Se eliminarán para todos.",
+    "photo_thumbnail": "Foto {{index}}",
+    "remove_photo": "Quitar foto"
   },
   "profile": {
     "account_section": "CUENTA",
@@ -1879,7 +1902,10 @@
     "notify_appliance_done_sub": "Cuando termina un ciclo de lavadora, secadora o lavavajillas",
     "notify_grocery_stale": "Artículos que esperan demasiado",
     "notify_grocery_stale_sub": "Cuando algo lleva 3+ días en la lista",
-    "notifications_footer": "Los cambios se guardan al instante. Las notificaciones solo llegan a un teléfono con la app instalada."
+    "notifications_footer": "Los cambios se guardan al instante. Las notificaciones solo llegan a un teléfono con la app instalada.",
+    "notifications_hint_enable": "Activa las notificaciones en este navegador",
+    "notifications_hint_disable": "Desactiva las notificaciones en este navegador",
+    "notifications_disable_failed": "No se pudieron desactivar las notificaciones. Inténtalo de nuevo."
   },
   "members": {
     "title": "Permisos de miembros",

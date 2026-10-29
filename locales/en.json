@@ -75,7 +75,8 @@
     "something_went_wrong": "Something went wrong.",
     "error_boundary_message": "An unexpected error occurred. Please try again.",
     "clear": "Clear",
-    "change_language": "Change language"
+    "change_language": "Change language",
+    "remove": "Remove"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -280,7 +281,19 @@
     "enter_invite_code": "Please enter an invite code",
     "code_not_found": "Invite code not found. Check it and try again.",
     "failed_create": "Failed to create house",
-    "failed_join": "Failed to join house"
+    "failed_join": "Failed to join house",
+    "house_name_label": "House name",
+    "house_name_hint": "Type a name for your house",
+    "code_hint": "Codes are 8 letters and numbers.",
+    "color_updated": "A housemate already had your colour, so we gave you this one.",
+    "find_house": "Find house",
+    "confirm_join_title": "Join this house?",
+    "confirm_join_subtitle": "Invite code {{code}} belongs to:",
+    "member_count_one": "{{count}} housemate",
+    "member_count_other": "{{count}} housemates",
+    "confirm_join": "Join this house",
+    "wrong_house": "Not this one",
+    "too_many_attempts": "Too many tries. Please wait {{seconds}} seconds."
   },
   "dashboard": {
     "greeting_morning": "Rise and shine",
@@ -744,7 +757,8 @@
     "split_each_people": "{{amount}} each · {{count}} people",
     "split_between_people": "Between {{count}} people",
     "split_sheet_title": "How was it paid?",
-    "split_change_hint": "Change who paid and how it's split"
+    "split_change_hint": "Change who paid and how it's split",
+    "no_categories_hint": "No categories yet. Add one in Settings."
   },
   "parking": {
     "title": "Parking",
@@ -821,7 +835,12 @@
     "reject_request": "Reject parking request",
     "clear_all_history": "Clear all history",
     "free_the_spot": "Free the parking spot",
-    "tap_see_day_schedule": "{{weekday}} {{day}} {{month}} — tap to see day schedule"
+    "tap_see_day_schedule": "{{weekday}} {{day}} {{month}} — tap to see day schedule",
+    "a11y_claim": "Claim parking spot",
+    "a11y_release": "Release parking spot",
+    "a11y_release_housemate": "Free housemate's parking spot",
+    "a11y_hint": "Toggles your parking reservation",
+    "a11y_hint_housemate": "Frees the housemate's reservation"
   },
   "grocery": {
     "title": "Grocery List",
@@ -1123,7 +1142,8 @@
       "camera_failed": "Could not open the camera or photos. Please try again.",
       "mark_all_bought": "Mark all {{name}} as bought",
       "add_hint": "Adds it to the shared list"
-    }
+    },
+    "remind_me": "Remind me"
   },
   "chores": {
     "title": "Chores",
@@ -1233,7 +1253,8 @@
     "author_you": "You",
     "empty": "The board's blank — pin something worth remembering.",
     "empty_hint": "Pin the WiFi password, bin day, or anything the house keeps forgetting.",
-    "cap_hint": "The board keeps the {{count}} newest notes — older ones drop off automatically."
+    "cap_hint": "The board keeps the {{count}} newest notes — older ones drop off automatically.",
+    "failed_delete": "Couldn't delete the note. Try again."
   },
   "maintenance": {
     "title": "Maintenance",
@@ -1560,7 +1581,9 @@
     "delete_selected": "Delete selected photos",
     "delete_many_title_one": "Delete 1 photo?",
     "delete_many_title_other": "Delete {{count}} photos?",
-    "delete_many_confirm": "They'll be removed for everyone."
+    "delete_many_confirm": "They'll be removed for everyone.",
+    "photo_thumbnail": "Photo {{index}}",
+    "remove_photo": "Remove photo"
   },
   "profile": {
     "account_section": "ACCOUNT",
@@ -1844,7 +1867,10 @@
     "notify_appliance_done_sub": "When a washer, dryer or dishwasher cycle ends",
     "notify_grocery_stale": "Items waiting too long",
     "notify_grocery_stale_sub": "When something has been on the list for 3+ days",
-    "notifications_footer": "Changes save straight away. Notifications only reach a phone with the app installed."
+    "notifications_footer": "Changes save straight away. Notifications only reach a phone with the app installed.",
+    "notifications_hint_enable": "Turns on notifications in this browser",
+    "notifications_hint_disable": "Turns off notifications in this browser",
+    "notifications_disable_failed": "Couldn't turn off notifications. Try again."
   },
   "members": {
     "title": "Member Permissions",

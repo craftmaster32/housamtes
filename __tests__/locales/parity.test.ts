@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
 // Locks in translation completeness so an English string can't silently ship
@@ -54,5 +54,34 @@ describe('locale parity', (): void => {
       .filter(([, value]) => value.trim() === '')
       .map(([key]) => key);
     expect(blank).toEqual([]);
+  });
+});
+
+// Every literal t('section.key') in the app must exist in en.json, or the
+// screen shows the raw key ("house_setup.confirm_join_title") to the user.
+const ROOT = join(__dirname, '..', '..');
+const SOURCE_DIRS = ['app', 'components', 'hooks', 'stores', 'lib', 'utils', 'constants'];
+const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return sourceFiles(path);
+    return /\.tsx?$/.test(name) ? [path] : [];
+  });
+}
+
+describe('translation keys used in code', (): void => {
+  it('all exist in en.json', (): void => {
+    const keys = Object.keys(flat.en);
+    const known = new Set([...keys, ...keys.map((k) => k.replace(PLURAL_SUFFIX, ''))]);
+    const missing = new Set<string>();
+    for (const file of SOURCE_DIRS.flatMap((d) => sourceFiles(join(ROOT, d)))) {
+      const source = readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/\bt\(\s*['"]([a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+)['"]/g)) {
+        if (!known.has(match[1])) missing.add(match[1]);
+      }
+    }
+    expect([...missing]).toEqual([]);
   });
 });
