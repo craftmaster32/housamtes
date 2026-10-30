@@ -1,15 +1,17 @@
 // Housemates — parking-check Edge Function
-// Schedule: every 30 minutes via Supabase cron (set up in dashboard).
+// Schedule: every 5 minutes via pg_cron (migration 20261030120000_schedule_parking_check).
 //
 // Handles four time-sensitive parking scenarios:
 //   #3  Spot still taken when a reservation's start time arrives → notify both parties
 //   #4  ~2-hour advance warning to current occupant before a reservation starts
 //   #5  Slot started and the spot is free → mark it as the holder's (once per reservation)
+//       and tell the rest of the house
 //   #6  Pending reservation approaching date → notice; date passed or time reached → auto-reject
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fetchPushDevices, sendPush } from '../_shared/push.ts';
+import { instantPushCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 
 // Returns the current moment expressed in the given IANA timezone so we can
 // compare against local-time start_time strings stored in the DB.
@@ -161,6 +163,63 @@ async function sendToUser(
   } catch (err) {
     console.error('[parking-check] push delivery failed:', err);
     return false;
+  }
+}
+
+/**
+ * Tell the rest of the house the reserved spot was just handed over, each in
+ * their own app language, respecting their "parking" notification switch.
+ */
+async function notifyReservationStarted(
+  supabase: ReturnType<typeof createClient>,
+  houseId: string,
+  memberIds: string[],
+  holderId: string,
+  holderName: string
+): Promise<void> {
+  const recipients = memberIds.filter((id) => id !== holderId);
+  if (recipients.length === 0) return;
+  const prefColumn = PREF_COLUMN.parking_claimed;
+  const { data: prefRows, error: prefErr } = await supabase
+    .from('notification_preferences')
+    .select(`user_id, ${prefColumn}`)
+    .eq('house_id', houseId)
+    .in('user_id', recipients);
+  if (prefErr) {
+    console.error('[parking-check] preferences fetch error:', prefErr.message);
+    return;
+  }
+  const optedOut = new Set(
+    ((prefRows ?? []) as Array<Record<string, unknown>>)
+      .filter((row) => row[prefColumn] === false)
+      .map((row) => row.user_id as string)
+  );
+  const userIds = recipients.filter((id) => !optedOut.has(id));
+  if (userIds.length === 0) return;
+  try {
+    const devices = await fetchPushDevices(supabase, { houseIds: [houseId], userIds });
+    await sendPush(
+      supabase,
+      devices.flatMap((d) => {
+        const copy = instantPushCopy('parking_reservation_started', normalizeLang(d.language), {
+          name: holderName,
+        });
+        if (!copy) return [];
+        return [
+          {
+            to: d.token,
+            title: copy.title,
+            body: copy.body,
+            data: { screen: 'parking' },
+            sound: 'default',
+            priority: 'high',
+            web: d.web,
+          },
+        ];
+      })
+    );
+  } catch (err) {
+    console.error('[parking-check] reservation-started push failed:', err);
   }
 }
 
@@ -652,6 +711,15 @@ Deno.serve(async (_req: Request): Promise<Response> => {
                 { screen: 'parking' },
                 'parking_claimed'
               );
+              if (!membersError) {
+                await notifyReservationStarted(
+                  supabase,
+                  r.house_id,
+                  membersByHouse.get(r.house_id) ?? [],
+                  r.requested_by,
+                  rName
+                );
+              }
             }
           }
         }
