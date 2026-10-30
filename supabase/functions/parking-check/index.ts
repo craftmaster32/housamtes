@@ -12,6 +12,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fetchPushDevices, sendPush } from '../_shared/push.ts';
 import { instantPushCopy, normalizeLang } from '../_shared/notificationCopy.ts';
+import { assertCronAuthorized } from '../_shared/cronAuth.ts';
 
 // Returns the current moment expressed in the given IANA timezone so we can
 // compare against local-time start_time strings stored in the DB.
@@ -238,7 +239,10 @@ async function getNames(
   return map;
 }
 
-Deno.serve(async (_req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
+  const denied = assertCronAuthorized(req);
+  if (denied) return denied;
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
