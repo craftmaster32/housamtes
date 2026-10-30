@@ -1,22 +1,21 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, TextInput, Button } from 'react-native-paper';
-import { PasswordInput } from '@components/shared/PasswordInput';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-import { sizes } from '@constants/sizes';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
+import { AuthScreen } from '@components/auth/AuthScreen';
+import { AuthField } from '@components/auth/AuthField';
+import { TextLink } from '@components/auth/TextLink';
+import { PasswordDone } from '@components/auth/PasswordDone';
+import { KeyArt } from '@components/auth/art/KeyArt';
+import { SheetButton } from '@components/shared/SheetButton';
 import { getErrorMessage } from '@utils/errors';
-
 import { mf, ms } from '@utils/responsive';
+
 type Step = 'email' | 'code';
 
 export default function ForgotPasswordScreen(): React.JSX.Element {
@@ -32,11 +31,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
 
   const signOut = useAuthStore((s) => s.signOut);
   const clearPasswordRecovery = useAuthStore((s) => s.clearPasswordRecovery);
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const C = useThemedColors();
-  const headingFont = useHeadingFont();
-  const styles = useMemo(() => makeStyles(C), [C]);
 
   const handleSendCode = useCallback(async (): Promise<void> => {
     if (!email.trim()) {
@@ -55,7 +50,6 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       setIsLoading(false);
     }
   }, [email, t]);
-
 
   // Return to the email step so the user can fix a mistyped address. The email
   // is kept so they can edit it instead of retyping; the code is cleared since a
@@ -122,334 +116,135 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
   }, [code, email, password, confirm, signOut, clearPasswordRecovery, t]);
 
-  if (done) {
-    return (
-      <View style={styles.root}>
-        <SafeAreaView edges={['top']} style={styles.successContainer}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={56} color={C.success} />
-          </View>
-          <Text style={[styles.successTitle, headingFont]}>{t('auth.password_updated_title')}</Text>
-          <Text style={styles.successBody}>{t('auth.password_updated_body')}</Text>
-          <Button
-            mode="contained"
-            onPress={() => router.replace('/(auth)/login')}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={C.primary}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.go_to_sign_in')}
-          >
-            {t('auth.go_to_sign_in')}
-          </Button>
-        </SafeAreaView>
-      </View>
-    );
-  }
+  const handleBack = useCallback((): void => {
+    if (step === 'code') {
+      setStep('email');
+      setError('');
+      setCode('');
+    } else {
+      router.back();
+    }
+  }, [step]);
 
+  if (done) return <PasswordDone />;
 
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => {
-              if (done) {
-                router.replace('/(auth)/login');
-                return;
-              }
-              if (step === 'code') {
-                setStep('email');
-                setError('');
-                setCode('');
-              } else {
-                router.back();
-              }
+    <AuthScreen
+      title={step === 'email' ? t('auth.forgot_title') : t('auth.enter_code_title')}
+      subtitle={
+        step === 'email'
+          ? t('auth.forgot_subtitle')
+          : t('auth.reset_code_sent_to', { email: email.trim() })
+      }
+      onBack={handleBack}
+      backLabel={t('common.back')}
+      art={<KeyArt width={ms(64)} ink={C.textPrimary} />}
+    >
+      {step === 'email' ? (
+        <>
+          <AuthField
+            label={t('auth.email')}
+            value={email}
+            onChangeText={(v) => {
+              setEmail(v);
+              setError('');
             }}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons
-              name={rtl ? 'chevron-forward' : 'chevron-back'}
-              size={20}
-              color="rgba(255,255,255,0.85)"
+            autoFocus
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            returnKeyType="send"
+            onSubmitEditing={handleSendCode}
+            accessibilityLabel={t('auth.email')}
+            accessibilityHint={t('auth.email_reset_hint')}
+            error={!!error}
+          />
+
+          {!!error && <Text style={[styles.error, { color: C.danger }]}>{error}</Text>}
+
+          <SheetButton
+            label={t('auth.send_code')}
+            onPress={handleSendCode}
+            loading={isLoading}
+            disabled={isLoading}
+          />
+        </>
+      ) : (
+        <>
+          <AuthField
+            code
+            label={t('auth.verification_code_label')}
+            value={code}
+            onChangeText={(v) => {
+              setCode(v);
+              setError('');
+            }}
+            autoFocus
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+            returnKeyType="next"
+            maxLength={6}
+            accessibilityLabel={t('auth.verification_code_label')}
+            accessibilityHint={t('auth.verification_code_hint')}
+            error={!!error}
+          />
+
+          <AuthField
+            password
+            label={t('auth.new_password')}
+            value={password}
+            onChangeText={(v) => {
+              setPassword(v);
+              setError('');
+            }}
+            autoComplete="new-password"
+            returnKeyType="next"
+            accessibilityLabel={t('auth.new_password')}
+            accessibilityHint={t('auth.new_password_hint')}
+            error={!!error}
+          />
+
+          <AuthField
+            password
+            label={t('auth.confirm_password')}
+            value={confirm}
+            onChangeText={(v) => {
+              setConfirm(v);
+              setError('');
+            }}
+            autoComplete="new-password"
+            returnKeyType="done"
+            onSubmitEditing={handleReset}
+            accessibilityLabel={t('auth.confirm_password')}
+            accessibilityHint={t('auth.confirm_password_hint')}
+            error={!!error}
+          />
+
+          {!!error && <Text style={[styles.error, { color: C.danger }]}>{error}</Text>}
+
+          <SheetButton
+            label={t('auth.update_password')}
+            onPress={handleReset}
+            loading={isLoading}
+            disabled={isLoading}
+          />
+
+          <View style={styles.links}>
+            <TextLink label={t('auth.resend_code')} onPress={handleSendCode} disabled={isLoading} />
+            <TextLink
+              muted
+              label={t('auth.change_email')}
+              onPress={handleChangeEmail}
+              disabled={isLoading}
             />
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
-          <Text style={[styles.headerTitle, headingFont]}>
-            {done
-              ? t('auth.password_updated_title')
-              : step === 'email'
-                ? t('auth.forgot_title')
-                : t('auth.enter_code_title')}
-          </Text>
-          <Text style={styles.headerSubtitle}>
-            {step === 'email'
-              ? t('auth.forgot_subtitle')
-              : t('auth.reset_code_sent_to', { email: email.trim() })}
-          </Text>
-        </SafeAreaView>
-      </View>
-
-      <View style={styles.cardWrapper}>
-        <View style={styles.card}>
-          {step === 'email' ? (
-            <>
-              <TextInput
-                label={t('auth.email')}
-                value={email}
-                onChangeText={(v) => {
-                  setEmail(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={styles.input}
-                autoFocus
-                keyboardType="email-address"
-                autoCapitalize="none"
-                returnKeyType="send"
-                onSubmitEditing={handleSendCode}
-                accessibilityLabel={t('auth.email')}
-                accessibilityHint={t('auth.email_reset_hint')}
-                error={!!error}
-              />
-
-              {!!error && <Text style={styles.error}>{error}</Text>}
-
-              <Button
-                mode="contained"
-                onPress={handleSendCode}
-                loading={isLoading}
-                disabled={isLoading}
-                style={styles.button}
-                contentStyle={styles.buttonContent}
-                labelStyle={styles.buttonLabel}
-                buttonColor={C.primary}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('auth.send_code')}
-                accessibilityState={{ disabled: isLoading }}
-              >
-                {t('auth.send_code')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <TextInput
-                label={t('auth.verification_code_label')}
-                value={code}
-                onChangeText={(v) => {
-                  setCode(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={styles.input}
-                autoFocus
-                keyboardType="number-pad"
-                returnKeyType="next"
-                maxLength={6}
-                accessibilityLabel={t('auth.verification_code_label')}
-                accessibilityHint={t('auth.verification_code_hint')}
-                error={!!error}
-              />
-
-              <PasswordInput
-                label={t('auth.new_password')}
-                value={password}
-                onChangeText={(v) => {
-                  setPassword(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={styles.input}
-                returnKeyType="next"
-                accessibilityLabel={t('auth.new_password')}
-                accessibilityHint={t('auth.new_password_hint')}
-                error={!!error}
-              />
-
-              <PasswordInput
-                label={t('auth.confirm_password')}
-                value={confirm}
-                onChangeText={(v) => {
-                  setConfirm(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={styles.input}
-                returnKeyType="done"
-                onSubmitEditing={handleReset}
-                accessibilityLabel={t('auth.confirm_password')}
-                accessibilityHint={t('auth.confirm_password_hint')}
-                error={!!error}
-              />
-
-              {!!error && <Text style={styles.error}>{error}</Text>}
-
-              <Button
-                mode="contained"
-                onPress={handleReset}
-                loading={isLoading}
-                disabled={isLoading}
-                style={styles.button}
-                contentStyle={styles.buttonContent}
-                labelStyle={styles.buttonLabel}
-                buttonColor={C.primary}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('auth.update_password')}
-                accessibilityState={{ disabled: isLoading }}
-              >
-                {t('auth.update_password')}
-              </Button>
-
-              <Button
-                mode="text"
-                onPress={handleSendCode}
-                disabled={isLoading}
-                labelStyle={styles.resendLabel}
-                textColor={C.primary}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('auth.resend_code')}
-                accessibilityState={{ disabled: isLoading }}
-              >
-                {t('auth.resend_code')}
-              </Button>
-
-              <Button
-                mode="text"
-                onPress={handleChangeEmail}
-                disabled={isLoading}
-                labelStyle={styles.resendLabel}
-                contentStyle={styles.changeEmailContent}
-                textColor={C.textSecondary}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('auth.change_email')}
-                accessibilityState={{ disabled: isLoading }}
-              >
-                {t('auth.change_email')}
-              </Button>
-            </>
-          )}
-        </View>
-      </View>
-    </View>
+          </View>
+        </>
+      )}
+    </AuthScreen>
   );
 }
 
-function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
-  return StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: C.primary,
-    },
-    header: {
-      backgroundColor: C.primary,
-      paddingHorizontal: sizes.lg,
-      paddingBottom: ms(28),
-      gap: ms(8),
-    },
-    headerInner: {
-      gap: ms(8),
-    },
-    backBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(2),
-      alignSelf: 'flex-start',
-      paddingVertical: sizes.sm,
-      paddingHorizontal: sizes.xs,
-      minHeight: sizes.touchTarget,
-      marginTop: sizes.xs,
-      marginBottom: ms(4),
-    },
-    backText: {
-      fontSize: mf(15.5),
-      ...font.medium,
-      color: 'rgba(255,255,255,0.85)',
-    },
-    headerTitle: {
-      fontSize: mf(22),
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: -0.5,
-    },
-    headerSubtitle: {
-      fontSize: mf(15),
-      ...font.regular,
-      color: 'rgba(255,255,255,0.65)',
-      lineHeight: mf(22),
-    },
-    cardWrapper: {
-      flex: 1,
-      backgroundColor: C.primary,
-    },
-    card: {
-      flex: 1,
-      backgroundColor: C.surface,
-      borderTopLeftRadius: ms(28),
-      borderTopRightRadius: ms(28),
-      paddingHorizontal: sizes.lg,
-      paddingTop: ms(32),
-      paddingBottom: ms(40),
-      gap: sizes.md,
-    },
-    input: {
-      backgroundColor: C.surface,
-    },
-    error: {
-      ...font.regular,
-      color: C.danger,
-      fontSize: sizes.fontSm,
-    },
-    button: {
-      borderRadius: ms(14),
-      marginTop: sizes.sm,
-    },
-    buttonContent: {
-      height: ms(52),
-    },
-    buttonLabel: {
-      fontSize: mf(16),
-      ...font.semibold,
-      letterSpacing: 0.2,
-    },
-    resendLabel: {
-      fontSize: mf(14),
-      ...font.medium,
-    },
-    changeEmailContent: {
-      minHeight: 44,
-    },
-    successContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: sizes.xl,
-      gap: sizes.md,
-      backgroundColor: C.surface,
-    },
-    successIcon: {
-      marginBottom: sizes.sm,
-    },
-    successTitle: {
-      fontSize: mf(24),
-      ...font.extrabold,
-      color: C.textPrimary,
-      textAlign: 'center',
-    },
-    successBody: {
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(22),
-    },
-  });
-}
+const styles = StyleSheet.create({
+  error: { fontSize: mf(14), ...font.medium, lineHeight: mf(20) },
+  links: { gap: ms(2) },
+});

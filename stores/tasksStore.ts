@@ -7,12 +7,16 @@ import { useAuthStore } from '@stores/authStore';
 import { z } from 'zod';
 import { houseTaskSchema } from '@utils/validation';
 import type { HouseTaskRow } from '../types/database';
+import { celebrate } from '@lib/celebrate';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskFilter = 'all' | 'active' | 'completed';
+/** How often a task repeats (the Chores "Repeat" setting, merged into Tasks). */
+export type TaskRecurrence = 'once' | 'weekly' | 'monthly';
 
 export interface HouseTask {
   id: string;
+  houseId: string;
   title: string;
   description: string;
   priority: TaskPriority;
@@ -23,6 +27,8 @@ export interface HouseTask {
   completedBy: string | null; // user UUID
   createdBy: string; // user UUID
   createdAt: string;
+  recurrence: TaskRecurrence;
+  recurrenceDay: string | null; // weekly: 'Sun'…'Sat', monthly: '1'…'31'
 }
 
 export interface NewTaskInput {
@@ -31,6 +37,8 @@ export interface NewTaskInput {
   priority: TaskPriority;
   assignedTo: string | null;
   dueDate: string | null;
+  recurrence: TaskRecurrence;
+  recurrenceDay: string | null;
 }
 
 interface TasksStore {
@@ -44,11 +52,14 @@ interface TasksStore {
   toggleTask: (id: string) => Promise<void>;
   assignTask: (id: string, userId: string | null) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  /** Un-tick every repeating task so it's ready for the next round (admins). */
+  resetRepeating: (houseId: string) => Promise<void>;
 }
 
 function rowToTask(r: HouseTaskRow): HouseTask {
   return {
     id: r.id,
+    houseId: r.house_id,
     title: r.title,
     description: r.description ?? '',
     priority: (r.priority ?? 'medium') as TaskPriority,
@@ -59,7 +70,44 @@ function rowToTask(r: HouseTaskRow): HouseTask {
     completedBy: r.completed_by,
     createdBy: r.created_by,
     createdAt: r.created_at,
+    recurrence: (r.recurrence ?? 'once') as TaskRecurrence,
+    recurrenceDay: r.recurrence_day ?? null,
   };
+}
+
+/**
+ * Tell the house a task was added (what the old Chores list did). The person
+ * it's given to is left out — they get the "gave you a task" message instead.
+ * Uses the same switch as the old chore notifications.
+ */
+async function notifyTaskAdded(
+  houseId: string,
+  taskTitle: string,
+  assignedTo: string | null
+): Promise<void> {
+  const me = useAuthStore.getState().profile;
+  if (!me?.id) return;
+  let includeUserIds: string[] | undefined;
+  if (assignedTo && assignedTo !== me.id) {
+    const { data, error } = await supabase
+      .from('house_members')
+      .select('user_id')
+      .eq('house_id', houseId);
+    if (error) return;
+    includeUserIds = ((data ?? []) as { user_id: string }[])
+      .map((m) => m.user_id)
+      .filter((id) => id !== me.id && id !== assignedTo);
+    if (includeUserIds.length === 0) return;
+  }
+  await notifyHousemates({
+    houseId,
+    excludeUserId: me.id,
+    includeUserIds,
+    copyKey: 'chore_added',
+    copyParams: { name: me.name ?? '', choreName: taskTitle },
+    data: { screen: 'tasks' },
+    notificationType: 'chore_overdue',
+  });
 }
 
 /** Notify the assignee that a task landed on their plate (Phase 6). */
@@ -179,6 +227,8 @@ export const useTasksStore = create<TasksStore>()(
               priority: parsed.priority,
               assigned_to: parsed.assignedTo,
               due_date: parsed.dueDate,
+              recurrence: parsed.recurrence,
+              recurrence_day: parsed.recurrence === 'once' ? null : parsed.recurrenceDay,
               created_by: userId,
             })
             .select()
@@ -195,6 +245,9 @@ export const useTasksStore = create<TasksStore>()(
         if (task.assignedTo) {
           notifyAssignee(houseId, task.assignedTo, task.title);
         }
+        notifyTaskAdded(houseId, task.title, task.assignedTo).catch((err) =>
+          captureError(err, { context: 'notify-task-added', houseId })
+        );
       },
       toggleTask: async (id): Promise<void> => {
         const task = get().tasks.find((t) => t.id === id);
@@ -229,6 +282,7 @@ export const useTasksStore = create<TasksStore>()(
             t.id === id ? { ...t, isComplete: isDone, completedAt, completedBy } : t
           ),
         });
+        if (isDone && get().tasks.every((t) => t.isComplete)) celebrate('tasks');
       },
       assignTask: async (id, userId): Promise<void> => {
         const task = get().tasks.find((t) => t.id === id);
@@ -277,6 +331,30 @@ export const useTasksStore = create<TasksStore>()(
           throw new Error('Could not delete the task. Please try again.');
         }
         set({ tasks: get().tasks.filter((t) => t.id !== id) });
+      },
+      resetRepeating: async (houseId): Promise<void> => {
+        try {
+          const { error } = await supabase.rpc('reset_repeating_tasks', {
+            p_house_id: houseId,
+          });
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, {
+            context: 'reset-repeating-tasks',
+            houseId,
+            userId: useAuthStore.getState().profile?.id ?? '',
+          });
+          throw new Error('Could not reset the repeating tasks. Please try again.');
+        }
+        // Only this house's tasks: after switching house the old list can
+        // still be in memory until the next load.
+        set({
+          tasks: get().tasks.map((t) =>
+            t.houseId !== houseId || t.recurrence === 'once'
+              ? t
+              : { ...t, isComplete: false, completedAt: null, completedBy: null }
+          ),
+        });
       },
     }),
     { name: 'tasks-store' }

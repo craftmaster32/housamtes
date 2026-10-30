@@ -6,7 +6,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -24,11 +24,11 @@ export const DashboardErrorBanner: React.FC = () => {
   const billsError = useBillsStore((s) => s.error);
   const parkingError = useParkingStore((s) => s.error);
   const groceryError = useGroceryStore((s) => s.error);
-  const choresError = useChoresStore((s) => s.error);
+  const tasksError = useTasksStore((s) => s.error);
   const housematesError = useHousematesStore((s) => s.error);
 
   const hasError = Boolean(
-    billsError ?? parkingError ?? groceryError ?? choresError ?? housematesError
+    billsError ?? parkingError ?? groceryError ?? tasksError ?? housematesError
   );
 
   const handleRetry = useCallback(() => {
@@ -36,7 +36,7 @@ export const DashboardErrorBanner: React.FC = () => {
     if (useBillsStore.getState().error) useBillsStore.getState().load(houseId);
     if (useParkingStore.getState().error) useParkingStore.getState().load(houseId);
     if (useGroceryStore.getState().error) useGroceryStore.getState().load(houseId);
-    if (useChoresStore.getState().error) useChoresStore.getState().load(houseId);
+    if (useTasksStore.getState().error) useTasksStore.getState().load(houseId);
     if (useHousematesStore.getState().error) useHousematesStore.getState().load(houseId);
   }, [houseId]);
 

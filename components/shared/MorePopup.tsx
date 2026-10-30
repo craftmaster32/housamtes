@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, Platform } from 'react-native';
 import type { ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { usePathname } from 'expo-router';
@@ -14,13 +14,19 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useBadgeStore, countNew, countNewSimple, type BadgeFeature } from '@stores/badgeStore';
 import { useColors } from '@hooks/useColors';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
 import { mf, ms } from '@utils/responsive';
+import { asWord } from '@utils/asWord';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const webFixedOverlay = { position: 'fixed' } as unknown as ViewStyle;
 
@@ -74,6 +80,7 @@ const POPUP_NAV: NavItem[] = [
     iconActive: 'list',
     labelKey: 'nav.tasks',
     route: '/(tabs)/tasks',
+    badgeKey: 'chores',
     color: '#2FA37A',
   },
   {
@@ -107,7 +114,15 @@ export function MorePopup(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const isOpen = useMorePopupStore((s) => s.isOpen);
   const close = useMorePopupStore((s) => s.close);
+  // The web build doesn't flip `end` for Hebrew, so there the side is picked by
+  // hand — otherwise the close button sat over the title on the right. The
+  // phone app flips `end` itself.
+  const rtl = isRTL(useLanguageStore((s) => s.language));
+  const closeSide =
+    Platform.OS !== 'web' ? styles.closeEnd : rtl ? styles.closeRtl : styles.closeLtr;
   const pathname = usePathname();
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
 
   // When true, the next close skips the slide-down and snaps shut instantly.
   // Used whenever the menu closes because we're navigating away — otherwise the
@@ -123,7 +138,7 @@ export function MorePopup(): React.JSX.Element {
   const proposals = useVotingStore((s) => s.proposals);
   const maintenanceItems = useMaintenanceStore((s) => s.requests);
   const groceryItems = useGroceryStore((s) => s.items);
-  const chores = useChoresStore((s) => s.chores);
+  const tasks = useTasksStore((s) => s.tasks);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const markSeen = useBadgeStore((s) => s.markSeen);
 
@@ -134,9 +149,12 @@ export function MorePopup(): React.JSX.Element {
       myId,
       'addedBy'
     ),
-    chores: countNewSimple(
-      chores.filter((ch) => !ch.isComplete),
-      lastSeen.chores
+    // Chores live in the Tasks list now; the badge keeps its 'chores' key.
+    chores: countNew(
+      tasks.filter((tk) => !tk.isComplete),
+      lastSeen.chores,
+      myId,
+      'createdBy'
     ),
     voting: myId
       ? proposals.filter(
@@ -265,54 +283,80 @@ export function MorePopup(): React.JSX.Element {
             style={[
               styles.panel,
               {
-                backgroundColor: c.surface,
-                paddingBottom: Math.max(insets.bottom, 16),
+                backgroundColor: c.background,
+                paddingBottom: Math.max(insets.bottom, 16) + 8,
                 transform: [{ translateY }],
               },
             ]}
           >
-            {/* Drag handle */}
             <View style={styles.handleWrap}>
               <View style={[styles.handle, { backgroundColor: c.border }]} />
             </View>
+            <Pressable
+              onPress={handleClose}
+              style={({ pressed }) => [
+                styles.close,
+                closeSide,
+                { backgroundColor: c.surface },
+                pressed && styles.closePressed,
+              ]}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+            >
+              <Ionicons name="close" size={20} color={c.textSecondary} />
+            </Pressable>
 
-            {/* Section label */}
-            <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>
-              {t('nav.house_section')}
-            </Text>
-
-            {/* 3-column grid */}
-            <View style={styles.grid}>
-              {visibleItems.map((item) => {
-                const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
-
-                return (
-                  <Pressable
-                    key={item.route}
-                    style={({ pressed }) => [styles.gridItem, pressed && styles.gridItemPressed]}
-                    onPress={() => handleNav(item)}
-                    accessible={true}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(item.labelKey)}
-                    accessibilityState={{ disabled: false }}
-                  >
-                    <View style={[styles.iconWrap, { backgroundColor: item.color + '1F' }]}>
-                      <Ionicons name={item.icon} size={22} color={item.color} />
-                      {count > 0 && (
-                        <View style={[styles.badge, { backgroundColor: c.danger }]}>
-                          <Text style={[styles.badgeText, { color: c.white }]}>
-                            {count > 9 ? '9+' : String(count)}
-                          </Text>
-                        </View>
+            {/* The menu is a notebook page: title on the top line, the pages two to a row. */}
+            <NotebookPaper contentStyle={styles.page}>
+              <Text
+                style={[styles.title, heading, { color: c.paperInk }]}
+                accessibilityRole="header"
+              >
+                {asWord(t('nav.house_section'))}
+              </Text>
+              <View style={styles.grid}>
+                {visibleItems.map((item) => {
+                  const badgeFor = item.badgeKey ?? item.featureKey;
+                  const count = badgeFor ? (badgeCounts[badgeFor] ?? 0) : 0;
+                  return (
+                    <Pressable
+                      key={item.route}
+                      style={styles.gridItem}
+                      onPress={() => handleNav(item)}
+                      accessible
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        count > 0 ? `${t(item.labelKey)}, ${count}` : t(item.labelKey)
+                      }
+                    >
+                      {({ pressed }) => (
+                        <>
+                          <Ionicons name={item.icon} size={21} color={item.color} />
+                          <View style={styles.labelWrap}>
+                            {/* A highlighter swipe while the finger is down. */}
+                            {pressed && <View style={styles.highlight} />}
+                            <Text
+                              style={[styles.gridLabel, { color: c.paperInk }]}
+                              numberOfLines={1}
+                            >
+                              {t(item.labelKey)}
+                            </Text>
+                          </View>
+                          {count > 0 && (
+                            <View style={[styles.badge, { borderColor: c.danger }]}>
+                              <Text style={[styles.badgeText, hand, { color: c.danger }]}>
+                                {count > 9 ? '9+' : String(count)}
+                              </Text>
+                            </View>
+                          )}
+                        </>
                       )}
-                    </View>
-                    <Text style={[styles.gridLabel, { color: c.textPrimary }]} numberOfLines={1}>
-                      {t(item.labelKey)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </NotebookPaper>
           </Animated.View>
         </>
       )}
@@ -345,42 +389,55 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   handleWrap: { alignItems: 'center', paddingVertical: sizes.sm },
-  handle: { width: ms(36), height: ms(4), borderRadius: ms(2) },
-  sectionLabel: {
-    fontSize: sizes.fontXxs,
-    ...font.semibold,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: sizes.sm,
-    marginStart: sizes.xs,
+  handle: { width: ms(40), height: ms(5), borderRadius: ms(3) },
+  close: {
+    position: 'absolute',
+    // Sits on the paper's top corner, clear of the title (owner).
+    top: ms(35),
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
+  closeEnd: { end: ms(30) },
+  closeLtr: { right: ms(30) },
+  closeRtl: { left: ms(30) },
+  closePressed: { opacity: 0.7 },
+  page: { paddingTop: ms(12), paddingStart: ms(52), paddingEnd: ms(14), paddingBottom: ms(16) },
+  title: { fontSize: mf(28), lineHeight: mf(36), letterSpacing: -0.4, marginBottom: ms(4) },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   gridItem: {
-    width: '33.33%',
+    width: '50%',
+    minHeight: ms(52),
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: sizes.md,
-    gap: sizes.sm,
+    gap: ms(9),
+    paddingEnd: ms(6),
   },
-  gridItemPressed: { opacity: 0.65 },
-  iconWrap: {
-    width: ms(52),
-    height: ms(52),
-    borderRadius: sizes.borderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  badge: {
+  labelWrap: { flexShrink: 1, justifyContent: 'center' },
+  highlight: {
     position: 'absolute',
-    top: ms(-4),
-    end: ms(-4),
-    minWidth: ms(16),
-    height: ms(16),
-    borderRadius: ms(8),
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: ms(3),
+    left: -ms(5),
+    right: -ms(7),
+    top: '42%',
+    height: ms(13),
+    borderRadius: ms(5),
+    backgroundColor: 'rgba(255,214,10,0.55)',
+    transform: [{ rotate: '-1.2deg' }],
   },
-  badgeText: { fontSize: mf(9), ...font.bold },
-  gridLabel: { fontSize: sizes.fontXs, ...font.semibold, textAlign: 'center' },
+  gridLabel: { fontSize: mf(15.5), ...font.semibold },
+  // The count, circled in red pen.
+  badge: {
+    minWidth: ms(26),
+    height: ms(26),
+    borderRadius: ms(13),
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: ms(3),
+    transform: [{ rotate: '-6deg' }],
+  },
+  badgeText: { fontSize: mf(17), lineHeight: mf(20) },
 });

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { registerPushToken, getNativeNotificationStatus } from '@lib/notifications';
@@ -16,6 +15,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Mate } from '@components/shared/Mate';
 import { mf, ms } from '@utils/responsive';
 
 interface NotificationPermissionPromptProps {
@@ -38,7 +38,7 @@ export function NotificationPermissionPrompt({
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
 
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -136,9 +136,7 @@ export function NotificationPermissionPrompt({
       <View style={styles.backdrop} />
       <View style={styles.centerer} pointerEvents="box-none">
         <View style={styles.card}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="notifications" size={ms(30)} color={C.primary} />
-          </View>
+          <Mate size={ms(84)} wave />
           <Text style={[styles.title, headingFont]}>{t('permissionPrompt.title')}</Text>
           <Text style={styles.body}>{t('permissionPrompt.body')}</Text>
 
@@ -178,32 +176,23 @@ export function NotificationPermissionPrompt({
 
 function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(34,32,29,0.5)' },
     centerer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: ms(24) },
     card: {
       width: '100%',
       maxWidth: ms(360),
-      borderRadius: ms(20),
+      borderRadius: ms(26),
       padding: sizes.xl,
-      backgroundColor: C.surface,
+      backgroundColor: C.background,
       alignItems: 'center',
       gap: sizes.sm,
     },
-    iconCircle: {
-      width: ms(64),
-      height: ms(64),
-      borderRadius: ms(32),
-      backgroundColor: C.primary + '15',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: sizes.xs,
-    },
     title: {
-      fontSize: mf(20),
-      ...font.extrabold,
+      fontSize: mf(24),
+      lineHeight: mf(31),
       color: C.textPrimary,
       textAlign: 'center',
-      letterSpacing: -0.4,
+      letterSpacing: -0.3,
     },
     body: {
       fontSize: mf(15),
@@ -215,8 +204,8 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     },
     primaryBtn: {
       width: '100%',
-      minHeight: ms(48),
-      borderRadius: sizes.borderRadiusFull,
+      minHeight: 52,
+      borderRadius: ms(17),
       backgroundColor: C.primary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -231,6 +220,6 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       alignItems: 'center',
       paddingTop: ms(2),
     },
-    laterBtnText: { fontSize: mf(15), ...font.medium, color: C.textSecondary },
+    laterBtnText: { fontSize: mf(15), ...font.semibold, color: C.primary },
   });
 }

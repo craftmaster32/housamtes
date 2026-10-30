@@ -76,6 +76,10 @@ jest.mock('@lib/notifyHousemates', () => ({
   notifyHousemates: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
+const mockCelebrate = jest.fn();
+jest.mock('@lib/celebrate', () => ({
+  celebrate: (...a: unknown[]): unknown => mockCelebrate(...a),
+}));
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn().mockResolvedValue(null),
   setItem: jest.fn().mockResolvedValue(undefined),
@@ -428,6 +432,91 @@ describe('incrementBought', () => {
 
       // Snaps back to the value that's actually on the server.
       expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('celebrating a finished list through the counter', () => {
+  beforeEach(() => mockCelebrate.mockClear());
+
+  it('has Mate celebrate once the last counted item is saved as bought', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 1 });
+      mockFrom.mockReturnValue(ok(null));
+
+      await useGroceryStore.getState().incrementBought('item-1');
+      expect(mockCelebrate).not.toHaveBeenCalled(); // not until the write saves
+
+      await jest.runAllTimersAsync();
+      expect(mockCelebrate).toHaveBeenCalledWith('grocery');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('celebrates when setBoughtCount saves the last counted item', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 1, isChecked: false });
+      mockFrom.mockReturnValue(ok(null));
+
+      await useGroceryStore.getState().setBoughtCount('item-1', 2);
+      await jest.runAllTimersAsync();
+
+      expect(mockCelebrate).toHaveBeenCalledWith('grocery');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not celebrate when the write fails', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 1 });
+      mockFrom.mockReturnValueOnce(fail('permission denied'));
+      mockFrom.mockReturnValueOnce(ok({ bought_count: 1, is_checked: false }));
+
+      await useGroceryStore.getState().setBoughtCount('item-1', 2);
+      await jest.runAllTimersAsync();
+
+      expect(mockCelebrate).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not celebrate later for a tick whose write a failed delete cancelled', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 1 });
+      mockFrom.mockReturnValueOnce(fail('offline')); // the delete fails, item comes back
+      mockFrom.mockReturnValue(ok(null));
+
+      await useGroceryStore.getState().incrementBought('item-1');
+      await expect(useGroceryStore.getState().deleteItem('item-1')).rejects.toThrow();
+      // Tapping + on the restored (already bought) item is no new tick.
+      await useGroceryStore.getState().incrementBought('item-1');
+      await jest.runAllTimersAsync();
+
+      expect(mockCelebrate).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not celebrate again for an item that was already bought', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '2', boughtCount: 2, isChecked: true });
+      mockFrom.mockReturnValue(ok(null));
+
+      await useGroceryStore.getState().incrementBought('item-1');
+      await jest.runAllTimersAsync();
+
+      expect(mockCelebrate).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }

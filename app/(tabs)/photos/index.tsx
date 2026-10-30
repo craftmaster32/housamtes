@@ -1,21 +1,19 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
   SectionList,
-  Pressable,
-  Dimensions,
+  useWindowDimensions,
   type SectionListData,
   type ListRenderItemInfo,
 } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
-import { Image } from 'expo-image';
 import { format, isToday, isYesterday } from 'date-fns';
 import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
 import {
@@ -30,22 +28,27 @@ import { PremiumUpsell } from '@components/premium/PremiumUpsell';
 import { PREMIUM_ENABLED } from '@constants/featureFlags';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
+import { usePhotoSelection } from '@hooks/usePhotoSelection';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
+import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
+import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
+import { PolaroidTile } from '@components/photos/PolaroidTile';
+import { TapeLabel } from '@components/photos/TapeLabel';
+import { SelectionBar } from '@components/photos/SelectionBar';
+import { PhotosHeader } from '@components/photos/PhotosHeader';
+import { UploadNote } from '@components/photos/UploadNote';
 import { getErrorMessage } from '@utils/errors';
-
 import { mf, ms } from '@utils/responsive';
-const { width: SW } = Dimensions.get('window');
+
 const GRID_COLS = 3;
-// Edge-to-edge gallery grid: thin hairline gaps, no page margins — the photos
-// tile the full width like a native Photos app.
-const GRID_GAP = 2;
-const GRID_ITEM = (SW - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+const PAGE_PAD = ms(20);
+const TILE_GAP = ms(12);
 
 const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
 
@@ -65,168 +68,34 @@ const makeStyles = (C: ColorTokens) =>
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    topBackRow: { paddingHorizontal: sizes.lg, paddingTop: sizes.sm },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.xs,
-      paddingBottom: sizes.sm,
-    },
-    heading: { fontSize: mf(26), ...font.extrabold, letterSpacing: -0.5, color: C.textPrimary },
-    headerActions: { flexDirection: 'row', gap: sizes.sm },
-    headerBtn: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(22),
-      backgroundColor: C.primary + '15',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    categoryRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      paddingHorizontal: sizes.lg,
-      gap: sizes.xs,
-      marginBottom: sizes.sm,
-    },
-    catChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(4),
-      paddingVertical: ms(4),
-      paddingHorizontal: sizes.sm,
-      minHeight: ms(44),
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surface,
-    },
-    catChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    catChipText: { fontSize: mf(13), ...font.medium, color: C.textPrimary },
-    catChipTextActive: { color: '#fff' },
-    error: {
-      color: C.danger,
-      fontSize: sizes.fontSm,
-      ...font.regular,
-      paddingHorizontal: sizes.lg,
-      marginBottom: sizes.xs,
-    },
-    listContent: { paddingBottom: ms(100) },
-    upsellWrap: { paddingHorizontal: sizes.lg, marginBottom: sizes.sm },
-    sectionHeader: {
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.md,
-      paddingBottom: sizes.sm,
-      backgroundColor: C.background,
-    },
-    sectionTitle: {
+    top: { paddingHorizontal: PAGE_PAD, paddingTop: ms(8) },
+    filters: { marginTop: ms(2), marginBottom: ms(4) },
+    error: { color: C.danger, fontSize: mf(13), ...font.regular, marginTop: ms(6) },
+    upsell: { marginTop: ms(10) },
+    listContent: { paddingHorizontal: PAGE_PAD, paddingBottom: ms(40) },
+    sectionHeader: { paddingTop: ms(18), paddingBottom: ms(14) },
+    gridRow: { flexDirection: 'row', gap: TILE_GAP, marginBottom: TILE_GAP + ms(4) },
+    empty: { alignItems: 'center', paddingTop: ms(48), gap: ms(10) },
+    emptyTitle: {
       fontSize: mf(17),
-      ...font.bold,
+      ...font.semibold,
       color: C.textPrimary,
-      letterSpacing: -0.3,
+      textAlign: 'center',
+      paddingHorizontal: ms(16),
     },
-    gridRow: { flexDirection: 'row', gap: GRID_GAP, marginBottom: GRID_GAP },
-    gridItem: {
-      width: GRID_ITEM,
-      height: GRID_ITEM,
-      overflow: 'hidden',
-      backgroundColor: C.surfaceSecondary,
-    },
-    gridImg: { width: '100%', height: '100%' },
-    selectedOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(99,102,241,0.35)',
-      justifyContent: 'flex-end',
-      alignItems: 'flex-end',
-      padding: ms(5),
-    },
-    checkCircle: {
-      width: ms(24),
-      height: ms(24),
-      borderRadius: ms(12),
-      backgroundColor: C.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    unselectedOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.25)',
-    },
-    unselectedCircle: {
-      position: 'absolute',
-      bottom: ms(5),
-      end: ms(5),
-      width: ms(24),
-      height: ms(24),
-      borderRadius: ms(12),
-      borderWidth: 2,
-      borderColor: 'rgba(255,255,255,0.7)',
-    },
-    selectionBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: C.surface,
-      borderTopWidth: 1,
-      borderTopColor: C.border,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.sm,
-      paddingBottom: sizes.xl,
-    },
-    selectionBarText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
-    selectionCancelBtn: { padding: sizes.sm },
-    selectionCancelTxt: { fontSize: mf(15), ...font.regular, color: C.textSecondary },
-    selectionDownloadBtn: {
-      backgroundColor: C.primary,
-      paddingHorizontal: sizes.md,
-      paddingVertical: sizes.sm,
-      borderRadius: sizes.borderRadiusLg,
-      minWidth: ms(100),
-      alignItems: 'center',
-    },
-    selectionDownloadBtnDisabled: { opacity: 0.45 },
-    selectionDownloadTxt: { fontSize: mf(15), ...font.semibold, color: '#fff' },
-    emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
-    emptyIcon: { marginBottom: sizes.sm },
-    emptyTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary },
     emptyText: {
       fontSize: mf(14),
+      lineHeight: mf(20),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      paddingHorizontal: sizes.lg,
+      paddingHorizontal: ms(24),
     },
-    uploadOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    uploadCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.sm,
-      backgroundColor: C.surface,
-      paddingVertical: sizes.md,
-      paddingHorizontal: sizes.lg,
-      borderRadius: ms(16),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.15,
-      shadowRadius: 20,
-      elevation: 8,
-    },
-    uploadText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
   });
 
 function PhotosScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('photos/index');
   const { t, i18n } = useTranslation();
   const photos = usePhotoStore((s) => s.photos);
   const isLoading = usePhotoStore((s) => s.isLoading);
@@ -248,7 +117,9 @@ function PhotosScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const { width: screenW } = useWindowDimensions();
+  // Three prints a row inside the page margins (capped for tablets / web).
+  const tile = (Math.min(screenW, 560) - PAGE_PAD * 2 - TILE_GAP * (GRID_COLS - 1)) / GRID_COLS;
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -262,14 +133,6 @@ function PhotosScreen(): React.JSX.Element {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
-
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
-
-  // keep a stable ref to selectedIds for use in callbacks
-  const selectedIdsRef = useRef(selectedIds);
-  selectedIdsRef.current = selectedIds;
 
   const filtered = useMemo(
     () =>
@@ -298,6 +161,8 @@ function PhotosScreen(): React.JSX.Element {
       data: chunkRows(items),
     }));
   }, [filtered, t, i18n.language]);
+  // No photos means the empty-state Mate is showing, so he only hides when there are some.
+  const mateSpot = useMateScene(MATE_SPOTS, sections.length > 0);
 
   const counts = useMemo<Record<PhotoCategory | 'general', number>>(
     () => ({
@@ -309,61 +174,16 @@ function PhotosScreen(): React.JSX.Element {
     [photos]
   );
 
-  const exitSelectMode = useCallback((): void => {
-    setIsSelectMode(false);
-    setSelectedIds(new Set());
-  }, []);
-
-  const toggleSelect = useCallback((photoId: string): void => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(photoId)) {
-        next.delete(photoId);
-      } else {
-        next.add(photoId);
-      }
-      return next;
-    });
-  }, []);
-
-  const enterSelectMode = useCallback((photoId: string): void => {
-    setIsSelectMode(true);
-    setSelectedIds(new Set([photoId]));
-  }, []);
-
-  const handleBulkDownload = useCallback(async (): Promise<void> => {
-    const ids = selectedIdsRef.current;
-    if (ids.size === 0 || isBulkDownloading) return;
-    const toDownload = photos.filter((p) => ids.has(p.id));
-    setIsBulkDownloading(true);
-    try {
-      for (const photo of toDownload) {
-        await downloadPhotoToLibrary(photo.url);
-      }
-      exitSelectMode();
-      const count = toDownload.length;
-      Alert.alert(
-        t('photos.download_success_title'),
-        count === 1
-          ? t('photos.download_all_success_one')
-          : t('photos.download_all_success_other', { count })
-      );
-    } catch (err) {
-      const isPermission = err instanceof Error && err.name === 'permission_denied';
-      Alert.alert(
-        t('common.error', 'Error'),
-        isPermission ? t('photos.download_permission_denied') : t('photos.download_error')
-      );
-    } finally {
-      setIsBulkDownloading(false);
-    }
-  }, [isBulkDownloading, photos, exitSelectMode, t]);
+  const selection = usePhotoSelection(photos, filtered);
+  const { isSelectMode, selectedIds, toggle: toggleSelect, start: enterSelectMode } = selection;
 
   // Straight-to-upload: whatever the user picks in the system gallery (single
   // or multi-select) is uploaded immediately. Captions/albums come later.
   const uploadPicked = useCallback(
     async (assets: ImagePickerAsset[]): Promise<void> => {
-      if (!assets.length || !user || !houseId || !profile) return;
+      // One batch at a time — uploads run in the background now, so the
+      // camera and library buttons stay tappable while they do.
+      if (!assets.length || !user || !houseId || !profile || isUploading) return;
       // Fail closed while entitlements are still rehydrating — otherwise a
       // free user could upload past the cap in the brief window before
       // AsyncStorage confirms they aren't premium.
@@ -397,19 +217,30 @@ function PhotosScreen(): React.JSX.Element {
       } catch (err) {
         setError(getErrorMessage(err, t('photos.upload_failed')));
       } finally {
-        // A failed refresh must not leave the blocking overlay stuck on screen,
+        // A failed refresh must not leave the upload note stuck on screen,
         // so reset the upload state even if load() rejects.
         try {
           await load(houseId);
         } catch {
-          /* keep going — the overlay must always clear */
+          /* keep going — the upload note must always clear */
         } finally {
           setIsUploading(false);
           setUploadProgress({ current: 0, total: 0 });
         }
       }
     },
-    [user, houseId, profile, photos.length, canAddPhotos, entitlementsLoading, upload, load, t]
+    [
+      user,
+      houseId,
+      profile,
+      isUploading,
+      photos.length,
+      canAddPhotos,
+      entitlementsLoading,
+      upload,
+      load,
+      t,
+    ]
   );
 
   const pickFromCamera = useCallback(async (): Promise<void> => {
@@ -500,6 +331,8 @@ function PhotosScreen(): React.JSX.Element {
     [isSelectMode, enterSelectMode]
   );
 
+  const onStartSelect = useCallback((): void => enterSelectMode(), [enterSelectMode]);
+
   const onSelectCategory = useCallback(
     (key: PhotoCategory | 'general') => setSelectedCategory(key),
     []
@@ -510,67 +343,58 @@ function PhotosScreen(): React.JSX.Element {
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<PhotoRow, PhotoSection> }) => (
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{section.title}</Text>
+        <TapeLabel label={section.title} />
+        {/* Sitting at the end of the first date's tape, over the prints. */}
+        {mateSpot === 'sit' && section === sections[0] && (
+          <MateSpot kind="sit" size={ms(36)} style={mateStyles.sit} />
+        )}
       </View>
     ),
-    [styles]
+    [styles, mateSpot, sections]
   );
 
   const renderRow = useCallback(
     ({ item }: ListRenderItemInfo<PhotoRow>) => (
       <View style={styles.gridRow}>
-        {item.map((photo) => {
-          const isSelected = selectedIds.has(photo.id);
+        {item.map((photo, i) => {
+          const label = photo.caption || t('photos.photo_by', { name: photo.uploadedBy });
           return (
-            <Pressable
+            <PolaroidTile
               key={photo.id}
-              style={styles.gridItem}
-              onPress={() => handlePhotoPress(photo)}
-              onLongPress={() => handlePhotoLongPress(photo)}
-              delayLongPress={350}
-              accessible
-              accessibilityRole="imagebutton"
-              accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
-              accessibilityState={{ selected: isSelectMode ? isSelected : undefined }}
-            >
-              <Image
-                source={{ uri: photo.url, cacheKey: photo.id }}
-                style={styles.gridImg}
-                contentFit="cover"
-                recyclingKey={photo.id}
-                transition={100}
-                accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
-              />
-              {isSelectMode && isSelected && (
-                <View style={styles.selectedOverlay}>
-                  <View style={styles.checkCircle}>
-                    <Ionicons name="checkmark" size={13} color="#fff" />
-                  </View>
-                </View>
-              )}
-              {isSelectMode && !isSelected && (
-                <>
-                  <View style={styles.unselectedOverlay} />
-                  <View style={styles.unselectedCircle} />
-                </>
-              )}
-            </Pressable>
+              photo={photo}
+              size={tile}
+              index={i + (photo.id.charCodeAt(0) % 2)}
+              selectMode={isSelectMode}
+              selected={selectedIds.has(photo.id)}
+              label={label}
+              onPress={handlePhotoPress}
+              onLongPress={handlePhotoLongPress}
+            />
           );
         })}
       </View>
     ),
-    [styles, selectedIds, isSelectMode, handlePhotoPress, handlePhotoLongPress]
+    [styles, tile, selectedIds, isSelectMode, handlePhotoPress, handlePhotoLongPress, t]
+  );
+
+  const filterWords = useMemo<ChoiceWord<PhotoCategory | 'general'>[]>(
+    () =>
+      PHOTO_CATEGORIES.map((cat) => ({
+        value: cat.key,
+        label: `${t(cat.labelKey)}${counts[cat.key] > 0 ? ` ${counts[cat.key]}` : ''}`,
+      })),
+    [counts, t]
   );
 
   const EmptyComponent = useMemo(
     () => (
-      <View style={styles.emptyState}>
-        <Ionicons name="camera-outline" size={48} color={C.textTertiary} style={styles.emptyIcon} />
+      <View style={styles.empty}>
+        <Mate size={ms(80)} />
         <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
         <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
       </View>
     ),
-    [styles, t, C]
+    [styles, t]
   );
 
   const selectedCount = selectedIds.size;
@@ -590,77 +414,41 @@ function PhotosScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.flex}>
-        <View style={styles.topBackRow}>
+        <View style={styles.top}>
           <BackLink label={t('common.home')} />
-        </View>
-        <View style={styles.header}>
-          <Text style={[styles.heading, headingFont]}>{t('photos.title')}</Text>
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={pickFromCamera}
-              style={styles.headerBtn}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('photos.take_photo')}
-            >
-              <Ionicons name="camera-outline" size={22} color={C.primary} />
-            </Pressable>
-            <Pressable
-              onPress={pickFromLibrary}
-              style={styles.headerBtn}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('photos.choose_from_library')}
-            >
-              <Ionicons name="images-outline" size={22} color={C.primary} />
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.categoryRow}>
-          {PHOTO_CATEGORIES.map((cat) => {
-            const count = counts[cat.key];
-            return (
-              <Pressable
-                key={cat.key}
-                style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
-                onPress={() => onSelectCategory(cat.key)}
-                accessible
-                accessibilityRole="button"
-              >
-                <Ionicons
-                  name={cat.icon}
-                  size={13}
-                  color={selectedCategory === cat.key ? '#fff' : C.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.catChipText,
-                    selectedCategory === cat.key && styles.catChipTextActive,
-                  ]}
-                >
-                  {t(cat.labelKey)}
-                  {count > 0 ? ` (${count})` : ''}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {!!error && <Text style={styles.error}>{error}</Text>}
-
-        {atPhotoLimit && (
-          <View style={styles.upsellWrap}>
-            <PremiumUpsell
-              title={t('premium.photo_limit_title')}
-              body={t('premium.photo_limit_body', { count: limit ?? 0 })}
+          <PhotosHeader
+            isSelectMode={isSelectMode}
+            allSelected={selection.allSelected}
+            canSelect={filtered.length > 0}
+            onStartSelect={onStartSelect}
+            onToggleAll={selection.toggleAll}
+            onCancelSelect={selection.exit}
+            onCamera={pickFromCamera}
+            onLibrary={pickFromLibrary}
+          />
+          <View style={styles.filters}>
+            <ChoiceWords
+              options={filterWords}
+              selected={selectedCategory}
+              onSelect={onSelectCategory}
+              groupLabel={t('photos.category')}
             />
           </View>
-        )}
+          {!!error && <Text style={styles.error}>{error}</Text>}
+          {atPhotoLimit && (
+            <View style={styles.upsell}>
+              <PremiumUpsell
+                title={t('premium.photo_limit_title')}
+                body={t('premium.photo_limit_body', { count: limit ?? 0 })}
+              />
+            </View>
+          )}
+        </View>
 
         <SectionList<PhotoRow, PhotoSection>
+          ref={scrollRef}
           sections={sections}
           keyExtractor={(row, i) => `${row[0]?.id ?? 'empty'}-${i}`}
           renderItem={renderRow}
@@ -668,6 +456,7 @@ function PhotosScreen(): React.JSX.Element {
           contentContainerStyle={styles.listContent}
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={EmptyComponent}
+          ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="photos" always /> : null}
           showsVerticalScrollIndicator={false}
           initialNumToRender={5}
           maxToRenderPerBatch={6}
@@ -679,65 +468,24 @@ function PhotosScreen(): React.JSX.Element {
           <PhotoViewer
             photos={filtered}
             initialIndex={viewIndex}
-            currentUserId={user?.id}
-            houseId={houseId}
             onClose={onCloseViewer}
             onDelete={handleDelete}
           />
         )}
 
         {isUploading && (
-          <View style={styles.uploadOverlay} pointerEvents="auto">
-            <View style={styles.uploadCard}>
-              <LoadingSpinner />
-              <Text style={styles.uploadText}>
-                {uploadProgress.total > 1
-                  ? t('photos.uploading_progress', {
-                      current: uploadProgress.current,
-                      total: uploadProgress.total,
-                    })
-                  : t('photos.uploading')}
-              </Text>
-            </View>
-          </View>
+          <UploadNote current={uploadProgress.current} total={uploadProgress.total} />
         )}
 
         {isSelectMode && (
-          <View style={styles.selectionBar}>
-            <Pressable
-              onPress={exitSelectMode}
-              style={styles.selectionCancelBtn}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
-            >
-              <Text style={styles.selectionCancelTxt}>{t('common.cancel')}</Text>
-            </Pressable>
-
-            <Text style={styles.selectionBarText}>{selectionLabel}</Text>
-
-            <Pressable
-              onPress={handleBulkDownload}
-              style={[
-                styles.selectionDownloadBtn,
-                (selectedCount === 0 || isBulkDownloading) && styles.selectionDownloadBtnDisabled,
-              ]}
-              disabled={selectedCount === 0 || isBulkDownloading}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('photos.download_photo')}
-              accessibilityState={{
-                busy: isBulkDownloading,
-                disabled: selectedCount === 0 || isBulkDownloading,
-              }}
-            >
-              {isBulkDownloading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.selectionDownloadTxt}>{t('photos.download_photo')}</Text>
-              )}
-            </Pressable>
-          </View>
+          <SelectionBar
+            count={selectedCount}
+            label={selectionLabel}
+            saving={selection.isSaving}
+            deleting={selection.isDeleting}
+            onSave={selection.saveSelected}
+            onDelete={selection.deleteSelected}
+          />
         )}
       </View>
     </SafeAreaView>
@@ -745,3 +493,11 @@ function PhotosScreen(): React.JSX.Element {
 }
 
 export default withFeatureGuard('photos', PhotosScreen);
+
+// Where Mate may hide on a visit: sitting beside the first date tape, or under
+// the last prints.
+const MATE_SPOTS = ['sit', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  sit: { end: ms(6), bottom: ms(6) },
+});

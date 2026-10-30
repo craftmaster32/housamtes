@@ -2,10 +2,11 @@ import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
-import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
-import { useMemberName } from '@hooks/useMemberName';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
 import { useSettingsStore } from '@stores/settingsStore';
 import { DeletedBillsList } from '@components/bills/DeletedBillsList';
 import { RecurringBillCard } from '@components/bills/recurring/RecurringBillCard';
@@ -14,84 +15,18 @@ import { EmptyState } from '@components/ui';
 import { buildHistory, type HistoryItem } from '@utils/recurringHistory';
 import { sortBillsByDue, todayISO } from '@utils/recurringCoverage';
 import { useThemedColors } from '@constants/colors';
-import { sizes } from '@constants/sizes';
-import { font } from '@constants/typography';
-
 import { mf, ms } from '@utils/responsive';
+
 const MAX_DELETED_BILLS = 10;
 const NO_CHANGES: HistoryItem[] = [];
-
-// ── Fairness bar ──────────────────────────────────────────────────────────────
-
-function FairnessSection(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const bills = useRecurringBillsStore((s) => s.bills);
-  const payments = useRecurringBillsStore((s) => s.payments);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const memberName = useMemberName();
-  const currency = useSettingsStore((s) => s.currency);
-  const fairness = calculateFairness(
-    bills,
-    payments,
-    housemates.map((h) => h.id)
-  );
-
-  if (fairness.length === 0) return <></>;
-
-  const maxTotal = Math.max(...fairness.map((f) => f.total), 1);
-
-  return (
-    <View
-      style={[
-        styles.fairnessCard,
-        { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1 },
-      ]}
-    >
-      <Text style={[styles.fairnessTitle, { color: c.textSecondary }]}>
-        {t('bills.household_contributions')}
-      </Text>
-      {fairness.map((f) => (
-        <View key={f.person} style={styles.fairnessRow}>
-          <Text style={[styles.fairnessPerson, { color: c.textPrimary }]} numberOfLines={1}>
-            {memberName(f.person)}
-          </Text>
-          <View style={[styles.barTrack, { backgroundColor: c.surfaceSecondary }]}>
-            <View
-              style={[
-                styles.barFill,
-                {
-                  width: `${(f.total / maxTotal) * 100}%`,
-                  backgroundColor: f.balance >= 0 ? c.positive : c.negative,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.fairnessAmount, { color: c.textPrimary }]}>
-            {currency}
-            {f.total.toFixed(0)}
-          </Text>
-          <Text
-            style={[styles.fairnessBalance, { color: f.balance >= 0 ? c.positive : c.negative }]}
-          >
-            {f.balance >= 0
-              ? `+${currency}${f.balance.toFixed(0)}`
-              : `-${currency}${Math.abs(f.balance).toFixed(0)}`}
-          </Text>
-        </View>
-      ))}
-      <Text style={[styles.fairnessNote, { color: c.textDisabled }]}>
-        {t('bills.household_balance_note')}
-      </Text>
-    </View>
-  );
-}
 
 // ── Main tab ──────────────────────────────────────────────────────────────────
 
 export function HouseholdTab(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
+  const handFont = useHandFont();
   const bills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const history = useRecurringBillsStore((s) => s.history);
@@ -163,11 +98,9 @@ export function HouseholdTab(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <FairnessSection />
-
       {bills.length === 0 && !showAddForm && (
         <View style={styles.emptySection}>
-          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
+          <Text style={[styles.emptyTitle, headingFont, { color: c.textPrimary }]}>
             {t('bills.household_no_bills')}
           </Text>
           <Text style={[styles.emptyText, { color: c.textSecondary }]}>
@@ -193,13 +126,17 @@ export function HouseholdTab(): React.JSX.Element {
         <RecurringBillForm people={people} onClose={closeAddForm} />
       ) : (
         <Pressable
-          style={[styles.addBillBtn, { borderColor: c.border }]}
+          style={({ pressed }) => [
+            styles.addBillBtn,
+            { borderColor: c.border },
+            pressed && styles.pressed,
+          ]}
           onPress={openAddForm}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('bills.household_add_recurring')}
         >
-          <Text style={[styles.addBillBtnText, { color: c.primary }]}>
+          <Text style={[styles.addBillBtnText, handFont, { color: c.primary }]}>
             {t('bills.household_add_recurring')}
           </Text>
         </Pressable>
@@ -210,36 +147,24 @@ export function HouseholdTab(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: sizes.lg, paddingBottom: ms(60), gap: ms(12) },
+  // The Bills screen already pads the page, so only space the sections here.
+  content: { paddingTop: ms(8), paddingBottom: ms(60), gap: ms(12) },
 
-  // Fairness
-  fairnessCard: { borderRadius: sizes.borderRadius, padding: sizes.md, gap: sizes.sm },
-  fairnessTitle: {
-    fontSize: sizes.fontSm,
-    ...font.bold,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  fairnessRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs },
-  fairnessPerson: { width: ms(64), fontSize: sizes.fontSm, ...font.semibold },
-  barTrack: { flex: 1, height: ms(8), borderRadius: ms(4), overflow: 'hidden' },
-  barFill: { height: ms(8), borderRadius: ms(4) },
-  fairnessAmount: { width: ms(56), fontSize: sizes.fontSm, textAlign: 'right' },
-  fairnessBalance: { width: ms(56), fontSize: sizes.fontXs, ...font.bold, textAlign: 'right' },
-  fairnessNote: { fontSize: mf(11), marginTop: sizes.xs },
-
-  // Add bill button
+  // "+ Add recurring bill" — a dashed, handwritten slot at the end of the list.
   addBillBtn: {
+    minHeight: ms(64),
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderRadius: sizes.borderRadius,
-    paddingVertical: sizes.md,
+    borderRadius: ms(24),
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: ms(16),
   },
-  addBillBtnText: { ...font.bold, fontSize: sizes.fontMd },
+  addBillBtnText: { fontSize: mf(23) },
+  pressed: { opacity: 0.75 },
 
   // Empty
-  emptySection: { alignItems: 'center', paddingVertical: sizes.xl },
-  emptyTitle: { ...font.bold, marginBottom: sizes.xs },
-  emptyText: { textAlign: 'center', fontSize: sizes.fontSm },
+  emptySection: { alignItems: 'center', paddingVertical: ms(24), gap: ms(4) },
+  emptyTitle: { fontSize: mf(20) },
+  emptyText: { textAlign: 'center', fontSize: mf(14) },
 });

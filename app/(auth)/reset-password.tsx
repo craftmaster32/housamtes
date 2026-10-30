@@ -1,29 +1,23 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, Button } from 'react-native-paper';
-import { PasswordInput } from '@components/shared/PasswordInput';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { useState, useCallback } from 'react';
+import { StyleSheet } from 'react-native';
+import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-import { sizes } from '@constants/sizes';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
+import { AuthScreen } from '@components/auth/AuthScreen';
+import { AuthField } from '@components/auth/AuthField';
+import { PasswordDone } from '@components/auth/PasswordDone';
+import { KeyArt } from '@components/auth/art/KeyArt';
+import { SheetButton } from '@components/shared/SheetButton';
 import { getErrorMessage } from '@utils/errors';
-
 import { mf, ms } from '@utils/responsive';
+
 export default function ResetPasswordScreen(): React.JSX.Element {
   const c = useThemedColors();
-  const headingFont = useHeadingFont();
-  const styles = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -57,153 +51,60 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     }
   }, [password, confirm, t]);
 
-  if (done) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={[styles.title, headingFont]}>{t('auth.password_updated_title')}</Text>
-          <Text style={styles.subtitle}>{t('auth.password_updated_body')}</Text>
-          <Button
-            mode="contained"
-            onPress={() => router.replace('/(auth)/login')}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={c.primary}
-          >
-            {t('auth.go_to_sign_in')}
-          </Button>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (done) return <PasswordDone />;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-        >
-          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
-        </Pressable>
+    <AuthScreen
+      title={t('auth.reset_title')}
+      subtitle={t('auth.reset_subtitle')}
+      onBack={() => router.back()}
+      backLabel={t('common.back')}
+      art={<KeyArt width={ms(64)} ink={c.textPrimary} />}
+    >
+      <AuthField
+        password
+        label={t('auth.new_password')}
+        value={password}
+        onChangeText={(v) => {
+          setPassword(v);
+          setError('');
+        }}
+        autoFocus
+        autoComplete="new-password"
+        returnKeyType="next"
+        error={!!error && !confirm}
+        accessibilityLabel={t('auth.new_password')}
+        accessibilityHint={t('auth.new_password_hint')}
+      />
 
-        <View style={styles.header}>
-          <Text style={[styles.title, headingFont]}>{t('auth.reset_title')}</Text>
-          <Text style={styles.subtitle}>{t('auth.reset_subtitle')}</Text>
-        </View>
+      <AuthField
+        password
+        label={t('auth.confirm_password')}
+        value={confirm}
+        onChangeText={(v) => {
+          setConfirm(v);
+          setError('');
+        }}
+        autoComplete="new-password"
+        returnKeyType="done"
+        onSubmitEditing={handleReset}
+        error={!!error}
+        accessibilityLabel={t('auth.confirm_password')}
+        accessibilityHint={t('auth.confirm_password_hint')}
+      />
 
-        <PasswordInput
-          label={t('auth.new_password')}
-          value={password}
-          onChangeText={(v) => {
-            setPassword(v);
-            setError('');
-          }}
-          mode="outlined"
-          style={styles.input}
-          autoFocus
-          returnKeyType="next"
-          error={!!error && !confirm}
-          accessibilityLabel={t('auth.new_password')}
-          accessibilityHint={t('auth.new_password_hint')}
-        />
+      {!!error && <Text style={[styles.error, { color: c.danger }]}>{error}</Text>}
 
-        <PasswordInput
-          label={t('auth.confirm_password')}
-          value={confirm}
-          onChangeText={(v) => {
-            setConfirm(v);
-            setError('');
-          }}
-          mode="outlined"
-          style={styles.input}
-          returnKeyType="done"
-          onSubmitEditing={handleReset}
-          error={!!error}
-          accessibilityLabel={t('auth.confirm_password')}
-          accessibilityHint={t('auth.confirm_password_hint')}
-        />
-
-        {!!error && <Text style={styles.error}>{error}</Text>}
-
-        <Button
-          mode="contained"
-          onPress={handleReset}
-          loading={isLoading}
-          disabled={isLoading}
-          style={styles.button}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          buttonColor={c.primary}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.update_password')}
-          accessibilityState={{ disabled: isLoading }}
-        >
-          {t('auth.update_password')}
-        </Button>
-      </View>
-    </SafeAreaView>
+      <SheetButton
+        label={t('auth.update_password')}
+        onPress={handleReset}
+        loading={isLoading}
+        disabled={isLoading}
+      />
+    </AuthScreen>
   );
 }
 
-const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: C.background,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.sm,
-      gap: sizes.md,
-    },
-    backBtn: {
-      width: sizes.touchTarget,
-      height: sizes.touchTarget,
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      marginBottom: sizes.xs,
-    },
-    header: {
-      gap: ms(4),
-      marginBottom: sizes.xs,
-    },
-    title: {
-      fontSize: mf(28),
-      ...font.extrabold,
-      color: C.textPrimary,
-      letterSpacing: -0.5,
-    },
-    subtitle: {
-      fontSize: mf(15),
-      ...font.medium,
-      color: C.textSecondary,
-      lineHeight: mf(22),
-    },
-    input: {
-      backgroundColor: C.surface,
-    },
-    error: {
-      ...font.regular,
-      color: C.danger,
-      fontSize: sizes.fontSm,
-    },
-    button: {
-      borderRadius: ms(14),
-      marginTop: sizes.sm,
-    },
-    buttonContent: {
-      height: ms(52),
-    },
-    buttonLabel: {
-      fontSize: mf(16),
-      ...font.semibold,
-      letterSpacing: 0.2,
-    },
-  });
+const styles = StyleSheet.create({
+  error: { fontSize: mf(14), ...font.medium, lineHeight: mf(20) },
+});

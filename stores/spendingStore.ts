@@ -104,6 +104,9 @@ export interface DrillDownItem {
   amount: number;
   date: string;
   type: 'bill' | 'recurring';
+  /** Recurring payments: the months the payment covers, as "YYYY-MM" keys. */
+  coverFrom?: string;
+  coverTo?: string;
 }
 
 export interface MonthSpend {
@@ -166,17 +169,24 @@ function lastNMonths(n: number): string[] {
   return result;
 }
 
-// Splits a recurring payment across the months it covers.
-// e.g. bimonthly payment paid on 2026-05-10 covers Apr + May → share = 0.5 each.
+// Splits a recurring payment across the months it covers. When the payment
+// says which months it covers (coverage_start + coverage_months, chosen when it
+// was logged) those are used; otherwise it covers the months up to the one it
+// was paid in, e.g. bimonthly paid on 2026-05-10 covers Apr + May → 0.5 each.
 function paymentMonthShares(
   paidAt: string,
-  frequency: Frequency
+  frequency: Frequency,
+  coverageStart: string | null = null,
+  coverageMonths: number | null = null
 ): Array<{ monthKey: string; share: number }> {
-  const n = FREQ_MONTHS[frequency];
-  const paid = new Date(paidAt + 'T00:00:00');
+  const explicit = !!coverageStart && !!coverageMonths && coverageMonths > 0;
+  const n = explicit ? (coverageMonths as number) : FREQ_MONTHS[frequency];
+  const anchor = new Date((explicit ? (coverageStart as string) : paidAt) + 'T00:00:00');
   const result: Array<{ monthKey: string; share: number }> = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(paid.getFullYear(), paid.getMonth() - i, 1);
+  for (let k = 0; k < n; k++) {
+    // From the first covered month forwards, or back from the paid month.
+    const offset = explicit ? k : k - (n - 1);
+    const d = new Date(anchor.getFullYear(), anchor.getMonth() + offset, 1);
     result.push({
       monthKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
       share: 1 / n,
@@ -288,7 +298,7 @@ export const useSpendingStore = create<SpendingStore>()(
             supabase
               .from('household_payments')
               .select(
-                'id, amount, paid_at, split_between, recurring_bills(name, assigned_to, frequency)'
+                'id, amount, paid_at, split_between, coverage_start, coverage_months, recurring_bills(name, assigned_to, frequency)'
               )
               .eq('house_id', houseId)
               .gte('paid_at', sixMonthsAgo),
@@ -351,8 +361,14 @@ export const useSpendingStore = create<SpendingStore>()(
               rb.frequency in FREQ_MONTHS ? (rb.frequency as Frequency) : 'monthly';
             const cat = rb.name.toLowerCase();
             recurringCategories.add(cat);
-            const n = FREQ_MONTHS[freq];
-            const shares = paymentMonthShares(p.paid_at, freq);
+            const shares = paymentMonthShares(
+              p.paid_at,
+              freq,
+              (p.coverage_start as string | null) ?? null,
+              (p.coverage_months as number | null) ?? null
+            );
+            const coverFrom = shares[0]?.monthKey;
+            const coverTo = shares[shares.length - 1]?.monthKey;
 
             // Who shares this payment's cost — mirrors calculateFairness in the
             // recurring-bills store. An explicit split wins; an empty split means
@@ -371,10 +387,12 @@ export const useSpendingStore = create<SpendingStore>()(
               addToTally(houseTally, monthKey, cat, sliceAmt);
               addDetail(monthKey, cat, {
                 id: `${p.id}_${monthKey}`,
-                title: n > 1 ? `${rb.name} (${n}-month split)` : rb.name,
+                title: rb.name,
                 amount: sliceAmt,
                 date: p.paid_at,
                 type: 'recurring',
+                coverFrom,
+                coverTo,
               });
               // The user's own share of the monthly slice — the bill divided by
               // the number of people splitting it, not the whole house amount.

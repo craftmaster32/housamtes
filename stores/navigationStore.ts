@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { requestScrollToTop } from '@utils/scrollToTop';
 import { router } from 'expo-router';
 
 // The whole app is one hidden Tabs navigator (see app/(tabs)/_layout.tsx): every
@@ -213,6 +214,8 @@ function unwind(pops: number, replaceWith: string | null): void {
 // enough there. Only the browser keeps the entries we have to avoid creating.
 export function navigateToBase(href: string): void {
   const target = href as Parameters<typeof router.replace>[0];
+  // Whatever happens below, the page should show from its top (owner).
+  requestScrollToTop(hrefToTabName(href));
   if (Platform.OS !== 'web') {
     if (isOnHome()) router.push(target);
     else router.replace(target);

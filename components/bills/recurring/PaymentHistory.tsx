@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import type { HouseholdPayment } from '@stores/recurringBillsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Stamp } from '@components/shared/Stamp';
 import { formatDayMonth, formatPeriod, paymentPeriod } from '@utils/recurringCoverage';
 import { mf, ms } from '@utils/responsive';
 import { formatMoney } from './money';
@@ -65,6 +67,7 @@ function HistoryRow({
   const { t, i18n } = useTranslation();
   const p = useRecurringPalette();
   const memberName = useMemberName();
+  const headingFont = useHeadingFont('semibold');
   const handlePress = useCallback((): void => onSelect(payment), [onSelect, payment]);
 
   const period = paymentPeriod(payment);
@@ -102,27 +105,19 @@ function HistoryRow({
           {subtitle}
         </Text>
         {isDuplicate && (
-          <View style={[styles.pill, { backgroundColor: p.overdueBg }]}>
-            <Text style={[styles.pillText, { color: p.overdueText }]}>
-              {t('bills.recurring_duplicate')}
-            </Text>
-          </View>
+          <Stamp color={p.overdueText} style={styles.stamp}>
+            {t('bills.recurring_duplicate')}
+          </Stamp>
         )}
       </View>
-      <Text style={[styles.amount, { color: p.text }]}>{amount}</Text>
+      <Text style={[styles.amount, headingFont, { color: p.text }]}>{amount}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: { borderTopWidth: 1, marginTop: ms(14), paddingTop: ms(12) },
-  heading: {
-    fontSize: mf(12),
-    ...font.semibold,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: ms(4),
-  },
+  heading: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(4) },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -134,16 +129,9 @@ const styles = StyleSheet.create({
     borderRadius: ms(12),
   },
   main: { flex: 1, minWidth: 0 },
-  title: { fontSize: mf(15), ...font.medium },
-  subtitle: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
-  pill: {
-    alignSelf: 'flex-start',
-    borderRadius: ms(10),
-    paddingHorizontal: ms(8),
-    paddingVertical: ms(3),
-    marginTop: ms(6),
-  },
-  pillText: { fontSize: mf(12), ...font.semibold },
-  amount: { fontSize: mf(15), ...font.semibold, writingDirection: 'ltr' },
+  title: { fontSize: mf(15), ...font.bold },
+  subtitle: { fontSize: mf(13), ...font.medium, marginTop: ms(2) },
+  stamp: { marginTop: ms(6) },
+  amount: { fontSize: mf(17), letterSpacing: -0.2, writingDirection: 'ltr' },
   hint: { fontSize: mf(12), ...font.regular, marginTop: ms(8), textAlign: 'center' },
 });

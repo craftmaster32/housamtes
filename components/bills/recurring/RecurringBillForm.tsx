@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { formatDateDDMMYYYY } from '@utils/dates';
 import { getErrorMessage } from '@utils/errors';
 import { FREQUENCY_MONTHS, monthStart } from '@utils/recurringCoverage';
@@ -128,11 +129,12 @@ export function RecurringBillForm({
     setShowDatePicker(false);
   }, []);
 
+  const headingFont = useHeadingFont('semibold');
   const inputStyle = [styles.input, { borderColor: p.border, color: p.text }];
 
   return (
-    <View style={[styles.form, { backgroundColor: p.card, borderColor: p.border }]}>
-      <Text style={[styles.title, { color: p.text }]}>
+    <View style={[styles.form, { backgroundColor: p.sheet, borderColor: p.border }]}>
+      <Text style={[styles.title, headingFont, { color: p.text }]}>
         {bill ? t('bills.household_edit_bill') : t('bills.household_new_recurring')}
       </Text>
 
@@ -157,6 +159,7 @@ export function RecurringBillForm({
         selected={[assignedTo]}
         mode="single"
         onToggle={setAssignedTo}
+        avatars
       />
 
       <ChoiceChips
@@ -194,7 +197,7 @@ export function RecurringBillForm({
             accessibilityRole="button"
             accessibilityLabel={t('bills.select_last_paid_date')}
           >
-            <Ionicons name="calendar-outline" size={16} color={p.primary} />
+            <Ionicons name="calendar-outline" size={18} color={p.muted} />
             <Text style={[styles.dateText, { color: p.text }]}>
               {lastPaidDate
                 ? formatDateDDMMYYYY(lastPaidDate)
@@ -214,17 +217,22 @@ export function RecurringBillForm({
 
       <View style={styles.actions}>
         <Pressable
-          style={[styles.btn, styles.cancelBtn, { borderColor: p.border }]}
+          style={({ pressed }) => [styles.btn, pressed && styles.dimmed]}
           onPress={handleCancel}
           disabled={saving}
           accessible
           accessibilityRole="button"
           accessibilityState={{ disabled: saving }}
         >
-          <Text style={[styles.btnText, { color: p.text }]}>{t('common.cancel')}</Text>
+          <Text style={[styles.btnText, { color: p.primary }]}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
-          style={[styles.btn, { backgroundColor: p.primary }, !canSave && styles.dimmed]}
+          style={[
+            styles.btn,
+            styles.saveBtn,
+            { backgroundColor: p.primary },
+            !canSave && styles.dimmed,
+          ]}
           onPress={handleSave}
           disabled={!canSave}
           accessible
@@ -245,31 +253,44 @@ export function RecurringBillForm({
 }
 
 const styles = StyleSheet.create({
-  form: { borderRadius: ms(18), borderWidth: 1, padding: ms(16), gap: ms(12) },
-  title: { fontSize: mf(17), ...font.semibold },
-  label: { fontSize: mf(13), ...font.medium, marginBottom: ms(-4) },
-  hint: { fontSize: mf(12), ...font.regular },
+  form: {
+    borderRadius: ms(24),
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    padding: ms(18),
+    gap: ms(14),
+  },
+  title: { fontSize: mf(24), letterSpacing: -0.4 },
+  label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(-8) },
+  hint: { fontSize: mf(12.5), ...font.medium },
+  // Fields are written on a line, like the rest of the bill forms.
   input: {
-    minHeight: ms(48),
-    borderWidth: 1,
-    borderRadius: ms(12),
-    paddingHorizontal: ms(14),
-    fontSize: mf(16),
-    ...font.regular,
+    minHeight: 44,
+    borderBottomWidth: 1.5,
+    paddingHorizontal: 0,
+    paddingVertical: ms(8),
+    fontSize: mf(17),
+    ...font.semibold,
   },
   ltr: { writingDirection: 'ltr' },
   dateBtn: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
-  dateText: { fontSize: mf(15), ...font.regular },
+  dateText: { fontSize: mf(16), ...font.semibold },
   error: { fontSize: mf(14), ...font.medium },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: ms(10), marginTop: ms(4) },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: ms(10),
+    marginTop: ms(4),
+  },
   btn: {
-    minHeight: ms(44),
-    paddingHorizontal: ms(18),
-    borderRadius: ms(12),
+    minHeight: 44,
+    paddingHorizontal: ms(16),
+    borderRadius: ms(16),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelBtn: { borderWidth: 1 },
-  btnText: { fontSize: mf(15), ...font.semibold },
+  saveBtn: { paddingHorizontal: ms(22), minHeight: ms(50) },
+  btnText: { fontSize: mf(16), ...font.bold },
   dimmed: { opacity: 0.6 },
 });

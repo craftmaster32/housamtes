@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Text, TextInput } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { goBack } from '@stores/navigationStore';
@@ -11,9 +10,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { z } from 'zod';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { BillReceipt } from '@components/bills/BillReceipt';
+import { BillSlip } from '@components/bills/BillSlip';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
+import { SplitSummary } from '@components/bills/form/SplitSummary';
+import { SplitSheet } from '@components/bills/form/SplitSheet';
+import { formatFull } from '@constants/currencies';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
-import { UserAvatar } from '@components/shared/UserAvatar';
-import { useBillsStore, getPersonShare } from '@stores/billsStore';
+import { useBillsStore } from '@stores/billsStore';
 import {
   useExpenseCategoriesStore,
   resolveCategoryIcon,
@@ -33,12 +36,8 @@ import {
 import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import { useMemberName } from '@hooks/useMemberName';
-import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { formatFull } from '@constants/currencies';
-import { Money } from '@components/shared/Money';
-import { Button, EmptyState, Pill } from '@components/ui';
+import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -62,7 +61,7 @@ function BillDetailScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -75,7 +74,6 @@ function BillDetailScreen(): React.JSX.Element {
   const myId = profile?.id ?? '';
   const canDelete = role === 'owner' || role === 'admin';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const memberName = useMemberName();
   const markSeen = useBadgeStore((s) => s.markSeen);
 
   const housemates = useHousematesStore((s) => s.housemates);
@@ -201,6 +199,13 @@ function BillDetailScreen(): React.JSX.Element {
     setSplitType(type);
     setError('');
   }, []);
+
+  // The full who-paid / split options live in a sheet; the form shows one sentence.
+  const [showSplit, setShowSplit] = useState(false);
+  const openSplit = useCallback((): void => setShowSplit(true), []);
+  const closeSplit = useCallback((): void => setShowSplit(false), []);
+  const payer = housemates.find((h) => h.id === paidBy);
+  const payerName = payer ? payer.name.split(' ')[0] : '';
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
     if (isSaving || isDeleting) return;
@@ -371,54 +376,33 @@ function BillDetailScreen(): React.JSX.Element {
           )}
         </View>
 
-        {/* Status banner */}
-        {bill.settled && (
-          <Pill tone="success" size="md" icon="checkmark-circle-outline">
-            {t('bills.settled_by_on', {
-              name: bill.settledBy ? memberName(bill.settledBy) : '',
-              date: bill.settledAt ? new Date(bill.settledAt).toLocaleDateString() : '',
-            })}
-          </Pill>
-        )}
-
         {/* Detail / Edit form */}
         {isEditing ? (
           <View style={styles.card}>
             <Text style={[styles.sectionTitle, headingFont]}>{t('bills.edit_bill')}</Text>
-            <TextInput
+            <UnderlineInput
               label={t('bills.title_label')}
               value={title}
               onChangeText={handleTitleChange}
-              mode="outlined"
-              style={styles.input}
               accessibilityLabel={t('bills.title_label')}
               accessibilityHint={t('bills.title_hint')}
             />
-            <TextInput
+            <UnderlineInput
               label={t('bills.amount_label')}
               value={amount}
               onChangeText={handleAmountChange}
-              mode="outlined"
-              style={styles.input}
               keyboardType="decimal-pad"
               accessibilityLabel={t('bills.amount_label')}
               accessibilityHint={t('bills.amount_hint')}
             />
-            <BillSplitFields
-              housemates={housemates}
-              myId={myId}
-              currencyCode={currencyCode}
-              totalAmount={parseAmount(amount)}
-              paidBy={paidBy}
-              onPaidByChange={handlePaidByChange}
-              selectedPeople={selectedPeople}
-              onSelectedPeopleChange={handleSelectedPeopleChange}
+            <SplitSummary
+              payerId={paidBy}
+              payerName={payerName}
               splitType={splitType}
-              onSplitTypeChange={handleSplitTypeChange}
-              customAmounts={customAmounts}
-              onCustomAmountChange={setPersonAmount}
-              percentAmounts={percentAmounts}
-              onPercentAmountChange={setPersonPercent}
+              peopleCount={selectedPeople.length}
+              totalAmount={parseAmount(amount)}
+              currencyCode={currencyCode}
+              onOpen={openSplit}
             />
             <View style={styles.dateField}>
               <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
@@ -430,20 +414,17 @@ function BillDetailScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.pick_date')}
                 accessibilityState={{ expanded: showDatePicker }}
               >
-                <Ionicons name="calendar-outline" size={18} color={C.primary} />
+                <Ionicons name="calendar-outline" size={18} color={C.textSecondary} />
                 <Text style={styles.dateTriggerText}>{formatDisplayDate(date, i18n.language)}</Text>
                 <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
               </Pressable>
             </View>
-            <TextInput
+            <UnderlineInput
               label={t('bills.notes_label')}
               value={notes}
               onChangeText={setNotes}
-              mode="outlined"
-              style={styles.input}
               placeholder={t('bills.notes_placeholder')}
               multiline
-              numberOfLines={2}
               accessibilityLabel={t('bills.notes_label')}
               accessibilityHint={t('bills.notes_hint')}
             />
@@ -496,79 +477,12 @@ function BillDetailScreen(): React.JSX.Element {
             </View>
           </View>
         ) : (
-          <View>
-            <LinearGradient
-              colors={C.owedGradient}
-              start={{ x: 0.15, y: 0 }}
-              end={{ x: 0.85, y: 1 }}
-              style={styles.detailHero}
-            >
-              <View style={styles.detailHeroHighlight} />
-              <Text style={styles.detailHeroTitle} numberOfLines={2}>
-                {bill.title}
-              </Text>
-              <Money
-                amount={bill.amount}
-                currencyCode={currencyCode}
-                size={40}
-                color="#fff"
-                style={styles.detailHeroAmount}
-              />
-            </LinearGradient>
-            <View style={[styles.card, styles.detailMetaCard]}>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{t('bills.category')}</Text>
-                <View style={styles.metaValueRow}>
-                  <View style={styles.catPill}>
-                    <Ionicons
-                      name={resolveCategoryIcon(billCategory?.icon)}
-                      size={16}
-                      color={C.primary}
-                    />
-                  </View>
-                  <Text style={styles.metaValue}>{localizeCategoryName(bill.category, t)}</Text>
-                </View>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{t('bills.date')}</Text>
-                <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-                <View style={styles.metaValueRow}>
-                  <UserAvatar userId={bill.paidBy} size={24} />
-                  <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
-                </View>
-              </View>
-              {bill.notes ? (
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
-                  <Text style={styles.metaValue} selectable>
-                    {bill.notes}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-        )}
-
-        {/* Split breakdown */}
-        {!isEditing && (
-          <View style={styles.card}>
-            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.split_breakdown')}</Text>
-            <Text style={styles.splitTotal}>
-              {t('bills.total')} {formatFull(bill.amount, currencyCode)} · {splitLabel}
-            </Text>
-            {bill.splitBetween.map((person) => (
-              <View key={person} style={styles.splitRow}>
-                <UserAvatar userId={person} size={26} />
-                <Text style={styles.splitPerson}>{memberName(person)}</Text>
-                <Text style={styles.splitAmount}>
-                  {formatFull(getPersonShare(bill, person), currencyCode)}
-                </Text>
-              </View>
-            ))}
-          </View>
+          <BillSlip
+            bill={bill}
+            categoryIcon={resolveCategoryIcon(billCategory?.icon)}
+            dateLabel={formatDisplayDate(bill.date, i18n.language)}
+            splitLabel={splitLabel}
+          />
         )}
 
         {/* Receipt */}
@@ -576,21 +490,48 @@ function BillDetailScreen(): React.JSX.Element {
 
         {/* Actions */}
         {!isEditing && canDelete && !bill.settled && (
-          <Button
-            variant="danger"
+          <Pressable
             onPress={handleDelete}
-            loading={isDeleting}
             disabled={isDeleting}
-            fullWidth
-            size="lg"
-            style={styles.deleteBtn}
+            style={({ pressed }) => [styles.deleteLink, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.delete_bill')}
+            accessibilityState={{ disabled: isDeleting, busy: isDeleting }}
           >
-            {t('bills.delete_bill')}
-          </Button>
+            {isDeleting ? (
+              <ActivityIndicator size="small" color={C.danger} />
+            ) : (
+              <Ionicons name="trash-outline" size={18} color={C.danger} />
+            )}
+            <Text style={styles.deleteText}>{t('bills.delete_bill')}</Text>
+          </Pressable>
         )}
 
         {!!error && !isEditing && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
+
+      <SplitSheet
+        visible={showSplit}
+        eyebrow={formatFull(parseAmount(amount), currencyCode)}
+        onClose={closeSplit}
+      >
+        <BillSplitFields
+          housemates={housemates}
+          myId={myId}
+          currencyCode={currencyCode}
+          totalAmount={parseAmount(amount)}
+          paidBy={paidBy}
+          onPaidByChange={handlePaidByChange}
+          selectedPeople={selectedPeople}
+          onSelectedPeopleChange={handleSelectedPeopleChange}
+          splitType={splitType}
+          onSplitTypeChange={handleSplitTypeChange}
+          customAmounts={customAmounts}
+          onCustomAmountChange={setPersonAmount}
+          percentAmounts={percentAmounts}
+          onPercentAmountChange={setPersonPercent}
+        />
+      </SplitSheet>
 
       <DatePickerModal
         visible={showDatePicker}
@@ -635,100 +576,37 @@ const makeStyles = (C: ColorTokens) =>
     },
     backText: { color: C.primary, fontSize: mf(15), ...font.medium },
     editText: { color: C.primary, fontSize: mf(15), ...font.medium },
-    card: {
-      backgroundColor: C.surface,
-      borderRadius: ms(16),
-      padding: sizes.lg,
-      gap: sizes.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    detailHero: {
-      borderRadius: ms(20),
-      padding: ms(22),
-      gap: ms(4),
-      overflow: 'hidden',
-      shadowColor: C.owedShadow,
-      shadowOffset: { width: 0, height: ms(12) },
-      shadowOpacity: 1,
-      shadowRadius: 22,
-      elevation: 8,
-    },
-    detailHeroHighlight: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: ms(1),
-      backgroundColor: 'rgba(255,255,255,0.18)',
-    },
-    detailHeroTitle: { fontSize: mf(15), ...font.semibold, color: 'rgba(255,255,255,0.85)' },
-    detailHeroAmount: { marginTop: ms(2) },
-    detailMetaCard: { marginTop: ms(12) },
-    metaRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: ms(6),
-    },
-    metaLabel: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
-    metaValueRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexShrink: 1 },
-    metaValue: {
-      color: C.textPrimary,
-      fontSize: mf(14),
-      ...font.semibold,
-      flexShrink: 1,
-      textAlign: 'right',
-    },
-    catPill: {
-      width: ms(30),
-      height: ms(30),
-      borderRadius: ms(9),
-      backgroundColor: C.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sectionTitle: { color: C.textPrimary, fontSize: mf(18), marginBottom: sizes.xs },
-    splitTotal: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
-    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: ms(5) },
-    splitPerson: { flex: 1, color: C.textPrimary, fontSize: mf(15), ...font.medium },
-    splitAmount: { color: C.primary, fontSize: mf(15), ...font.semibold },
-    input: { backgroundColor: C.surface },
-    dateField: { gap: ms(4) },
-    dateFieldLabel: {
-      fontSize: mf(12),
-      ...font.semibold,
-      color: C.textSecondary,
-      marginStart: ms(4),
-    },
+    card: { gap: ms(22) },
+    sectionTitle: { color: C.textPrimary, fontSize: mf(30), letterSpacing: -0.6 },
+    dateField: { gap: ms(2) },
+    dateFieldLabel: { fontSize: mf(13.5), ...font.bold, color: C.textSecondary },
     dateTrigger: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.sm,
-      backgroundColor: C.surface,
-      borderRadius: ms(4),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(14),
-      minHeight: ms(56),
+      borderBottomWidth: 1.5,
+      borderBottomColor: C.border,
+      paddingVertical: ms(10),
+      minHeight: 44,
     },
-    dateTriggerText: { flex: 1, fontSize: mf(15), ...font.regular, color: C.textPrimary },
+    dateTriggerText: { flex: 1, fontSize: mf(17), ...font.semibold, color: C.textPrimary },
     editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
     saveBtn: { borderRadius: ms(14) },
-    deleteBtn: { borderRadius: ms(14) },
+    deleteLink: {
+      flexDirection: 'row',
+      alignSelf: 'center',
+      alignItems: 'center',
+      gap: ms(6),
+      minHeight: 44,
+      paddingHorizontal: ms(16),
+      marginTop: ms(10),
+    },
+    deleteText: { color: C.danger, fontSize: mf(15.5), ...font.extrabold },
+    pressed: { opacity: 0.7 },
     error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
-    categoryField: { gap: ms(4) },
-    categoryFieldLabel: {
-      fontSize: mf(12),
-      ...font.semibold,
-      color: C.textSecondary,
-      marginStart: ms(4),
-    },
+    categoryField: { gap: ms(6) },
+    categoryFieldLabel: { fontSize: mf(13.5), ...font.bold, color: C.textSecondary },
   });
 
 export default withFeatureGuard('bills', BillDetailScreen);

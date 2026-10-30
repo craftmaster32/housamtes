@@ -1,28 +1,39 @@
 import { useState, useCallback, useMemo } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import { AnimatedListItem } from '@components/shared/AnimatedListItem';
-import { LoadingSpinner } from '@components/shared/LoadingSpinner';
-import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { useAnnouncementsStore, MAX_NOTES, type Announcement } from '@stores/announcementsStore';
 import { useAuthStore } from '@stores/authStore';
 import { NoteCard } from '@components/notes/NoteCard';
+import { CorkBoard } from '@components/notes/CorkBoard';
 import { BackLink } from '@components/shared/BackLink';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
+import { lightColors, useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { Alert } from '@lib/alert';
 import { getErrorMessage } from '@utils/errors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-
+import { useHandFont } from '@hooks/useHandFont';
 import { mf, ms } from '@utils/responsive';
+
+const PAPER = lightColors.paper;
+const INK = lightColors.paperInk;
+const MUTED = lightColors.paperMuted;
+
 export default function NotesScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('notes/index');
   const { t } = useTranslation();
 
   const notes = useAnnouncementsStore((s) => s.items);
+  // An empty board already has its own Mate, so he only hides when there are notes.
+  const mateSpot = useMateScene(MATE_SPOTS, notes.length > 0);
   const isLoading = useAnnouncementsStore((s) => s.isLoading);
   const storeError = useAnnouncementsStore((s) => s.error);
   const post = useAnnouncementsStore((s) => s.post);
@@ -33,7 +44,8 @@ export default function NotesScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
 
   const C = useThemedColors();
-  const headingFont = useHeadingFont();
+  const headingFont = useHeadingFont('semibold');
+  const hand = useHandFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const myId = profile?.id ?? '';
@@ -75,122 +87,101 @@ export default function NotesScreen(): React.JSX.Element {
 
   const renderNote = useCallback(
     ({ item, index }: { item: Announcement; index: number }): React.JSX.Element => (
-      <AnimatedListItem index={index}>
-        <NoteCard
-          note={item}
-          myId={myId}
-          canDelete={isAdmin || item.author === myId}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      </AnimatedListItem>
+      <CorkBoard part="middle" patternId={`cork-${item.id}`}>
+        <View style={styles.noteGap}>
+          <NoteCard
+            note={item}
+            index={index}
+            myId={myId}
+            canDelete={isAdmin || item.author === myId}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        </View>
+      </CorkBoard>
     ),
-    [myId, isAdmin, handleEdit, handleDelete]
+    [myId, isAdmin, handleEdit, handleDelete, styles]
   );
+
+  const postOff = !text.trim() || isPosting;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View entering={FadeIn.duration(300)} style={styles.flex}>
-        <FlatList
-          data={notes}
-          keyExtractor={(item) => item.id}
-          renderItem={renderNote}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListHeaderComponent={
-            <View>
-              <BackLink label={t('common.home')} />
-              <View style={styles.heroCard}>
-                <View style={styles.heroCopy}>
-                  <Text style={[styles.titleHero, headingFont]}>{t('notes.title')}</Text>
-                  <Text style={styles.textBase}>{t('notes.subtitle')}</Text>
-                </View>
+      <FlatList
+        ref={scrollRef}
+        data={notes}
+        keyExtractor={(item) => item.id}
+        renderItem={renderNote}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <View>
+            <BackLink label={t('common.home')} />
+            <Text style={[styles.title, headingFont]}>{t('notes.title')}</Text>
+            <Text style={styles.subtitle}>{t('notes.subtitle')}</Text>
 
-                <View style={styles.composeRow}>
-                  <View
-                    style={[
-                      styles.composeAvatar,
-                      { backgroundColor: profile?.avatarColor ?? C.primary },
-                    ]}
-                  >
-                    {profile?.avatarUrl ? (
-                      <Image
-                        source={{ uri: profile.avatarUrl }}
-                        style={styles.composeAvatarImg}
-                        contentFit="cover"
-                        accessible
-                        accessibilityLabel={profile?.name ?? t('common.you')}
-                      />
-                    ) : (
-                      <Text style={styles.composeAvatarText}>
-                        {(profile?.name ?? '?').trim().charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                  <TextInput
-                    value={text}
-                    onChangeText={setText}
-                    placeholder={t('notes.placeholder')}
-                    placeholderTextColor={C.textSecondary}
-                    style={[styles.input, styles.composeInput]}
-                    multiline
-                    accessibilityLabel={t('notes.note_label')}
-                    accessibilityHint={t('notes.note_hint')}
-                  />
-                </View>
-
-                {!!postError && (
-                  <View style={styles.errorBox}>
-                    <Ionicons name="warning-outline" size={14} color={C.danger} />
-                    <Text style={styles.errorText}>{postError}</Text>
-                  </View>
-                )}
-
-                <Pressable
-                  style={[styles.btnPrimary, (!text.trim() || isPosting) && styles.btnOff]}
-                  onPress={handlePost}
-                  disabled={isPosting}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('notes.add_note')}
-                  accessibilityState={{ disabled: !text.trim() || isPosting }}
-                >
-                  <Ionicons name="pin-outline" size={16} color="#fff" style={styles.btnIcon} />
-                  <Text style={styles.btnPrimaryText}>
-                    {isPosting ? t('notes.adding') : t('notes.add_note')}
-                  </Text>
-                </Pressable>
-              </View>
-
-              {isLoading && notes.length === 0 && (
-                <LoadingSpinner size={64} style={styles.loadingIndicator} />
-              )}
-              {!!storeError && (
-                <View style={styles.storeErrorBox}>
-                  <Text style={styles.storeErrorText}>{storeError}</Text>
-                </View>
-              )}
+            {/* A blank slip to write on, then pin it to the board. */}
+            <View style={styles.compose}>
+              <TextInput
+                value={text}
+                onChangeText={setText}
+                placeholder={t('notes.placeholder')}
+                placeholderTextColor={MUTED}
+                style={styles.input}
+                multiline
+                accessibilityLabel={t('notes.note_label')}
+                accessibilityHint={t('notes.note_hint')}
+              />
+              {!!postError && <Text style={styles.errorText}>{postError}</Text>}
             </View>
-          }
-          ListFooterComponent={
-            notes.length > 0 ? (
-              <Text style={styles.capHint}>{t('notes.cap_hint', { count: MAX_NOTES })}</Text>
-            ) : null
-          }
-          ListEmptyComponent={
-            !isLoading ? (
-              <View style={styles.emptyWrap}>
-                <View style={styles.emptyIconWrap}>
-                  <Ionicons name="clipboard-outline" size={36} color={C.textSecondary} />
-                </View>
-                <Text style={styles.emptyTitle}>{t('notes.empty')}</Text>
-                <Text style={styles.emptyText}>{t('notes.empty_hint')}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.pinBtn, (postOff || pressed) && styles.dim]}
+              onPress={handlePost}
+              disabled={postOff}
+              accessibilityRole="button"
+              accessibilityLabel={t('notes.add_note')}
+              accessibilityState={{ disabled: postOff }}
+            >
+              <Text style={styles.pinBtnText}>
+                {isPosting ? t('notes.adding') : t('notes.add_note')}
+              </Text>
+            </Pressable>
+
+            {!!storeError && <Text style={styles.errorText}>{storeError}</Text>}
+            {/* Before the board so its frame hides his lower half. */}
+            {mateSpot === 'peekOver' && (
+              <View style={mateStyles.behind}>
+                <MateSpot kind="peekOver" size={ms(38)} style={mateStyles.peek} />
               </View>
-            ) : null
-          }
-        />
-      </Animated.View>
+            )}
+            <CorkBoard part="top" patternId="cork-top">
+              {isLoading && notes.length === 0 && <LoadingSpinner size={64} />}
+            </CorkBoard>
+          </View>
+        }
+        ListEmptyComponent={
+          !isLoading ? (
+            <CorkBoard part="middle" patternId="cork-empty">
+              <View style={styles.empty}>
+                <Mate size={ms(80)} />
+                <View style={styles.emptySlip}>
+                  <Text style={[styles.emptyTitle, hand]}>{t('notes.empty')}</Text>
+                  <Text style={styles.emptyText}>{t('notes.empty_hint')}</Text>
+                </View>
+              </View>
+            </CorkBoard>
+          ) : null
+        }
+        ListFooterComponent={
+          <View>
+            <CorkBoard part="bottom" patternId="cork-bottom" />
+            {notes.length > 0 && (
+              <Text style={styles.capHint}>{t('notes.cap_hint', { count: MAX_NOTES })}</Text>
+            )}
+            {mateSpot === 'footer' && <MateCameo page="notes" always />}
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -198,115 +189,82 @@ export default function NotesScreen(): React.JSX.Element {
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
-    sep: { height: ms(8) },
-
-    heroCard: {
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: ms(20),
-      gap: ms(14),
-      marginBottom: ms(24),
+    list: { paddingHorizontal: ms(20), paddingTop: ms(8), paddingBottom: ms(48) },
+    title: {
+      fontSize: mf(36),
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
+      color: C.textPrimary,
+    },
+    subtitle: { fontSize: mf(14), lineHeight: mf(20), ...font.regular, color: C.textSecondary },
+    compose: {
+      marginTop: ms(18),
+      backgroundColor: PAPER,
+      borderRadius: ms(4),
+      paddingHorizontal: ms(16),
+      paddingVertical: ms(12),
+      transform: [{ rotate: '-0.6deg' }],
       shadowColor: '#000',
       shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
       elevation: 2,
     },
-    heroCopy: { gap: ms(6) },
-    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
-
     input: {
-      minHeight: ms(64),
-      backgroundColor: C.surface,
-      borderRadius: ms(10),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingHorizontal: ms(13),
-      paddingVertical: ms(12),
-      fontSize: mf(15),
+      minHeight: ms(72),
+      fontSize: mf(15.5),
+      lineHeight: mf(23),
       ...font.regular,
-      color: C.textPrimary,
+      color: INK,
       textAlignVertical: 'top',
     },
-    composeRow: { flexDirection: 'row', gap: ms(10), alignItems: 'flex-start' },
-    composeInput: { flex: 1, minWidth: 0, backgroundColor: C.surfaceSecondary },
-    composeAvatar: {
-      width: ms(34),
-      height: ms(34),
+    pinBtn: {
+      minHeight: 52,
       borderRadius: ms(17),
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    composeAvatarImg: { width: ms(34), height: ms(34) },
-    composeAvatarText: { fontSize: mf(14), ...font.extrabold, color: '#fff' },
-
-    btnPrimary: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: ms(48),
-      paddingHorizontal: ms(18),
-      borderRadius: ms(10),
       backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: ms(14),
+      marginBottom: ms(24),
     },
-    btnOff: { backgroundColor: C.textDisabled },
-    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
-    btnIcon: { marginEnd: ms(6) },
-
-    errorBox: {
-      flexDirection: 'row',
+    pinBtnText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
+    dim: { opacity: 0.5 },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, marginTop: ms(8) },
+    noteGap: { paddingTop: ms(10), paddingBottom: ms(12) },
+    empty: { alignItems: 'center', paddingVertical: ms(10), gap: ms(10) },
+    emptySlip: {
+      backgroundColor: PAPER,
+      borderRadius: ms(3),
+      padding: ms(16),
       alignItems: 'center',
       gap: ms(6),
-      backgroundColor: C.danger + '15',
-      borderRadius: ms(10),
-      padding: ms(10),
+      transform: [{ rotate: '-1deg' }],
     },
-    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
-
-    capHint: {
-      fontSize: mf(12),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      marginTop: ms(16),
-    },
-
-    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(12) },
-    emptyIconWrap: {
-      width: ms(72),
-      height: ms(72),
-      borderRadius: ms(36),
-      backgroundColor: C.surfaceSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
+    emptyTitle: { fontSize: mf(21), lineHeight: mf(25), color: INK, textAlign: 'center' },
     emptyText: {
-      fontSize: mf(14),
+      fontSize: mf(13.5),
+      lineHeight: mf(19),
+      ...font.regular,
+      color: MUTED,
+      textAlign: 'center',
+    },
+    capHint: {
+      fontSize: mf(12.5),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: mf(20),
+      marginTop: ms(14),
     },
-
-    loadingIndicator: { marginBottom: ms(8) },
-    storeErrorBox: {
-      backgroundColor: C.danger + '15',
-      borderRadius: ms(10),
-      padding: ms(12),
-      marginBottom: ms(8),
-    },
-    storeErrorText: { fontSize: mf(13), color: C.danger },
   });
 }
+
+// Where Mate may hide on a visit: peeking over the cork board's frame, or under
+// the board.
+const MATE_SPOTS = ['peekOver', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  behind: { height: 0 },
+  peek: { end: ms(54), top: -ms(26) },
+});

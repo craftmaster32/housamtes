@@ -1,30 +1,51 @@
-import { useMemo, useCallback } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, Button } from 'react-native-paper';
-import { router, Link } from 'expo-router';
+import { useCallback, useMemo } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Text } from 'react-native-paper';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import type { AppLanguage } from '@lib/i18n';
+import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-import { HouseSkyline } from '@components/shared/HouseSkyline';
-import { LanguageSwitcher } from '@components/shared/LanguageSwitcher';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-
+import { useHandFont } from '@hooks/useHandFont';
+import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
+import { Entrance } from '@components/shared/Entrance';
+import { Mate } from '@components/shared/Mate';
+import { NotebookPaper } from '@components/shared/NotebookPaper';
+import { SheetButton } from '@components/shared/SheetButton';
+import { TextLink } from '@components/auth/TextLink';
+import { DoorArt } from '@components/auth/art/DoorArt';
 import { mf, ms } from '@utils/responsive';
+
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
-const SKYLINE_HEIGHT = ms(90);
 
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const currentLanguage = useLanguageStore((s) => s.language);
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont();
+  const language = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
+  const c = useThemedColors();
+  const heading = useHeadingFont('semibold');
+  const hand = useHandFont();
+
+  const languages = useMemo<ChoiceWord<AppLanguage>[]>(
+    () => [
+      { value: 'en', label: t('settings.language_en') },
+      { value: 'he', label: t('settings.language_he') },
+      { value: 'es', label: t('settings.language_es') },
+    ],
+    [t]
+  );
+
+  const handlePickLanguage = useCallback(
+    (code: AppLanguage): void => {
+      if (code !== language) setLanguage(code);
+    },
+    [language, setLanguage]
+  );
 
   const handleGetStarted = useCallback(async (): Promise<void> => {
     try {
@@ -35,217 +56,80 @@ export default function WelcomeScreen(): React.JSX.Element {
     router.push('/(auth)/signup');
   }, []);
 
+  const handleLogIn = useCallback((): void => {
+    router.push('/(auth)/login');
+  }, []);
+
   return (
-    <View style={styles.root}>
-      <View style={styles.top}>
-        <View
-          style={styles.moon}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <View style={styles.moonShadow} />
+    <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.langRow}>
+          <ChoiceWords
+            options={languages}
+            selected={language}
+            onSelect={handlePickLanguage}
+            groupLabel={t('common.change_language')}
+          />
         </View>
-        <SafeAreaView edges={['top']} style={styles.topInner}>
-          <View style={styles.langBar}>
-            <LanguageSwitcher />
-          </View>
+
+        <Entrance style={styles.hero}>
           <View
-            style={styles.iconChip}
+            style={styles.scene}
             accessible
             accessibilityRole="image"
             accessibilityLabel={t('welcome.logo_label')}
           >
-            <Ionicons name="home" size={32} color={C.primary} />
+            <DoorArt width={ms(150)} ink={c.textPrimary} />
+            <View style={styles.mate}>
+              <Mate size={ms(62)} />
+            </View>
           </View>
+          <Text style={[styles.appName, heading, { color: c.textPrimary }]}>HouseMates</Text>
+          <Text style={[styles.tagline, hand, { color: c.primary }]}>{t('welcome.tagline')}</Text>
+        </Entrance>
 
-          <Text style={[styles.appName, headingFont]}>HouseMates</Text>
-          <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
-        </SafeAreaView>
+        <Entrance delay={90}>
+          <NotebookPaper contentStyle={styles.page}>
+            <Text style={[styles.cardHeading, heading, { color: c.paperInk }]}>
+              {t('welcome.card_heading')}
+            </Text>
+            <Text style={[styles.cardBody, { color: c.paperMuted }]}>{t('welcome.card_body')}</Text>
+          </NotebookPaper>
+        </Entrance>
 
-        <View
-          style={styles.skylineWrap}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <HouseSkyline />
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={[styles.cardHeading, headingFont]}>{t('welcome.card_heading')}</Text>
-        <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
-
-        <Button
-          mode="contained"
-          buttonColor={C.primary}
-          textColor="#fff"
-          onPress={handleGetStarted}
-          style={styles.primaryButton}
-          contentStyle={styles.primaryButtonContent}
-          labelStyle={styles.primaryButtonLabel}
-          icon={({ color }) => (
-            <Ionicons
-              name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-forward'}
-              size={18}
-              color={color}
-            />
-          )}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('welcome.get_started')}
-        >
-          {t('welcome.get_started')}
-        </Button>
-
-        <Link href="/(auth)/login" asChild>
-          <Pressable
-            style={styles.loginLink}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('welcome.log_in')}
-          >
-            <Text style={styles.loginLinkText}>{t('welcome.log_in')}</Text>
-          </Pressable>
-        </Link>
-
-        <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
-      </View>
-    </View>
+        <Entrance style={styles.actions} delay={160}>
+          <SheetButton label={t('welcome.get_started')} onPress={handleGetStarted} />
+          <TextLink label={t('welcome.log_in')} onPress={handleLogIn} />
+          <Text style={[styles.terms, { color: c.textTertiary }]}>{t('auth.by_continuing')}</Text>
+        </Entrance>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function makeStyles(C: ColorTokens) {
-  return StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: C.primary,
-    },
-    top: {
-      flex: 1.4,
-      backgroundColor: C.primary,
-      overflow: 'hidden',
-    },
-    topInner: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: sizes.xl,
-      paddingBottom: SKYLINE_HEIGHT,
-    },
-    langBar: {
-      position: 'absolute',
-      top: sizes.sm,
-      left: sizes.lg,
-      right: sizes.lg,
-      alignItems: 'flex-end',
-    },
-    moon: {
-      position: 'absolute',
-      top: ms(54),
-      right: ms(40),
-      width: ms(26),
-      height: ms(26),
-      borderRadius: ms(13),
-      backgroundColor: 'rgba(255,255,255,0.28)',
-      overflow: 'hidden',
-    },
-    moonShadow: {
-      position: 'absolute',
-      top: ms(-6),
-      left: ms(-10),
-      width: ms(26),
-      height: ms(26),
-      borderRadius: ms(13),
-      backgroundColor: C.primary,
-    },
-    skylineWrap: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: SKYLINE_HEIGHT,
-      paddingHorizontal: sizes.md,
-    },
-    iconChip: {
-      width: ms(72),
-      height: ms(72),
-      borderRadius: ms(20),
-      backgroundColor: 'rgba(255,255,255,0.92)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    appName: {
-      fontSize: mf(34),
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: -1,
-      marginTop: sizes.md,
-      textAlign: 'center',
-    },
-    tagline: {
-      fontSize: mf(16),
-      ...font.regular,
-      color: 'rgba(255,255,255,0.72)',
-      textAlign: 'center',
-      marginTop: sizes.sm,
-    },
-    card: {
-      backgroundColor: C.surface,
-      borderTopLeftRadius: ms(28),
-      borderTopRightRadius: ms(28),
-      padding: sizes.xl,
-      paddingBottom: ms(40),
-      gap: ms(16),
-    },
-    cardHeading: {
-      fontSize: mf(26),
-      ...font.extrabold,
-      color: C.textPrimary,
-      letterSpacing: -0.5,
-    },
-    cardBody: {
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textSecondary,
-      lineHeight: mf(22),
-      marginBottom: sizes.sm,
-    },
-    primaryButton: {
-      borderRadius: ms(14),
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: ms(4) },
-      shadowOpacity: 0.28,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    primaryButtonContent: {
-      height: ms(52),
-      flexDirection: 'row-reverse',
-    },
-    primaryButtonLabel: {
-      fontSize: mf(16),
-      ...font.semibold,
-    },
-    loginLink: {
-      alignSelf: 'center',
-      paddingVertical: sizes.sm,
-      paddingHorizontal: sizes.lg,
-      minHeight: sizes.touchTarget,
-      minWidth: sizes.touchTarget,
-      justifyContent: 'center',
-    },
-    loginLinkText: {
-      fontSize: mf(16),
-      ...font.semibold,
-      color: C.textPrimary,
-      textAlign: 'center',
-    },
-    terms: {
-      fontSize: mf(11),
-      ...font.regular,
-      color: C.textTertiary,
-      textAlign: 'center',
-      marginTop: sizes.xs,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: sizes.lg,
+    paddingBottom: ms(36),
+    gap: ms(22),
+  },
+  langRow: { alignItems: 'flex-end', marginTop: ms(4) },
+  hero: { alignItems: 'center', marginTop: ms(4) },
+  scene: { flexDirection: 'row', alignItems: 'flex-end' },
+  mate: { marginStart: ms(-14), marginBottom: ms(2) },
+  appName: {
+    fontSize: mf(40),
+    lineHeight: mf(50),
+    letterSpacing: -0.8,
+    marginTop: ms(14),
+    textAlign: 'center',
+  },
+  tagline: { fontSize: mf(23), textAlign: 'center', marginTop: ms(2) },
+  page: { paddingTop: ms(18), paddingBottom: ms(22) },
+  cardHeading: { fontSize: mf(23), lineHeight: ms(32) },
+  cardBody: { fontSize: mf(15.5), ...font.regular, lineHeight: ms(32) },
+  actions: { gap: ms(6), marginTop: 'auto' },
+  terms: { fontSize: mf(11.5), ...font.regular, textAlign: 'center', lineHeight: mf(16) },
+});

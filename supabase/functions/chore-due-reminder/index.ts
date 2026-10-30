@@ -1,8 +1,9 @@
 // HouseMates — chore-due-reminder Edge Function
 // Schedule: daily at 09:00 via Supabase cron (set up in dashboard).
 //
-// Phase 6: "Chore due today → assigned person". Finds unfinished recurring
-// chores whose recurrence day matches today in the house's own timezone
+// Phase 6: "Chore due today → assigned person". Finds unfinished repeating
+// tasks (Chores were merged into the Tasks list, Oct 2026 — repeating jobs now
+// live in house_tasks) whose recurrence day matches today in the house's own timezone
 // (weekly: 'Sun'…'Sat', monthly: '1'…'31' — same values the app writes) and
 // pushes a reminder to the person the chore is assigned to, respecting their
 // notify_chore_overdue preference (the app's single "chore notifications"
@@ -71,9 +72,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Unfinished recurring chores that are assigned to someone.
+    // Unfinished repeating tasks that are assigned to someone.
     const { data: chores, error } = await supabase
-      .from('chores')
+      .from('house_tasks')
       .select('id, title, house_id, assigned_to, recurrence, recurrence_day')
       .eq('is_done', false)
       .in('recurrence', ['weekly', 'monthly'])
@@ -187,7 +188,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             title: copy.title,
             body: copy.body,
             sound: 'default',
-            data: { screen: 'chores' },
+            data: { screen: 'tasks' },
             web,
           });
         }

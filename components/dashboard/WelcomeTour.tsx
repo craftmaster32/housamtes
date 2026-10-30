@@ -19,6 +19,8 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Mate } from '@components/shared/Mate';
 import {
   TourScreen,
   TourBottomBar,
@@ -33,12 +35,14 @@ interface Step {
   screen?: TourScreenId;
 }
 
+// The tour follows the app as it is now: the main money and shopping pages,
+// where your profile and settings are, then the ⋯ menu.
 const STEPS: Step[] = [
   { id: 'welcome' },
   { id: 'bills', screen: 'bills' },
   { id: 'spending', screen: 'spending' },
   { id: 'grocery', screen: 'grocery' },
-  { id: 'calendar', screen: 'calendar' },
+  { id: 'profile', screen: 'profile' },
   { id: 'explore' },
 ];
 
@@ -50,6 +54,7 @@ interface WelcomeTourProps {
 export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => {
   const { t } = useTranslation();
   const C = useThemedColors();
+  const heading = useHeadingFont('semibold');
   const rtl = isRTL(useLanguageStore((s) => s.language));
   const currency = useSettingsStore((s) => s.currency);
   const insets = useSafeAreaInsets();
@@ -176,9 +181,9 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
               <View style={styles.welcomeCenter}>
                 <Animated.View style={[styles.welcomeCard, anim]}>
                   <View style={styles.welcomeIcon}>
-                    <Ionicons name="happy-outline" size={40} color={C.primary} />
+                    <Mate size={84} wave />
                   </View>
-                  <Text style={styles.welcomeTitle}>{t('tour.welcome_title')}</Text>
+                  <Text style={[styles.welcomeTitle, heading]}>{t('tour.welcome_title')}</Text>
                   <Text style={styles.welcomeBody}>{t('tour.welcome_body')}</Text>
                   {footer}
                 </Animated.View>
@@ -189,7 +194,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
           {/* Caption — stacked below the content, never overlapping it */}
           {step.id !== 'welcome' && (
             <Animated.View style={[styles.sheet, anim]}>
-              <Text style={styles.eyebrow}>{t(`tour.${step.id}_title`)}</Text>
+              <Text style={[styles.eyebrow, heading]}>{t(`tour.${step.id}_title`)}</Text>
               <Text style={styles.body}>{t(`tour.${step.id}_body`)}</Text>
               {footer}
             </Animated.View>
@@ -238,7 +243,7 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
     welcomeCard: {
       width: '100%',
       maxWidth: 360,
-      backgroundColor: C.surface,
+      backgroundColor: C.background,
       borderRadius: 26,
       padding: sizes.lg,
       alignItems: 'center',
@@ -249,17 +254,13 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
       elevation: 8,
     },
     welcomeIcon: {
-      width: 82,
-      height: 82,
-      borderRadius: 41,
-      backgroundColor: C.primary + '22',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: sizes.md,
+      marginBottom: sizes.sm,
     },
     welcomeTitle: {
-      fontSize: 22,
-      ...font.extrabold,
+      fontSize: 26,
+      lineHeight: 33,
       color: C.textPrimary,
       textAlign: 'center',
       letterSpacing: -0.4,
@@ -277,8 +278,8 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
     sheet: {
       marginHorizontal: sizes.md,
       marginBottom: sizes.sm,
-      backgroundColor: C.surface,
-      borderRadius: 22,
+      backgroundColor: C.background,
+      borderRadius: 26,
       padding: sizes.md + 2,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
@@ -287,8 +288,8 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
       elevation: 8,
     },
     eyebrow: {
-      fontSize: 18,
-      ...font.extrabold,
+      fontSize: 21,
+      lineHeight: 27,
       color: C.textPrimary,
       letterSpacing: -0.3,
       textAlign,
@@ -315,7 +316,7 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
     dots: { flexDirection: 'row', gap: 7, flex: 1, justifyContent: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.border },
     dotActive: { width: 20, backgroundColor: C.primary },
-    cta: { borderRadius: 12 },
+    cta: { borderRadius: 17 },
     ctaContent: { height: 42, paddingHorizontal: sizes.xs },
     ctaLabel: { fontSize: 14.5, ...font.semibold },
     // Skip

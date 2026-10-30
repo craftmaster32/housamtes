@@ -141,4 +141,21 @@ describe('ParkingCard — tap to toggle', () => {
     render(<ParkingCard styles={styles} />);
     expect(screen.queryByText('dashboard.parking_blocked_move')).toBeNull();
   });
+
+  it('answers at a glance: Free, You, or whoever has it', () => {
+    parking.__set({ current: null, reservations: [] });
+    const { unmount } = render(<ParkingCard styles={styles} />);
+    expect(screen.getByText('dashboard.parking_free')).toBeTruthy();
+    unmount();
+
+    parking.__set({ current: { id: 's5', occupant: 'me', startTime: '' }, reservations: [] });
+    const mine = render(<ParkingCard styles={styles} />);
+    expect(screen.getByText('parking.you')).toBeTruthy();
+    mine.unmount();
+
+    parking.__set({ current: { id: 's6', occupant: 'other', startTime: '' }, reservations: [] });
+    render(<ParkingCard styles={styles} />);
+    expect(screen.queryByText('dashboard.parking_free')).toBeNull();
+    expect(screen.queryByText('parking.you')).toBeNull();
+  });
 });

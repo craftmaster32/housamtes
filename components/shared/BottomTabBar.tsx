@@ -1,12 +1,5 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import Animated, {
-  FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
-import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import { navigateToBase } from '@stores/navigationStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,15 +12,17 @@ import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { hasFeatureAccess } from '@utils/featureAccess';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
+import { TabButton } from '@components/shared/tabbar/TabButton';
+import { ParkingSignIcon } from '@components/shared/tabbar/ParkingSignIcon';
 
-import { mf, ms } from '@utils/responsive';
+import { ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface TabItem {
@@ -63,30 +58,7 @@ const TABS: TabItem[] = [
   },
 ];
 
-interface AnimatedIconProps {
-  active: boolean;
-  name: IoniconName;
-  size: number;
-  color: string;
-}
-
-function AnimatedIcon({ active, name, size, color }: AnimatedIconProps): React.JSX.Element {
-  const scale = useSharedValue(active ? 1.15 : 1);
-
-  useEffect(() => {
-    scale.value = withSpring(active ? 1.15 : 1, { damping: 12, stiffness: 200 });
-  }, [active, scale]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View style={animStyle}>
-      <Ionicons name={name} size={size} color={color} />
-    </Animated.View>
-  );
-}
+const ICON_SIZE = 27;
 
 export function BottomTabBar(): React.JSX.Element {
   const { t } = useTranslation();
@@ -113,7 +85,7 @@ export function BottomTabBar(): React.JSX.Element {
   );
   const reservations = useParkingStore((s) => s.reservations);
   const items = useGroceryStore((s) => s.items);
-  const chores = useChoresStore((s) => s.chores);
+  const tasks = useTasksStore((s) => s.tasks);
   const proposals = useVotingStore((s) => s.proposals);
   const myId = useAuthStore((s) => s.profile?.id);
   const parkingBadge = myId
@@ -132,10 +104,15 @@ export function BottomTabBar(): React.JSX.Element {
         'addedBy'
       )
     : 0;
-  const choresBadge = countNewSimple(
-    chores.filter((c) => !c.isComplete),
-    lastSeen.chores
-  );
+  // Chores live in the Tasks list now; the badge keeps its 'chores' key.
+  const choresBadge = myId
+    ? countNew(
+        tasks.filter((tk) => !tk.isComplete),
+        lastSeen.chores,
+        myId,
+        'createdBy'
+      )
+    : 0;
   const votingBadge = myId
     ? proposals.filter(
         (p) => p.isOpen && p.createdBy !== myId && !p.votes.some((v) => v.person === myId)
@@ -186,6 +163,26 @@ export function BottomTabBar(): React.JSX.Element {
   );
   const canAddBill = canUse('bills');
 
+  const renderTab = (tab: TabItem, badge: number): React.JSX.Element => {
+    const active = isActive(tab.id);
+    return (
+      <TabButton
+        key={tab.id}
+        active={active}
+        badge={badge}
+        label={tabLabels[tab.id]}
+        onPress={() => handleTab(tab)}
+        renderIcon={(color) =>
+          tab.id === 'parking' ? (
+            <ParkingSignIcon size={ICON_SIZE} color={color} active={active} />
+          ) : (
+            <Ionicons name={active ? tab.iconActive : tab.icon} size={ICON_SIZE} color={color} />
+          )
+        }
+      />
+    );
+  };
+
   const bg = c.background;
   const borderColor = c.border;
   const bottomInset = Math.max(insets.bottom, 12);
@@ -201,57 +198,25 @@ export function BottomTabBar(): React.JSX.Element {
       {/* Left two tabs */}
       {TABS.slice(0, 2)
         .filter((tab) => canUse(tab.id))
-        .map((tab) => {
-          const active = isActive(tab.id);
-          const badge = tab.id === 'bills' ? billBadge : 0;
-          return (
-            <Pressable
-              key={tab.id}
-              style={styles.tab}
-              onPress={() => handleTab(tab)}
-              accessible={true}
-              accessibilityRole="tab"
-              accessibilityLabel={tabLabels[tab.id]}
-              accessibilityState={{ selected: active }}
-            >
-              <View style={styles.tabIconWrap}>
-                <AnimatedIcon
-                  active={active}
-                  name={active ? tab.iconActive : tab.icon}
-                  size={27}
-                  color={active ? c.primary : c.textSecondary}
-                />
-                {badge > 0 && (
-                  <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                    <Text style={[styles.badgeText, { color: c.white }]}>
-                      {badge > 9 ? '9+' : String(badge)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              {active && (
-                <Animated.View
-                  entering={FadeIn.duration(200)}
-                  style={[styles.activeDot, { backgroundColor: c.primary }]}
-                />
-              )}
-            </Pressable>
-          );
-        })}
+        .map((tab) => renderTab(tab, tab.id === 'bills' ? billBadge : 0))}
 
       {/* Center + button — only for members who can add a bill; the wrapper
           stays as a spacer either way so the bar keeps its balance. */}
       <View style={styles.centerWrap}>
         {canAddBill && (
           <Pressable
-            style={[styles.addBtn, { backgroundColor: c.surface }]}
+            style={({ pressed }) => [
+              styles.addBtn,
+              { backgroundColor: c.primary },
+              pressed && styles.addPressed,
+            ]}
             onPress={handleAdd}
             accessible={true}
             accessibilityRole="button"
             accessibilityLabel={t('dashboard.add_expense_btn')}
             accessibilityState={{ disabled: false }}
           >
-            <Ionicons name="add" size={28} color={c.primary} />
+            <Ionicons name="add" size={30} color="#FFFFFF" />
           </Pressable>
         )}
       </View>
@@ -259,43 +224,9 @@ export function BottomTabBar(): React.JSX.Element {
       {/* Right two tabs */}
       {TABS.slice(2)
         .filter((tab) => canUse(tab.id))
-        .map((tab) => {
-          const active = isActive(tab.id);
-          const badge = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
-          return (
-            <Pressable
-              key={tab.id}
-              style={styles.tab}
-              onPress={() => handleTab(tab)}
-              accessible={true}
-              accessibilityRole="tab"
-              accessibilityLabel={tabLabels[tab.id]}
-              accessibilityState={{ selected: active }}
-            >
-              <View style={styles.tabIconWrap}>
-                <AnimatedIcon
-                  active={active}
-                  name={active ? tab.iconActive : tab.icon}
-                  size={27}
-                  color={active ? c.primary : c.textSecondary}
-                />
-                {badge > 0 && (
-                  <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                    <Text style={[styles.badgeText, { color: c.white }]}>
-                      {badge > 9 ? '9+' : String(badge)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              {active && (
-                <Animated.View
-                  entering={FadeIn.duration(200)}
-                  style={[styles.activeDot, { backgroundColor: c.primary }]}
-                />
-              )}
-            </Pressable>
-          );
-        })}
+        .map((tab) =>
+          renderTab(tab, tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0)
+        )}
     </View>
   );
 }
@@ -308,29 +239,6 @@ const styles = StyleSheet.create({
     paddingTop: ms(10),
     minHeight: sizes.bottomTabBarHeight,
   },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    gap: ms(6),
-    minHeight: ms(44),
-    justifyContent: 'center',
-  },
-  tabIconWrap: { position: 'relative', alignItems: 'center' },
-  badge: {
-    position: 'absolute',
-    top: ms(-4),
-    end: ms(-8),
-    minWidth: ms(16),
-    height: ms(16),
-    borderRadius: ms(8),
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: ms(3),
-    borderWidth: 1.5,
-  },
-  badgeText: { fontSize: mf(9), fontWeight: '800' },
-  activeDot: { width: ms(4), height: ms(4), borderRadius: ms(2), marginTop: ms(2) },
-
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   addBtn: {
     width: ms(54),
@@ -339,10 +247,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: ms(8),
-    shadowColor: '#4F78B6',
+    shadowColor: '#3B6FBF',
     shadowOffset: { width: 0, height: ms(4) },
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 8,
   },
+  addPressed: { opacity: 0.85, transform: [{ scale: 0.96 }] },
 });

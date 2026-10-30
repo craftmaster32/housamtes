@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
+  StyleSheet,
   Pressable,
-  TextInput,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -11,13 +11,17 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
 import { useThemedColors, darkColors } from '@constants/colors';
-import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useLanguageStore } from '@stores/languageStore';
+import { font } from '@constants/typography';
+import { useHandFont } from '@hooks/useHandFont';
+import { SheetHeader } from '@components/bills/recurring/SheetHeader';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
+import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
+import { AmountUnitPicker } from '@components/grocery/AmountUnitPicker';
 import { detectCategory, toneColors } from '@utils/groceryCategory';
-import { UNIT_OPTS, unitLabel, type GroceryUnit } from '@utils/groceryUnits';
-import { makeStyles } from './AddItemSheet.styles';
+import { type GroceryUnit } from '@utils/groceryUnits';
+import { mf, ms } from '@utils/responsive';
 
 const QUICK_ADD_KEYS = [
   'grocery.quick_add_milk',
@@ -45,7 +49,11 @@ export interface AddItemSheetProps {
   onClose: () => void;
 }
 
-/** Bottom sheet with the extra details — amount, unit, note — plus quick adds. */
+/**
+ * Bottom sheet with the extra details, written on lines: the item, how many and
+ * the unit (circled in pen), a note for whoever shops, who it's for, and quick
+ * adds as little paper tags.
+ */
 export function AddItemSheet({
   visible,
   initialName,
@@ -58,11 +66,9 @@ export function AddItemSheet({
   onClose,
 }: AddItemSheetProps): React.JSX.Element {
   const { t } = useTranslation();
-  const C = useThemedColors();
-  const isDark = C.background === darkColors.background;
-  const s = useMemo(() => makeStyles(C, isDark), [C, isDark]);
-  const headingFont = useHeadingFont('bold');
-  const isHebrew = useLanguageStore((st) => st.language) === 'he';
+  const c = useThemedColors();
+  const hand = useHandFont();
+  const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
 
   const [name, setName] = useState(initialName);
   const [qty, setQty] = useState(1);
@@ -79,27 +85,23 @@ export function AddItemSheet({
 
   const trimmed = name.trim();
   const category = trimmed ? detectCategory(trimmed) : null;
-  const tone = category ? toneColors(category.tone, isDark) : null;
+  const tone = category ? toneColors(category.tone, false) : null;
   const willMerge = !!trimmed && isOnList(trimmed);
 
-  const destOptions: Array<{ key: AddDestination; title: string; sub: string }> = [
-    { key: 'shared', title: t('grocery.sheet_for_everyone'), sub: t('grocery.shared_hint') },
-    { key: 'private', title: t('grocery.personal_seg'), sub: t('grocery.personal_hint') },
-    ...(draftEnabled
-      ? [
-          {
-            key: 'draft' as const,
-            title: t('grocery.draft_seg'),
-            sub: t('grocery.sheet_draft_sub'),
-          },
-        ]
-      : []),
-  ];
-
-  const changeQty = useCallback((delta: number): void => {
-    Haptics.selectionAsync().catch(() => {});
-    setQty((prev) => Math.max(1, Math.min(99, prev + delta)));
-  }, []);
+  const destWords = useMemo<ChoiceWord<AddDestination>[]>(
+    () => [
+      { value: 'shared', label: t('grocery.sheet_for_everyone') },
+      { value: 'private', label: t('grocery.personal_seg') },
+      ...(draftEnabled ? [{ value: 'draft' as const, label: t('grocery.draft_seg') }] : []),
+    ],
+    [t, draftEnabled]
+  );
+  const destHint =
+    destination === 'private'
+      ? t('grocery.personal_hint')
+      : destination === 'draft'
+        ? t('grocery.sheet_draft_sub')
+        : t('grocery.shared_hint');
 
   const handleSubmit = useCallback(async (): Promise<void> => {
     if (!trimmed || isAdding) return;
@@ -110,11 +112,12 @@ export function AddItemSheet({
   const handleQuickAdd = useCallback(
     async (label: string): Promise<void> => {
       if (isAdding) return;
-      Haptics.selectionAsync().catch(() => {});
       await onAdd(label, '1', '');
     },
     [isAdding, onAdd]
   );
+
+  const submitLabel = trimmed ? t('grocery.add_quick', { name: trimmed }) : t('grocery.add_item');
 
   return (
     <Modal
@@ -125,181 +128,163 @@ export function AddItemSheet({
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        style={s.overlay}
+        style={[styles.overlay, { backgroundColor: overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable style={s.backdrop} onPress={onClose} accessible={false} />
-        <View style={s.sheet}>
-          <View style={s.handle} />
-          <View style={s.header}>
-            <Text style={[s.title, headingFont]} accessibilityRole="header">
-              {t('grocery.sheet_title')}
-            </Text>
-            <Pressable
-              onPress={onClose}
-              style={s.closeBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.close')}
-            >
-              <Ionicons name="close" size={20} color={C.textSecondary} />
-            </Pressable>
-          </View>
-
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+        <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
+          <SheetHeader
+            eyebrow={t('nav.grocery')}
+            title={t('grocery.sheet_title')}
+            onClose={onClose}
+          />
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={s.body}
+            contentContainerStyle={styles.body}
             showsVerticalScrollIndicator={false}
           >
-            <View style={s.field}>
-              <Text style={s.label}>{t('grocery.sheet_name_label')}</Text>
-              <View style={s.nameBox}>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  autoFocus
-                  placeholder={t('grocery.add_bar_placeholder')}
-                  placeholderTextColor={C.textTertiary}
-                  style={s.nameInput}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
-                  accessibilityLabel={t('grocery.sheet_name_label')}
-                  accessibilityHint={t('grocery.add_item_hint')}
-                />
+            <View>
+              <UnderlineInput
+                label={t('grocery.sheet_name_label')}
+                value={name}
+                onChangeText={setName}
+                placeholder={t('grocery.add_bar_placeholder')}
+                accessibilityLabel={t('grocery.sheet_name_label')}
+                accessibilityHint={t('grocery.add_item_hint')}
+                returnKeyType="done"
+                onSubmitEditing={() => void handleSubmit()}
+              />
+              <View style={styles.underName}>
                 {category && tone && (
-                  <View style={[s.catPill, { backgroundColor: tone.bg }]}>
-                    <Text style={[s.catPillText, { color: tone.fg }]}>{t(category.labelKey)}</Text>
+                  // Which aisle it'll hang under, as a little sign.
+                  <View style={[styles.aisle, { backgroundColor: tone.bg }]}>
+                    <Ionicons name={category.icon} size={13} color={tone.fg} />
+                    <Text style={[styles.aisleText, { color: tone.fg }]}>
+                      {t(category.labelKey)}
+                    </Text>
                   </View>
                 )}
-              </View>
-              {willMerge && <Text style={s.mergeHint}>{t('grocery.sheet_will_merge')}</Text>}
-            </View>
-
-            <View style={s.amountRow}>
-              <View style={s.field}>
-                <Text style={s.label}>{t('grocery.sheet_how_many')}</Text>
-                <View style={s.stepper}>
-                  <Pressable
-                    style={[s.stepBtn, qty <= 1 && s.stepBtnOff]}
-                    onPress={() => changeQty(-1)}
-                    disabled={qty <= 1}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('grocery.qty_decrease')}
-                    accessibilityState={{ disabled: qty <= 1 }}
-                  >
-                    <Text style={s.stepSign}>−</Text>
-                  </Pressable>
-                  <Text style={s.stepValue}>{qty}</Text>
-                  <Pressable
-                    style={s.stepBtn}
-                    onPress={() => changeQty(1)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('grocery.qty_increase')}
-                  >
-                    <Text style={s.stepSign}>+</Text>
-                  </Pressable>
-                </View>
-              </View>
-              <View style={[s.field, s.flex]}>
-                <Text style={s.label}>{t('grocery.unit_label')}</Text>
-                <View style={s.chips}>
-                  {UNIT_OPTS.map((u) => {
-                    const active = unit === u;
-                    const label = unitLabel(u, isHebrew);
-                    return (
-                      <Pressable
-                        key={u}
-                        style={[s.chip, active && s.chipOn]}
-                        onPress={() => setUnit(active ? null : u)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                        accessibilityLabel={t('grocery.unit_preset', { u: label })}
-                      >
-                        <Text style={[s.chipText, active && s.chipTextOn]}>{label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                {willMerge && (
+                  <Text style={[styles.merge, hand, { color: c.negative }]}>
+                    {t('grocery.sheet_will_merge')}
+                  </Text>
+                )}
               </View>
             </View>
 
-            <View style={s.field}>
-              <Text style={s.label}>
-                {t('grocery.sheet_note_label')}{' '}
-                <Text style={s.optional}>{t('grocery.sheet_optional')}</Text>
+            <View>
+              <Text style={[styles.label, { color: c.textSecondary }]}>
+                {t('grocery.sheet_how_many')}
               </Text>
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder={t('grocery.note_placeholder')}
-                placeholderTextColor={C.textTertiary}
-                style={s.noteInput}
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-                accessibilityLabel={t('grocery.note_label')}
-                accessibilityHint={t('grocery.note_hint')}
-              />
+              <AmountUnitPicker qty={qty} unit={unit} onQtyChange={setQty} onUnitChange={setUnit} />
             </View>
 
-            <View style={s.field}>
-              <Text style={s.label}>{t('grocery.sheet_who_for')}</Text>
-              <View style={s.destRow} accessibilityRole="radiogroup">
-                {destOptions.map((opt) => {
-                  const on = destination === opt.key;
-                  return (
-                    <Pressable
-                      key={opt.key}
-                      style={[s.destCard, on && s.destCardOn]}
-                      onPress={() => onSelectDestination(opt.key)}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                      accessibilityLabel={`${opt.title}. ${opt.sub}`}
-                    >
-                      <Text style={[s.destTitle, on && s.destTitleOn]}>{opt.title}</Text>
-                      <Text style={[s.destSub, on && s.destSubOn]} numberOfLines={2}>
-                        {opt.sub}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+            <UnderlineInput
+              label={`${t('grocery.sheet_note_label')} ${t('grocery.sheet_optional')}`}
+              value={note}
+              onChangeText={setNote}
+              placeholder={t('grocery.note_placeholder')}
+              accessibilityLabel={t('grocery.note_label')}
+              accessibilityHint={t('grocery.note_hint')}
+            />
+
+            <View>
+              <Text style={[styles.label, { color: c.textSecondary }]}>
+                {t('grocery.sheet_who_for')}
+              </Text>
+              <ChoiceWords
+                options={destWords}
+                selected={destination}
+                onSelect={onSelectDestination}
+                groupLabel={t('grocery.sheet_who_for')}
+              />
+              <Text style={[styles.hint, { color: c.textSecondary }]}>{destHint}</Text>
             </View>
 
             {!trimmed && (
-              <View style={s.field}>
-                <Text style={s.label}>{t('grocery.quick_add')}</Text>
-                <View style={s.chips}>
+              <View>
+                <Text style={[styles.label, { color: c.textSecondary }]}>
+                  {t('grocery.quick_add')}
+                </Text>
+                <View style={styles.tags}>
                   {QUICK_ADD_KEYS.map((key) => (
-                    <Pressable
+                    <PaperTag
                       key={key}
-                      style={s.chip}
-                      onPress={() => handleQuickAdd(t(key))}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('grocery.add_quick', { name: t(key) })}
-                    >
-                      <Text style={s.chipText}>+ {t(key)}</Text>
-                    </Pressable>
+                      label={t(key)}
+                      onPress={() => void handleQuickAdd(t(key))}
+                    />
                   ))}
                 </View>
               </View>
             )}
-          </ScrollView>
 
-          <Pressable
-            style={[s.submit, (!trimmed || isAdding) && s.submitOff]}
-            onPress={handleSubmit}
-            disabled={!trimmed || isAdding}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !trimmed || isAdding }}
-            accessibilityLabel={
-              trimmed ? t('grocery.add_quick', { name: trimmed }) : t('grocery.add_item')
-            }
-          >
-            <Text style={s.submitText}>
-              {trimmed ? t('grocery.add_quick', { name: trimmed }) : t('grocery.add_item')}
-            </Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.submit,
+                { backgroundColor: c.primary },
+                (!trimmed || isAdding || pressed) && styles.dim,
+              ]}
+              onPress={() => void handleSubmit()}
+              disabled={!trimmed || isAdding}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !trimmed || isAdding }}
+              accessibilityLabel={submitLabel}
+            >
+              <Text style={styles.submitText} numberOfLines={1}>
+                {submitLabel}
+              </Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    borderTopLeftRadius: ms(26),
+    borderTopRightRadius: ms(26),
+    maxHeight: '92%',
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  body: { padding: ms(20), paddingTop: ms(8), paddingBottom: ms(36), gap: ms(18) },
+  underName: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: ms(10),
+    marginTop: ms(8),
+  },
+  aisle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(5),
+    paddingHorizontal: ms(9),
+    paddingVertical: ms(4),
+    borderRadius: ms(6),
+    transform: [{ rotate: '-1.5deg' }],
+  },
+  aisleText: { fontSize: mf(12.5), ...font.bold },
+  merge: { fontSize: mf(17), flexShrink: 1 },
+  label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(2) },
+  hint: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(10), marginTop: ms(6) },
+  submit: {
+    minHeight: 52,
+    borderRadius: ms(17),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: ms(16),
+  },
+  submitText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
+  dim: { opacity: 0.5 },
+});

@@ -1,14 +1,5 @@
 import { useState, useCallback } from 'react';
-import {
-  View,
-  Modal,
-  Pressable,
-  TextInput,
-  StyleSheet,
-  Switch,
-  ActivityIndicator,
-  type ViewStyle,
-} from 'react-native';
+import { View, Modal, Pressable, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +8,7 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
 import { mf, ms } from '@utils/responsive';
+import { PenTick } from '@components/shared/PenTick';
 export type SaveListMode = 'new' | 'update';
 
 interface SaveListModalProps {
@@ -41,7 +33,7 @@ export function SaveListModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
 
   const [listName, setListName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -91,17 +83,6 @@ export function SaveListModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleSkip}>
       <Pressable style={styles.backdrop} onPress={handleSkip} disabled={isSaving}>
         <Pressable style={styles.box} onPress={() => {}}>
-          {/* Icon */}
-          <View style={styles.iconWrap}>
-            <View style={styles.iconBadge}>
-              <Ionicons
-                name={mode === 'update' ? 'sync-outline' : 'bookmark-outline'}
-                size={28}
-                color={C.primary}
-              />
-            </View>
-          </View>
-
           {mode === 'update' ? (
             /* ── Update mode ──────────────────────────────────────────────── */
             <>
@@ -160,25 +141,29 @@ export function SaveListModal({
                 accessibilityState={{ disabled: false }}
               />
 
-              <View style={styles.privateRow}>
-                <View>
+              {/* Keep private, as a box ticked in pen. */}
+              <Pressable
+                style={styles.privateRow}
+                onPress={() => setIsPrivate((v) => !v)}
+                accessible
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isPrivate }}
+                accessibilityLabel={t('grocery.private_list')}
+                accessibilityHint={t('grocery.keep_private_hint')}
+              >
+                <View style={styles.tickBox}>
+                  <PenTick
+                    checked={isPrivate}
+                    size={ms(24)}
+                    color={C.primary}
+                    style={styles.tick}
+                  />
+                </View>
+                <View style={styles.privateText}>
                   <Text style={styles.privateLabel}>{t('grocery.keep_private')}</Text>
                   <Text style={styles.privateSub}>{t('grocery.keep_private_hint')}</Text>
                 </View>
-                <Switch
-                  value={isPrivate}
-                  onValueChange={setIsPrivate}
-                  trackColor={{ false: C.border, true: C.primary }}
-                  thumbColor="#fff"
-                  activeThumbColor="#fff"
-                  style={styles.switchLtr}
-                  accessible
-                  accessibilityRole="switch"
-                  accessibilityLabel={t('grocery.private_list')}
-                  accessibilityHint={t('grocery.keep_private_hint')}
-                  accessibilityState={{ checked: isPrivate }}
-                />
-              </View>
+              </Pressable>
 
               {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -221,17 +206,16 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
+      backgroundColor: 'rgba(34,32,29,0.42)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: ms(24),
     },
-    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
-    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     box: {
       width: '100%',
-      backgroundColor: C.surface,
-      borderRadius: ms(20),
+      maxWidth: 380,
+      backgroundColor: C.background,
+      borderRadius: ms(26),
       padding: ms(24),
       gap: ms(14),
       shadowColor: '#000',
@@ -240,64 +224,50 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 24,
       elevation: 10,
     },
-    iconWrap: { alignItems: 'center' },
-    iconBadge: {
-      width: ms(60),
-      height: ms(60),
-      borderRadius: ms(30),
-      backgroundColor: C.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    title: {
-      fontSize: mf(20),
-      ...font.bold,
-      color: C.textPrimary,
-      textAlign: 'center',
-      letterSpacing: -0.4,
-    },
+    title: { fontSize: mf(26), lineHeight: mf(33), color: C.textPrimary, letterSpacing: -0.4 },
     body: {
       fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
-      textAlign: 'center',
       lineHeight: mf(20),
     },
     bodyBold: { ...font.semibold, color: C.textPrimary },
+    // Written on a line, like the other forms.
     nameInput: {
       height: ms(48),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: ms(14),
+      borderBottomWidth: 2,
+      borderBottomColor: C.border,
+      paddingHorizontal: ms(2),
       fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
     },
-    privateRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(12),
-      padding: ms(14),
+    privateRow: { flexDirection: 'row', alignItems: 'center', gap: ms(12), minHeight: 48 },
+    privateText: { flex: 1 },
+    tickBox: {
+      width: ms(22),
+      height: ms(22),
+      borderWidth: 2.2,
+      borderColor: C.textSecondary,
+      borderRadius: ms(4),
+      transform: [{ rotate: '-2deg' }],
     },
+    tick: { position: 'absolute', left: 0, top: -ms(9) },
     privateLabel: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
     privateSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
-    errorText: { fontSize: mf(13), color: '#D94F4F', textAlign: 'center' },
+    errorText: { fontSize: mf(13), color: C.danger },
     primaryBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: ms(6),
       minHeight: ms(50),
-      borderRadius: ms(12),
+      borderRadius: ms(17),
       backgroundColor: C.primary,
     },
     btnOff: { backgroundColor: C.textDisabled },
     primaryBtnText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
     skipBtn: { alignItems: 'center', paddingVertical: ms(10), minHeight: ms(44) },
-    skipBtnText: { fontSize: mf(14), ...font.regular, color: C.textSecondary },
+    skipBtnText: { fontSize: mf(15), ...font.semibold, color: C.primary },
   });
 }

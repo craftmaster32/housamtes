@@ -10,11 +10,34 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOUR_KEY = 'housemates_new_user_tour';
 
+// "New look" note for people who used the app before the 3.0 redesign. It
+// shows once per device; brand-new accounts skip it (they never saw the old
+// look and get the tour instead).
+const WHATS_NEW_KEY = 'housemates_whats_new_seen';
+export const WHATS_NEW_VERSION = '3.0.0';
+
 export async function markTourPending(): Promise<void> {
   try {
     await AsyncStorage.setItem(TOUR_KEY, 'pending');
+    await AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW_VERSION);
   } catch {
     // Non-fatal — a missed tour is not worth surfacing an error to the user.
+  }
+}
+
+export async function shouldShowWhatsNew(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(WHATS_NEW_KEY)) !== WHATS_NEW_VERSION;
+  } catch {
+    return false;
+  }
+}
+
+export async function markWhatsNewSeen(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW_VERSION);
+  } catch {
+    // Non-fatal — the worst case is the note shows once more next launch.
   }
 }
 

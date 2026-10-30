@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { BILL_ICONS } from '@stores/recurringBillsStore';
 import type { IoniconName } from '@/types/icons';
+import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 import { useRecurringPalette } from './palette';
 
@@ -40,8 +41,8 @@ export function BillIconPicker({ value, onChange }: BillIconPickerProps): React.
             key={ic}
             style={[
               styles.iconChip,
-              { backgroundColor: selected ? p.secondaryBg : p.neutralPillBg },
-              selected && { borderColor: p.primary },
+              { backgroundColor: p.neutralPillBg },
+              selected && { borderColor: p.primary, backgroundColor: p.card },
             ]}
             onPress={() => onChange(ic)}
             accessible
@@ -65,12 +66,12 @@ const styles = StyleSheet.create({
   iconChip: {
     width: ms(60),
     height: ms(60),
-    borderRadius: ms(12),
-    borderWidth: 2,
+    borderRadius: ms(18),
+    borderWidth: 2.5,
     borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     gap: ms(2),
   },
-  iconLabel: { fontSize: mf(10), textAlign: 'center' },
+  iconLabel: { fontSize: mf(10.5), ...font.bold, textAlign: 'center' },
 });

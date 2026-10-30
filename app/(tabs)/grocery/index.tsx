@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useScrollToTopOnNav } from '@hooks/useScrollToTopOnNav';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
@@ -30,18 +31,18 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { useMemberName } from '@hooks/useMemberName';
 import { useNow } from '@hooks/useNow';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
 import { GroceryItemRow } from '@components/grocery/GroceryItemRow';
-import { GroceryHeader } from '@components/grocery/GroceryHeader';
-import { CategoryTiles, type CategoryTileData } from '@components/grocery/CategoryTiles';
 import { ShoppingRunCard } from '@components/grocery/ShoppingRunCard';
 import { AddItemSheet, type AddDestination } from '@components/grocery/AddItemSheet';
 import { StaleItemNudge } from '@components/grocery/StaleItemNudge';
-import { getItemAge, isItemStale } from '@utils/groceryAge';
+import { Fold } from '@components/shared/Fold';
+import { useStaleNudge } from '@hooks/useStaleNudge';
+import { useFoldAway } from '@hooks/useFoldAway';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import {
@@ -49,11 +50,21 @@ import {
   type ListEditorMode,
 } from '@components/grocery/GroceryListEditorModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
-import { SavedListsSection } from '@components/grocery/SavedListsSection';
+import { SavedListsSheet } from '@components/grocery/SavedListsSheet';
+import { SavedListsTile } from '@components/grocery/SavedListsTile';
+import { AddStrip } from '@components/grocery/AddStrip';
+import { BagSlice } from '@components/grocery/BagSlice';
+import { AisleSign } from '@components/grocery/AisleSign';
+import { ReminderClip } from '@components/grocery/ReminderClip';
+import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
+import { Mate } from '@components/shared/Mate';
+import { MateCameo } from '@components/shared/MateCameo';
+import { MateSpot } from '@components/shared/MateSpot';
+import { useMateScene } from '@hooks/useMateScene';
+import { useHandFont } from '@hooks/useHandFont';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
 import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
-import { useTween } from '@hooks/useTween';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
@@ -63,26 +74,9 @@ import type { IoniconName } from '@/types/icons';
 
 import { mf, ms } from '@utils/responsive';
 
-const PERSONAL_BG = 'rgba(124,58,237,0.08)';
-const PERSONAL_BORDER = 'rgba(167,139,250,0.35)';
-const PERSONAL_ON = '#7C4DFF';
-
 const ADD_MODE_KEY = 'grocery_add_mode';
 const DRAFT_TOGGLE_KEY = 'grocery_draft_toggle';
 const REMINDER_PROMPT_DURATION_MS = 4000;
-const MAX_CATEGORY_TILES = 4;
-const STALE_KEPT_KEY = 'grocery_stale_kept';
-
-function ItemSeparator(): React.JSX.Element {
-  return <View style={separatorStyles.item} />;
-}
-function SectionSeparator(): React.JSX.Element {
-  return <View style={separatorStyles.section} />;
-}
-const separatorStyles = StyleSheet.create({
-  item: { height: ms(10) },
-  section: { height: ms(24) },
-});
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 interface GroceryItemWithMeta extends GroceryItem {
@@ -101,6 +95,8 @@ interface SectionData {
 }
 
 function GroceryScreen(): React.JSX.Element {
+  // Tapping your way here (even from this page) shows the top of the page.
+  const scrollRef = useScrollToTopOnNav('grocery/index');
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -137,6 +133,7 @@ function GroceryScreen(): React.JSX.Element {
   const reminders = useGroceryStore((s) => s.reminders);
   const fetchReminders = useGroceryStore((s) => s.fetchReminders);
   const createReminder = useGroceryStore((s) => s.createReminder);
+  const deleteReminder = useGroceryStore((s) => s.deleteReminder);
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -177,7 +174,8 @@ function GroceryScreen(): React.JSX.Element {
   const addBusyRef = useRef(false);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont();
+  const headingFont = useHeadingFont('semibold');
+  const handFont = useHandFont();
 
   // Restore persisted add-mode preference. Depends on draftEnabled so it
   // re-applies correctly if the feature flag hydrates after mount.
@@ -266,16 +264,10 @@ function GroceryScreen(): React.JSX.Element {
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
   // Which "Add to" destination is currently selected (drives the top chooser).
-  const destShared = addMode === 'shared' && !isDraftOn;
   const destPersonal = addMode === 'private';
   const destDraft = addMode === 'shared' && isDraftOn && draftEnabled;
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
-
-  // Animate the "clear checked" bar's height so it slides the list down/up
-  // smoothly instead of popping in. rAF-driven (useTween) so it runs on web.
-  const clearShown = checked.length > 0;
-  const [clearBarH, setClearBarH] = useState(56);
-  const clearP = useTween(clearShown ? 1 : 0);
+  const { foldingIds, foldAway } = useFoldAway();
 
   const sections = useMemo((): SectionData[] => {
     const draftItems = items.filter((i) => i.isDraft && i.addedBy === myId);
@@ -346,6 +338,8 @@ function GroceryScreen(): React.JSX.Element {
     if (ordered.length > 0) ordered[0].withReminder = true;
     return ordered;
   }, [items, myId, t, effectiveMode]);
+  // An empty bag already has its own Mate, so he only hides when there's a list.
+  const mateSpot = useMateScene(MATE_SPOTS, sections.length > 0);
 
   // Unticked items in the bucket the user is adding to (shared, private or draft).
   const inAddBucket = useCallback(
@@ -514,6 +508,18 @@ function GroceryScreen(): React.JSX.Element {
     [deleteSavedList, t]
   );
 
+  const [showSavedLists, setShowSavedLists] = useState(false);
+  const handleOpenSavedLists = useCallback((): void => setShowSavedLists(true), []);
+  const handleCloseSavedLists = useCallback((): void => setShowSavedLists(false), []);
+  // Loading a list fills the draft on the page, so close the sheet to show it.
+  const handleLoadListFromSheet = useCallback(
+    async (list: GroceryList): Promise<void> => {
+      setShowSavedLists(false);
+      await handleLoadList(list);
+    },
+    [handleLoadList]
+  );
+
   // ── Reminder handlers ───────────────────────────────────────────────────────
   const handleOpenGeneralReminder = useCallback((): void => {
     dismissAddedItemPrompt();
@@ -525,6 +531,15 @@ function GroceryScreen(): React.JSX.Element {
     setReminderDefaultLabel(name);
     setShowReminderModal(true);
   }, []);
+
+  const handleDeleteReminder = useCallback(
+    (id: string): void => {
+      deleteReminder(id).catch(() => {
+        Alert.alert(t('common.error'), t('grocery.something_went_wrong'));
+      });
+    },
+    [deleteReminder, t]
+  );
 
   const handleCloseReminderModal = useCallback((): void => {
     setShowReminderModal(false);
@@ -702,10 +717,15 @@ function GroceryScreen(): React.JSX.Element {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    clearChecked(houseId).catch(() => {
-      Alert.alert(t('grocery.could_not_clear'), t('grocery.something_went_wrong'));
-    });
-  }, [clearChecked, houseId, t]);
+    // The ticked rows fold away first, then they're removed.
+    foldAway(
+      checked.map((i) => i.id),
+      () =>
+        clearChecked(houseId).catch(() => {
+          Alert.alert(t('grocery.could_not_clear'), t('grocery.something_went_wrong'));
+        })
+    );
+  }, [clearChecked, houseId, t, foldAway, checked]);
   const handleLongPress = useCallback((item: GroceryItem): void => {
     setSelectedItem(item);
   }, []);
@@ -762,19 +782,21 @@ function GroceryScreen(): React.JSX.Element {
     setItemName(v);
     setAddError(null);
   }, []);
-  // The add bar is the quick path: typed name + "+" adds one straight away.
-  // An empty bar (or the options button) opens the sheet with the extra details.
-  const handleAddPress = useCallback(async (): Promise<void> => {
-    const n = itemName.trim();
-    if (!n) {
-      setShowAddSheet(true);
-      return;
-    }
-    if (await addEntry(n, '1', '')) {
-      setItemName('');
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [itemName, addEntry]);
+  // The add strip is the quick path: typed name + amount/unit + "+" adds it
+  // straight away. An empty strip (or a long-press on +) opens the details sheet.
+  const handleStripAdd = useCallback(
+    async (quantity: string): Promise<boolean> => {
+      const n = itemName.trim();
+      if (!n) return false;
+      const ok = await addEntry(n, quantity, '');
+      if (ok) {
+        setItemName('');
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+      return ok;
+    },
+    [itemName, addEntry]
+  );
   const handleOpenAddSheet = useCallback((): void => {
     setShowAddSheet(true);
   }, []);
@@ -790,111 +812,123 @@ function GroceryScreen(): React.JSX.Element {
     [addEntry]
   );
 
+  const {
+    nudge,
+    isOpen: nudgeOpen,
+    appear: nudgeAppear,
+    handleKeep: handleKeepStale,
+    handleRemove: handleRemoveStale,
+    handleClosed: handleNudgeClosed,
+  } = useStaleNudge(items, now, onDelete);
+
   const renderItem = useCallback(
-    ({ item }: { item: GroceryItemWithMeta }): React.JSX.Element => (
-      <GroceryItemRow
-        item={item}
-        myId={myId}
-        now={now}
-        isDuplicate={item.isDuplicate}
-        onToggle={onToggle}
-        onDelete={onDelete}
-        onIncrement={onInc}
-        onDecrement={onDec}
-        onLongPress={handleLongPress}
-      />
+    ({ item, index }: { item: GroceryItemWithMeta; index: number }): React.JSX.Element => (
+      <Fold open={!foldingIds.has(item.id)}>
+        <BagSlice dashedTop={index > 0}>
+          <GroceryItemRow
+            item={item}
+            myId={myId}
+            now={now}
+            isDuplicate={item.isDuplicate}
+            onToggle={onToggle}
+            onDelete={onDelete}
+            onIncrement={onInc}
+            onDecrement={onDec}
+            onLongPress={handleLongPress}
+          />
+          {nudge?.id === item.id && (
+            <Fold open={nudgeOpen} appear={nudgeAppear} onClosed={handleNudgeClosed}>
+              <StaleItemNudge
+                itemName={nudge.name}
+                days={nudge.days}
+                onKeep={handleKeepStale}
+                onRemove={handleRemoveStale}
+              />
+            </Fold>
+          )}
+        </BagSlice>
+      </Fold>
     ),
-    [myId, now, onToggle, onDelete, onInc, onDec, handleLongPress]
+    [
+      myId,
+      now,
+      foldingIds,
+      onToggle,
+      onDelete,
+      onInc,
+      onDec,
+      handleLongPress,
+      nudge,
+      nudgeOpen,
+      nudgeAppear,
+      handleKeepStale,
+      handleRemoveStale,
+      handleNudgeClosed,
+    ]
   );
 
-  const renderSectionHeader = useCallback(
+  const renderSectionSign = useCallback(
     ({ section }: { section: SectionData }): React.JSX.Element => {
-      // A single "remind me" bell lives on whichever section is at the top of
-      // the list (see `sections`), so it's reachable from private/draft items
-      // too — not only when a shared section is present.
-      const reminderBell = section.withReminder ? (
-        <Pressable
-          style={styles.sectionBell}
-          onPress={handleOpenGeneralReminder}
-          hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-          accessible
-          accessibilityRole="button"
-          accessibilityState={{ disabled: false }}
-          accessibilityLabel={t('grocery.remind_me')}
-        >
-          <Ionicons name="alarm-outline" size={18} color={C.primary} />
-          {reminders.length > 0 && (
-            <View style={styles.sectionBellBadge}>
-              <Text style={styles.sectionBellBadgeText}>
-                {reminders.length > 9 ? '9+' : reminders.length}
-              </Text>
-            </View>
-          )}
-        </Pressable>
+      const sectionIndex = sections.indexOf(section);
+      const isTop = sectionIndex === 0;
+      // The bag's opening, with the reminders clipped to its corner, sits on top
+      // of whichever section comes first.
+      const top = isTop ? (
+        <ReminderClip count={reminders.length} onPress={handleOpenGeneralReminder} />
       ) : null;
 
       if (section.sectionType === 'draft') {
         const doneDisabled = isPublishing || !myId || !houseId;
         return (
-          <View style={styles.catTitleDraftRow}>
-            <View style={[styles.catTitle, styles.catTitleFlex]}>
-              <Ionicons name={section.icon} size={15} color="rgb(133,77,14)" />
-              <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
-            </View>
-            {reminderBell}
-            <Pressable
-              style={[styles.draftPrivateBtn, doneDisabled && styles.draftPublishBtnOff]}
-              onPress={handleKeepDraftPrivate}
-              disabled={doneDisabled}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ disabled: doneDisabled }}
-              accessibilityLabel={t('grocery.keep_draft_private_a11y')}
-              accessibilityHint={t('grocery.keep_draft_private_a11y_hint')}
-            >
-              <Ionicons name="lock-closed" size={22} color="rgb(76,29,149)" />
-            </Pressable>
-            <Pressable
-              style={[styles.draftPublishBtn, doneDisabled && styles.draftPublishBtnOff]}
-              onPress={handlePublishDraft}
-              disabled={doneDisabled}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ disabled: doneDisabled }}
-              accessibilityLabel={t('grocery.share_draft_a11y')}
-              accessibilityHint={t('grocery.share_draft_a11y_hint')}
-            >
-              {isPublishing ? (
-                <ActivityIndicator size="small" color="rgb(133,77,14)" />
-              ) : (
-                <Ionicons name="checkmark-circle" size={26} color="rgb(133,77,14)" />
-              )}
-            </Pressable>
-          </View>
-        );
-      }
-      if (section.sectionType === 'private') {
-        return (
-          <View style={[styles.catTitle, styles.catTitlePersonal]}>
-            <Ionicons name={section.icon} size={15} color="rgb(76,29,149)" />
-            <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
-            {reminderBell}
-          </View>
+          <BagSlice isTop={isTop}>
+            {top}
+            <AisleSign title={section.title} icon={section.icon} tone={section.tone}>
+              <Pressable
+                style={[styles.signBtn, doneDisabled && styles.signBtnOff]}
+                onPress={handleKeepDraftPrivate}
+                disabled={doneDisabled}
+                accessible
+                accessibilityRole="button"
+                accessibilityState={{ disabled: doneDisabled }}
+                accessibilityLabel={t('grocery.keep_draft_private_a11y')}
+                accessibilityHint={t('grocery.keep_draft_private_a11y_hint')}
+              >
+                <Ionicons name="lock-closed" size={18} color={C.kraftInk} />
+              </Pressable>
+              <Pressable
+                style={[styles.signBtn, styles.signBtnShare, doneDisabled && styles.signBtnOff]}
+                onPress={handlePublishDraft}
+                disabled={doneDisabled}
+                accessible
+                accessibilityRole="button"
+                accessibilityState={{ disabled: doneDisabled }}
+                accessibilityLabel={t('grocery.share_draft_a11y')}
+                accessibilityHint={t('grocery.share_draft_a11y_hint')}
+              >
+                {isPublishing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                )}
+              </Pressable>
+            </AisleSign>
+          </BagSlice>
         );
       }
       return (
-        <View style={styles.catTitle}>
-          <Text style={[styles.sectionTitle, headingFont]} accessibilityRole="header">
-            {section.title}
-          </Text>
-          <Text style={styles.sectionCount}>
-            {t('grocery.section_count', { count: section.data.length })}
-          </Text>
-          {reminderBell}
-        </View>
+        <BagSlice isTop={isTop}>
+          {top}
+          <AisleSign
+            title={section.title}
+            icon={section.icon}
+            tone={section.sectionType === 'private' ? 'violet' : section.tone}
+            leanRight={sectionIndex % 2 === 1}
+          />
+        </BagSlice>
       );
     },
     [
+      sections,
       handlePublishDraft,
       handleKeepDraftPrivate,
       isPublishing,
@@ -905,96 +939,17 @@ function GroceryScreen(): React.JSX.Element {
       C,
       handleOpenGeneralReminder,
       reminders,
-      headingFont,
     ]
   );
-
-  const listRef = useRef<SectionList<GroceryItemWithMeta, SectionData>>(null);
-
-  // Header summary: what's still to buy, and how much landed today.
-  const { toGrabCount, addedTodayCount } = useMemo(() => {
-    const visible = items.filter((i) => !i.isDraft || i.addedBy === myId);
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    return {
-      toGrabCount: visible.filter((i) => !i.isChecked).length,
-      addedTodayCount: visible.filter(
-        (i) => new Date(i.createdAt).getTime() >= startOfToday.getTime()
-      ).length,
-    };
-  }, [items, myId, now]);
-
-  // The busiest aisles, as tiles that jump to their section.
-  const categoryTiles = useMemo((): CategoryTileData[] => {
-    const tiles: CategoryTileData[] = [];
-    sections.forEach((section, sectionIndex) => {
-      if (section.sectionType !== 'shared' || !section.labelKey) return;
-      const count = section.data.filter((i) => !i.isChecked).length;
-      if (count === 0) return;
-      tiles.push({
-        labelKey: section.labelKey,
-        icon: section.icon,
-        tone: section.tone,
-        count,
-        sectionIndex,
-      });
-    });
-    return tiles.sort((a, b) => b.count - a.count).slice(0, MAX_CATEGORY_TILES);
-  }, [sections]);
-
-  const handleJumpToSection = useCallback((sectionIndex: number): void => {
-    Haptics.selectionAsync().catch(() => {});
-    listRef.current?.scrollToLocation({ sectionIndex, itemIndex: 0, viewOffset: ms(56) });
-  }, []);
-  // Sections far below may not be measured yet; nudge closer, then retry.
-  const handleScrollFailed = useCallback(
-    (info: { averageItemLength: number; index: number }): void => {
-      listRef.current
-        ?.getScrollResponder()
-        ?.scrollTo({ y: info.averageItemLength * info.index, animated: true });
-    },
-    []
+  // An aisle whose items are all being cleared folds its sign away with them.
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SectionData }): React.JSX.Element => (
+      <Fold open={!section.data.every((i) => foldingIds.has(i.id))}>
+        {renderSectionSign({ section })}
+      </Fold>
+    ),
+    [renderSectionSign, foldingIds]
   );
-
-  // "Still need it?" — the oldest shared item that's been waiting 3+ days and
-  // nobody has said "keep it" to on this phone.
-  const [keptStaleIds, setKeptStaleIds] = useState<string[]>([]);
-  useEffect((): void => {
-    AsyncStorage.getItem(STALE_KEPT_KEY)
-      .then((raw) => {
-        const parsed: unknown = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) setKeptStaleIds(parsed.filter((x) => typeof x === 'string'));
-      })
-      .catch(() => {});
-  }, []);
-  const staleItem = useMemo((): { id: string; name: string; days: number } | null => {
-    const candidates = items
-      .filter(
-        (i) =>
-          !i.isChecked &&
-          !i.isPersonal &&
-          !i.isDraft &&
-          !keptStaleIds.includes(i.id) &&
-          isItemStale(i.createdAt, now)
-      )
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    const oldest = candidates[0];
-    if (!oldest) return null;
-    const age = getItemAge(oldest.createdAt, now);
-    return { id: oldest.id, name: oldest.name, days: age.unit === 'days' ? age.count : 3 };
-  }, [items, keptStaleIds, now]);
-  const handleKeepStale = useCallback((): void => {
-    if (!staleItem) return;
-    Haptics.selectionAsync().catch(() => {});
-    // Only remember ids still on the list so the stored set can't grow forever.
-    const liveIds = new Set(items.map((i) => i.id));
-    const next = [...keptStaleIds.filter((id) => liveIds.has(id)), staleItem.id];
-    setKeptStaleIds(next);
-    AsyncStorage.setItem(STALE_KEPT_KEY, JSON.stringify(next)).catch(() => {});
-  }, [staleItem, items, keptStaleIds]);
-  const handleRemoveStale = useCallback((): void => {
-    if (staleItem) onDelete(staleItem.id);
-  }, [staleItem, onDelete]);
 
   const handleSelectDestination = useCallback(
     (dest: AddDestination): void => {
@@ -1011,6 +966,16 @@ function GroceryScreen(): React.JSX.Element {
     [savedLists, currentDraftSourceListId]
   );
 
+  const destination: AddDestination = destPersonal ? 'private' : destDraft ? 'draft' : 'shared';
+  const destinationWords = useMemo<ChoiceWord<AddDestination>[]>(
+    () => [
+      { value: 'shared', label: t('grocery.shared_seg') },
+      { value: 'private', label: t('grocery.personal_seg') },
+      ...(draftEnabled ? [{ value: 'draft' as const, label: t('grocery.draft_seg') }] : []),
+    ],
+    [t, draftEnabled]
+  );
+
   return (
     <>
       <KeyboardAvoidingView
@@ -1018,201 +983,115 @@ function GroceryScreen(): React.JSX.Element {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <SafeAreaView style={styles.root} edges={['top']}>
-          <View style={styles.flex}>
-            <View
-              style={[styles.clearBarWrap, { height: clearP * clearBarH, opacity: clearP }]}
-              pointerEvents={clearShown ? 'auto' : 'none'}
-            >
-              <View
-                onLayout={(e) => {
-                  const h = e.nativeEvent.layout.height;
-                  if (h > 0 && Math.abs(h - clearBarH) > 1) setClearBarH(h);
-                }}
-              >
-                <Pressable
-                  style={styles.clearBar}
-                  onPress={handleClear}
-                  accessibilityRole="button"
-                  accessibilityElementsHidden={!clearShown}
-                  accessibilityLabel={t('grocery.clear_items_a11y', { count: checked.length })}
-                >
-                  <View style={styles.clearBarLeft}>
-                    <Ionicons name="checkmark-done-outline" size={16} color={C.positive} />
-                    <Text style={styles.clearBarCount}>
-                      {t('grocery.checked_count', { count: checked.length })}
-                    </Text>
+          <SectionList
+            ref={scrollRef}
+            extraData={now}
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            renderSectionHeader={renderSectionHeader}
+            stickySectionHeadersEnabled={false}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <View>
+                <BackLink label={t('common.home')} />
+                <Text style={[styles.title, headingFont]} accessibilityRole="header">
+                  {t('grocery.header_title')}
+                </Text>
+
+                <AddStrip
+                  value={itemName}
+                  onChangeText={handleItemNameChange}
+                  inputRef={inputRef}
+                  isAdding={isAdding}
+                  onAdd={handleStripAdd}
+                  onOpenDetails={handleOpenAddSheet}
+                />
+                <ChoiceWords
+                  options={destinationWords}
+                  selected={destination}
+                  onSelect={handleSelectDestination}
+                  groupLabel={t('grocery.add_item')}
+                />
+
+                {!!addError && (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>{addError}</Text>
                   </View>
-                  <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
-                </Pressable>
+                )}
+
+                {/* Before the tiles so they hide his lower half. */}
+                {mateSpot === 'peekOver' && (
+                  <View style={mateStyles.behind}>
+                    <MateSpot kind="peekOver" size={ms(38)} style={mateStyles.peek} />
+                  </View>
+                )}
+                <View style={styles.tiles}>
+                  <ShoppingRunCard
+                    activeRun={activeRun}
+                    myId={myId}
+                    onOpenShop={handleStartRun}
+                    onEndRun={handleEndRun}
+                    onQuickBuy={handleQuickBuy}
+                  />
+                  <SavedListsTile count={savedLists.length} onPress={handleOpenSavedLists} />
+                </View>
+
+                {isLoading && items.length === 0 && (
+                  <LoadingSpinner size={64} style={styles.loadingIndicator} />
+                )}
+                {!!error && (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>{error}</Text>
+                  </View>
+                )}
               </View>
-            </View>
-
-            <View style={styles.flex}>
-              <SectionList
-                ref={listRef}
-                extraData={now}
-                sections={sections}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                renderSectionHeader={renderSectionHeader}
-                stickySectionHeadersEnabled={false}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.listContent}
-                ItemSeparatorComponent={ItemSeparator}
-                SectionSeparatorComponent={SectionSeparator}
-                onScrollToIndexFailed={handleScrollFailed}
-                ListHeaderComponent={
-                  <View>
-                    <BackLink label={t('common.home')} />
-                    <GroceryHeader toGrabCount={toGrabCount} addedTodayCount={addedTodayCount} />
-
-                    {/* ── Add bar: Enter adds straight away; "+" opens the details sheet ── */}
-                    <View style={[styles.addBar, destPersonal && styles.addBarPersonal]}>
-                      <TextInput
-                        ref={inputRef}
-                        value={itemName}
-                        onChangeText={handleItemNameChange}
-                        placeholder={t('grocery.add_bar_placeholder')}
-                        placeholderTextColor={C.textTertiary}
-                        style={styles.addInput}
-                        returnKeyType="done"
-                        blurOnSubmit={false}
-                        onSubmitEditing={handleAddPress}
-                        accessibilityLabel={t('grocery.add_item_a11y')}
-                        accessibilityHint={t('grocery.add_item_hint')}
-                      />
-                      <Pressable
-                        style={[
-                          styles.addBtn,
-                          destPersonal && styles.addBtnPersonal,
-                          isAdding && styles.addBtnBusy,
-                        ]}
-                        onPress={handleOpenAddSheet}
-                        disabled={isAdding}
-                        accessibilityRole="button"
-                        accessibilityState={{ disabled: isAdding }}
-                        accessibilityLabel={t('grocery.add_item')}
-                        accessibilityHint={t('grocery.add_more_details')}
-                      >
-                        {isAdding ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <Ionicons name="add" size={26} color="#FFFFFF" />
-                        )}
-                      </Pressable>
-                    </View>
-
-                    {/* ── Where new items go: Shared | Personal | Draft ──── */}
-                    <View style={styles.modeRow} accessibilityRole="radiogroup">
-                      <Pressable
-                        style={[styles.modePill, destShared && styles.modePillShared]}
-                        onPress={handleSelectShared}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: destShared }}
-                        accessibilityLabel={t('grocery.shared_tab')}
-                      >
-                        <Text style={[styles.modeText, destShared && styles.modeTextOn]}>
-                          {t('grocery.shared_seg')}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[styles.modePill, destPersonal && styles.modePillPersonal]}
-                        onPress={handleSetPrivate}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: destPersonal }}
-                        accessibilityLabel={t('grocery.private_tab')}
-                      >
-                        <Ionicons
-                          name="lock-closed-outline"
-                          size={15}
-                          color={destPersonal ? C.surface : C.textSecondary}
-                        />
-                        <Text style={[styles.modeText, destPersonal && styles.modeTextOn]}>
-                          {t('grocery.personal_seg')}
-                        </Text>
-                      </Pressable>
-                      {draftEnabled && (
+            }
+            ListEmptyComponent={
+              isLoading ? null : (
+                <BagSlice isTop isBottom>
+                  <ReminderClip count={reminders.length} onPress={handleOpenGeneralReminder} />
+                  <View style={styles.emptyWrap}>
+                    <Mate size={ms(76)} />
+                    <Text style={[styles.emptyTitle, headingFont]}>{t('grocery.empty')}</Text>
+                    <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
+                  </View>
+                </BagSlice>
+              )
+            }
+            ListFooterComponent={
+              <View>
+                {sections.length > 0 && (
+                  <BagSlice isBottom dashedTop>
+                    <View style={styles.bagFoot}>
+                      <Text style={[styles.checkedCount, handFont]}>
+                        {checked.length > 0
+                          ? t('grocery.checked_count', { count: checked.length })
+                          : ''}
+                      </Text>
+                      {checked.length > 0 && (
                         <Pressable
-                          style={[styles.modePill, destDraft && styles.modePillDraft]}
-                          onPress={handleSelectDraft}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: destDraft }}
-                          accessibilityLabel={t('grocery.draft_mode')}
+                          style={({ pressed }) => [styles.clearBtn, pressed && styles.pressed]}
+                          onPress={handleClear}
+                          accessible
+                          accessibilityRole="button"
+                          accessibilityLabel={t('grocery.clear_items_a11y', {
+                            count: checked.length,
+                          })}
                         >
-                          <Text style={[styles.modeText, destDraft && styles.modeTextOn]}>
-                            {t('grocery.draft_seg')}
-                          </Text>
+                          <Text style={styles.clearText}>{t('grocery.clear_checked')}</Text>
                         </Pressable>
                       )}
                     </View>
-
-                    {!!addError && (
-                      <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>{addError}</Text>
-                      </View>
-                    )}
-
-                    {categoryTiles.length > 0 && (
-                      <CategoryTiles tiles={categoryTiles} onPressTile={handleJumpToSection} />
-                    )}
-
-                    <ShoppingRunCard
-                      activeRun={activeRun}
-                      myId={myId}
-                      onOpenShop={handleStartRun}
-                      onEndRun={handleEndRun}
-                      onQuickBuy={handleQuickBuy}
-                    />
-
-                    {staleItem && (
-                      <StaleItemNudge
-                        itemName={staleItem.name}
-                        days={staleItem.days}
-                        onKeep={handleKeepStale}
-                        onRemove={handleRemoveStale}
-                      />
-                    )}
-
-                    {isLoading && items.length === 0 && (
-                      <LoadingSpinner size={64} style={styles.loadingIndicator} />
-                    )}
-                    {!!error && (
-                      <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>{error}</Text>
-                      </View>
-                    )}
-                  </View>
-                }
-                ListEmptyComponent={
-                  isLoading ? null : (
-                    <View style={styles.emptyWrap}>
-                      <View style={styles.emptyIconChip}>
-                        <Ionicons name="basket-outline" size={34} color={C.primary} />
-                      </View>
-                      <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
-                      <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
-                    </View>
-                  )
-                }
-                ListFooterComponent={
-                  <View style={styles.footer}>
-                    <SavedListsSection
-                      lists={savedLists}
-                      isLoading={isLoadingLists}
-                      myId={myId}
-                      hasDraftItems={myDraftItems.length > 0}
-                      onLoadList={handleLoadList}
-                      onDeleteList={handleDeleteList}
-                      onCreateList={handleOpenCreateList}
-                      onEditList={handleOpenEditList}
-                    />
-                    <View style={styles.bottomPad} />
-                  </View>
-                }
-              />
-            </View>
-          </View>
+                  </BagSlice>
+                )}
+                {mateSpot === 'footer' && <MateCameo page="grocery" always />}
+                <View style={styles.bottomPad} />
+              </View>
+            }
+          />
 
           <View style={styles.reminderPromptOverlay} pointerEvents="box-none">
             <ReminderPromptBanner
@@ -1223,6 +1102,19 @@ function GroceryScreen(): React.JSX.Element {
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
+
+      <SavedListsSheet
+        visible={showSavedLists}
+        onClose={handleCloseSavedLists}
+        lists={savedLists}
+        isLoading={isLoadingLists}
+        myId={myId}
+        hasDraftItems={myDraftItems.length > 0}
+        onLoadList={handleLoadListFromSheet}
+        onDeleteList={handleDeleteList}
+        onCreateList={handleOpenCreateList}
+        onEditList={handleOpenEditList}
+      />
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <AddItemSheet
@@ -1279,6 +1171,8 @@ function GroceryScreen(): React.JSX.Element {
       <GroceryReminderModal
         visible={showReminderModal}
         defaultLabel={reminderDefaultLabel}
+        reminders={reminders}
+        onDelete={handleDeleteReminder}
         onClose={handleCloseReminderModal}
         onSave={handleSaveReminder}
       />
@@ -1287,202 +1181,78 @@ function GroceryScreen(): React.JSX.Element {
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
-function makeStyles(C: ColorTokens) {
-  const isDark = C.background === darkColors.background;
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     flex: { flex: 1 },
     root: { flex: 1, backgroundColor: C.background },
-    listContent: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(8) },
-    reminderPromptOverlay: {
-      position: 'absolute',
-      top: ms(8),
-      left: ms(16),
-      right: ms(16),
-    },
-
-    // ── Add bar
-    addBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      backgroundColor: C.surface,
-      borderRadius: ms(30),
-      paddingStart: ms(18),
-      paddingEnd: ms(6),
-      paddingVertical: ms(6),
-      borderWidth: isDark ? 1 : 0,
-      borderColor: C.border,
-      shadowColor: '#1F2A44',
-      shadowOffset: { width: 0, height: ms(6) },
-      shadowOpacity: isDark ? 0 : 0.08,
-      shadowRadius: 16,
-      elevation: isDark ? 0 : 3,
-    },
-    addBarPersonal: { backgroundColor: isDark ? 'rgba(124,58,237,0.14)' : '#F6F1FD' },
-    addInput: {
-      flex: 1,
-      minWidth: 0,
-      height: ms(46),
-      fontSize: mf(16),
-      ...font.regular,
+    listContent: { paddingHorizontal: ms(20), paddingTop: ms(4), paddingBottom: ms(8) },
+    reminderPromptOverlay: { position: 'absolute', top: ms(8), left: ms(16), right: ms(16) },
+    title: {
+      fontSize: mf(36),
+      // Tall enough for the descenders, so no letter is clipped.
+      lineHeight: mf(46),
+      paddingBottom: ms(2),
+      letterSpacing: -0.5,
+      marginTop: ms(4),
       color: C.textPrimary,
-      // The box around this field already shows focus; drop the browser's own ring.
-      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
     },
-    addBtn: {
-      width: ms(48),
-      height: ms(48),
-      borderRadius: ms(24),
-      backgroundColor: C.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    addBtnPersonal: { backgroundColor: PERSONAL_ON },
-    addBtnBusy: { opacity: 0.7 },
+    tiles: { flexDirection: 'row', gap: ms(12), marginTop: ms(10), marginBottom: ms(18) },
 
-    // ── Mode pills
-    modeRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: ms(8),
-      marginTop: ms(14),
-      marginBottom: ms(18),
-    },
-    modePill: {
-      flexDirection: 'row',
+    // Draft section: keep private / share, as round buttons beside its sign.
+    signBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1.8,
+      borderColor: C.kraftInk,
       alignItems: 'center',
-      gap: ms(6),
-      minHeight: ms(40),
-      paddingHorizontal: ms(16),
-      borderRadius: ms(20),
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.border,
+      justifyContent: 'center',
     },
-    modePillShared: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
-    modePillPersonal: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
-    modePillDraft: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
-    modeText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
-    modeTextOn: { color: C.surface },
+    signBtnShare: { backgroundColor: '#3B6FBF', borderColor: '#3B6FBF' },
+    signBtnOff: { opacity: 0.35 },
 
-    // ── Section headers
-    sectionBell: {
-      marginStart: ms(4),
-      width: ms(36),
-      height: ms(36),
-      borderRadius: ms(18),
-      backgroundColor: C.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sectionBellBadge: {
-      position: 'absolute',
-      top: ms(-2),
-      right: ms(-2),
-      minWidth: ms(15),
-      height: ms(15),
-      borderRadius: ms(8),
-      backgroundColor: C.warning,
-      borderWidth: 1.5,
-      borderColor: C.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: ms(3),
-    },
-    sectionBellBadgeText: { fontSize: mf(8.5), ...font.bold, color: '#fff' },
-    catTitle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      paddingHorizontal: ms(4),
-      paddingTop: ms(4),
-      paddingBottom: ms(10),
-    },
-    sectionTitle: { flex: 1, fontSize: mf(20), color: C.textPrimary, letterSpacing: -0.2 },
-    sectionCount: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
-    catTitlePersonal: {
-      backgroundColor: PERSONAL_BG,
-      borderRadius: ms(12),
-      paddingHorizontal: ms(12),
-      paddingVertical: ms(8),
-      marginBottom: ms(10),
-      borderWidth: 1,
-      borderColor: PERSONAL_BORDER,
-    },
-    catTitleDraftRow: {
+    bagFoot: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingBottom: ms(8),
-      gap: ms(8),
+      minHeight: 44,
+      paddingTop: ms(6),
     },
-    catTitleFlex: { flex: 1 },
-    catTitleText: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
-    catTitleTextDraft: { color: isDark ? '#E8C77E' : 'rgb(133,77,14)' },
-    catTitleTextPersonal: { color: isDark ? 'rgb(196,181,253)' : 'rgb(76,29,149)' },
-    draftPublishBtn: {
-      width: ms(44),
-      height: ms(44),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    draftPrivateBtn: {
-      width: ms(44),
-      height: ms(44),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    draftPublishBtnOff: { opacity: 0.35 },
+    checkedCount: { fontSize: mf(20), color: C.kraftMuted },
+    clearBtn: { minHeight: 44, justifyContent: 'center' },
+    clearText: { fontSize: mf(15), ...font.semibold, color: '#B84540' },
+    pressed: { opacity: 0.6 },
 
     loadingIndicator: { marginBottom: ms(8) },
     errorBanner: {
       backgroundColor: C.dangerTint,
       borderRadius: ms(14),
       padding: ms(12),
-      marginBottom: ms(12),
+      marginTop: ms(10),
     },
-    errorBannerText: { fontSize: mf(13), color: C.danger },
+    errorBannerText: { fontSize: mf(13.5), color: C.danger },
 
-    emptyWrap: { alignItems: 'center', paddingVertical: ms(40), gap: ms(8) },
-    emptyIconChip: {
-      width: ms(72),
-      height: ms(72),
-      borderRadius: ms(24),
-      backgroundColor: C.primaryTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: ms(8),
-    },
-    emptyTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, textAlign: 'center' },
+    emptyWrap: { alignItems: 'center', paddingVertical: ms(26), gap: ms(8) },
+    emptyTitle: { fontSize: mf(20), lineHeight: mf(26), color: C.kraftInk, textAlign: 'center' },
     emptyText: {
-      fontSize: mf(14),
+      fontSize: mf(14.5),
       ...font.regular,
-      color: C.textSecondary,
+      color: C.kraftMuted,
       textAlign: 'center',
-      maxWidth: ms(280),
+      lineHeight: mf(20),
+      paddingHorizontal: ms(12),
     },
-
-    clearBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: ms(16),
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      borderRadius: ms(22),
-      marginHorizontal: ms(16),
-      marginTop: ms(8),
-      marginBottom: ms(4),
-      backgroundColor: C.successTint,
-    },
-    clearBarWrap: { overflow: 'hidden' },
-    clearBarLeft: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
-    clearBarCount: { fontSize: mf(14), ...font.semibold, color: C.positive },
-    clearBarAction: { fontSize: mf(13), ...font.bold, color: C.positive },
-
-    footer: { marginTop: ms(24) },
     bottomPad: { height: sizes.bottomTabContentPadding },
   });
 }
 
 export default withFeatureGuard('grocery', GroceryScreen);
+
+// Where Mate may hide on a visit: peeking over the Saved Lists tile, or under
+// the bag.
+const MATE_SPOTS = ['peekOver', 'footer'] as const;
+
+const mateStyles = StyleSheet.create({
+  behind: { height: 0 },
+  peek: { end: ms(40), top: -ms(26) },
+});

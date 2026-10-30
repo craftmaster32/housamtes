@@ -4,112 +4,67 @@ import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 
 // Width of the swipe-to-delete panel. Kept in sync between the reveal animation
-// and its style so the red panel slides in flush with the card edge.
+// and its style so the red panel slides in flush with the row's edge.
 export const SWIPE_DELETE_WIDTH = ms(84);
 
-const RADIUS = ms(20);
-
-export function makeStyles(C: ColorTokens, isDark: boolean) {
+// Rows sit on the brown paper bag (BagSlice), which stays light in dark mode,
+// so text uses the bag's own inks rather than the theme's.
+export function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
-    card: {
-      backgroundColor: C.surface,
-      borderRadius: RADIUS,
-      paddingVertical: ms(12),
-      paddingHorizontal: ms(12),
-      gap: ms(10),
-      // Light mode floats on a soft shadow; dark mode needs a hairline instead.
-      borderWidth: isDark ? 1 : 0,
-      borderColor: C.border,
-      shadowColor: '#1F2A44',
-      shadowOffset: { width: 0, height: ms(3) },
-      shadowOpacity: isDark ? 0 : 0.06,
-      shadowRadius: 10,
-      elevation: isDark ? 0 : 1,
-    },
-    cardDone: { backgroundColor: C.surfaceSecondary, shadowOpacity: 0, elevation: 0 },
-    cardPersonal: {
-      backgroundColor: isDark ? 'rgba(124,58,237,0.12)' : '#F6F1FD',
-      borderWidth: 1,
-      borderColor: 'rgba(167,139,250,0.35)',
-    },
-
+    card: { paddingVertical: ms(10), gap: ms(8) },
     topRow: { flexDirection: 'row', alignItems: 'center', gap: ms(12) },
-    tile: {
-      width: ms(46),
-      height: ms(46),
-      borderRadius: ms(14),
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
+    // A square drawn in ink, a little crooked, like on a paper list.
+    box: {
+      width: ms(22),
+      height: ms(22),
+      borderWidth: 2.2,
+      borderColor: C.kraftInk,
+      borderRadius: ms(4),
+      transform: [{ rotate: '-2deg' }],
     },
-    main: { flex: 1, minWidth: 0, gap: ms(5) },
-    nameRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), minWidth: 0 },
-    name: {
-      fontSize: mf(16),
-      ...font.semibold,
-      color: C.textPrimary,
-      flexShrink: 1,
-      lineHeight: mf(21),
-    },
-    nameDone: { textDecorationLine: 'line-through', color: C.textSecondary, ...font.medium },
-    qtyPill: {
-      paddingHorizontal: ms(8),
-      paddingVertical: ms(2),
-      borderRadius: ms(10),
-      flexShrink: 0,
-    },
-    qtyPillText: { fontSize: mf(12), ...font.bold },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), minWidth: 0 },
+    // The tick overshoots the box, the way a pen tick does.
+    tick: { position: 'absolute', left: 0, top: -ms(9) },
+    boxSpacer: { width: ms(22) },
+    main: { flex: 1, minWidth: 0, gap: ms(2) },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexWrap: 'wrap' },
+    name: { fontSize: mf(16.5), ...font.semibold, color: C.kraftInk, flexShrink: 1 },
+    nameDone: { color: C.kraftMuted, textDecorationLine: 'line-through' },
+    qty: { fontSize: mf(21), color: '#3B6FBF', writingDirection: 'ltr' },
+    dup: { fontSize: mf(18), color: '#B84540' },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
+    faded: { opacity: 0.6 },
 
-    dupBadge: {
-      backgroundColor: C.warningTint,
-      borderRadius: ms(8),
-      paddingHorizontal: ms(7),
-      paddingVertical: ms(2),
-    },
-    dupBadgeText: { fontSize: mf(11), ...font.semibold, color: C.textPrimary },
-
-    check: {
-      width: ms(42),
-      height: ms(42),
-      borderRadius: ms(21),
-      borderWidth: 2,
-      borderColor: isDark ? 'rgba(255,255,255,0.22)' : '#C9D2DF',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    checkOn: { backgroundColor: C.positive, borderColor: C.positive },
-
-    counter: { flexDirection: 'row', alignItems: 'center', gap: ms(4), flexShrink: 0 },
+    counter: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
     ctrBtn: {
-      width: ms(40),
-      height: ms(40),
-      borderRadius: ms(20),
-      backgroundColor: C.surfaceSecondary,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1.8,
+      borderColor: C.kraftInk,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    ctrBtnPlus: { backgroundColor: C.primary },
+    ctrBtnPlus: { backgroundColor: '#3B6FBF', borderColor: '#3B6FBF' },
     ctrBtnOff: { opacity: 0.35 },
-    ctrBtnText: { fontSize: mf(18), ...font.bold, color: C.textPrimary, lineHeight: mf(22) },
+    ctrBtnText: { fontSize: mf(18), ...font.semibold, color: C.kraftInk, lineHeight: mf(20) },
     ctrBtnTextPlus: { color: '#FFFFFF' },
+    // A fixed slot (and same-width digits) so going from 9/12 to 10/12 never
+    // widens the counter and re-wraps the name beside it.
     ctrText: {
-      fontSize: mf(14),
-      ...font.bold,
-      color: C.textPrimary,
-      minWidth: ms(34),
+      fontSize: mf(21),
+      color: C.kraftInk,
+      width: ms(46),
       textAlign: 'center',
       fontVariant: ['tabular-nums'],
     },
-
     progressTrack: {
-      height: ms(6),
-      borderRadius: ms(3),
-      backgroundColor: C.surfaceSecondary,
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: C.kraftRule,
+      marginStart: ms(34),
       overflow: 'hidden',
     },
-    progressFill: { height: '100%', borderRadius: ms(3), backgroundColor: C.positive },
+    progressFill: { height: 3, borderRadius: 2, backgroundColor: '#3B6FBF' },
 
     swipeLane: { width: SWIPE_DELETE_WIDTH },
     swipeDelete: {
@@ -118,8 +73,6 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       justifyContent: 'center',
       alignItems: 'center',
       gap: ms(3),
-      borderTopRightRadius: RADIUS,
-      borderBottomRightRadius: RADIUS,
     },
     swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#FFFFFF' },
   });

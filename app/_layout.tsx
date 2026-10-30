@@ -15,6 +15,7 @@ import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
 import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
+import * as Font from 'expo-font';
 import { useFonts } from 'expo-font';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -23,7 +24,6 @@ import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useAppliancesStore } from '@stores/appliancesStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
@@ -34,7 +34,8 @@ import { useTasksStore } from '@stores/tasksStore';
 import { TopBar } from '@components/shared/TopBar';
 import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
-import { WebAlertHost } from '@components/shared/WebAlertHost';
+import { AlertHost } from '@components/shared/AlertHost';
+import { MateCelebration } from '@components/shared/MateCelebration';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { RouteTransition } from '@components/shared/RouteTransition';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
@@ -158,6 +159,7 @@ export default function RootLayout(): React.JSX.Element | null {
     }
   }, [language]);
 
+  // Fonts the first screen needs — the splash waits for these only.
   const [fontsLoaded] = useFonts({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_400Regular: require('../assets/fonts/Inter_400Regular.ttf'),
@@ -167,13 +169,12 @@ export default function RootLayout(): React.JSX.Element | null {
     Inter_600SemiBold: require('../assets/fonts/Inter_600SemiBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_700Bold: require('../assets/fonts/Inter_700Bold.ttf'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
     // Fraunces — display serif for headings (Latin only; Hebrew falls back to Heebo).
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
+    // Caveat — handwriting for paper touches (sticky note). Latin only.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
+    Caveat_700Bold: require('../assets/fonts/Caveat_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -186,9 +187,23 @@ export default function RootLayout(): React.JSX.Element | null {
     Heebo_800ExtraBold: require('../assets/fonts/Heebo_800ExtraBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     ionicons: require('../assets/fonts/Ionicons.ttf'),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
   });
+
+  // The rest (rare weights and the big Material icon font, ~1.7 MB together)
+  // load in the background once the app is showing, so opening it is quicker.
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    Font.loadAsync({
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
+    }).catch(() => {
+      /* a missing extra weight only falls back to a near one */
+    });
+  }, [fontsLoaded]);
 
   // On web, register Heebo as the Hebrew-script provider under Inter family names.
   // The browser uses unicode-range to pick Heebo for Hebrew glyphs automatically.
@@ -273,7 +288,6 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadParking = useParkingStore((s) => s.load);
   const loadAppliances = useAppliancesStore((s) => s.load);
   const loadGrocery = useGroceryStore((s) => s.load);
-  const loadChores = useChoresStore((s) => s.load);
   const loadEvents = useEventsStore((s) => s.load);
   const loadAnnouncements = useAnnouncementsStore((s) => s.load);
   const loadMaintenance = useMaintenanceStore((s) => s.load);
@@ -396,7 +410,6 @@ export default function RootLayout(): React.JSX.Element | null {
       loadParking(houseId);
       loadAppliances(houseId);
       loadGrocery(houseId);
-      loadChores(houseId);
       loadEvents(houseId);
       loadAnnouncements(houseId);
       loadMaintenance(houseId);
@@ -416,7 +429,6 @@ export default function RootLayout(): React.JSX.Element | null {
       useParkingStore.getState().unsubscribe();
       useAppliancesStore.getState().unsubscribe();
       useGroceryStore.getState().unsubscribe();
-      useChoresStore.getState().unsubscribe();
       useEventsStore.getState().unsubscribe();
       useAnnouncementsStore.getState().unsubscribe();
       useMaintenanceStore.getState().unsubscribe();
@@ -433,7 +445,6 @@ export default function RootLayout(): React.JSX.Element | null {
     loadParking,
     loadAppliances,
     loadGrocery,
-    loadChores,
     loadEvents,
     loadAnnouncements,
     loadMaintenance,
@@ -471,7 +482,6 @@ export default function RootLayout(): React.JSX.Element | null {
           loadParking(houseId);
           loadAppliances(houseId);
           loadGrocery(houseId);
-          loadChores(houseId);
           loadEvents(houseId);
           loadAnnouncements(houseId);
           loadMaintenance(houseId);
@@ -496,7 +506,6 @@ export default function RootLayout(): React.JSX.Element | null {
     loadParking,
     loadAppliances,
     loadGrocery,
-    loadChores,
     loadEvents,
     loadAnnouncements,
     loadMaintenance,
@@ -551,10 +560,11 @@ export default function RootLayout(): React.JSX.Element | null {
             {showChrome && <BottomTabBar />}
             {showChrome && <MorePopup />}
             {showChrome && <ProfilePopup />}
-            <WebAlertHost />
+            {showChrome && <MateCelebration />}
+            <AlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
-                <LoadingSpinner size={140} color={darkColors.primary} />
+                <LoadingSpinner size={140} onDark showQuip={fontsLoaded} />
               </View>
             )}
           </View>

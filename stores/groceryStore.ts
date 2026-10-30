@@ -6,6 +6,7 @@ import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
+import { celebrate } from '@lib/celebrate';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -152,6 +153,9 @@ const _boughtTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // snap the number backwards. While an item has a pending count, the UPDATE handler
 // keeps the local count until the echo of the latest write catches up.
 const _pendingCounts = new Map<string, number>();
+// Items a +/count tap ticked off since their last bought-count write: once that
+// write saves, Mate celebrates if it finished the list.
+const _checkedByCount = new Set<string>();
 // Same idea for regular (checkbox) items: the latest checked state we've shown
 // locally while a toggle write is in flight, so a stale self-echo can't flip the
 // checkbox back (which reads as a laggy, unresponsive tap).
@@ -170,6 +174,7 @@ function tombstone(id: string): void {
   // must not fire against a now-missing row.
   _pendingCounts.delete(id);
   _pendingChecked.delete(id);
+  _checkedByCount.delete(id);
   const timer = _boughtTimers.get(id);
   if (timer) {
     clearTimeout(timer);
@@ -199,6 +204,7 @@ function scheduleBoughtWrite(
     setTimeout(() => {
       _boughtTimers.delete(id);
       const latest = get().items.find((i) => i.id === id);
+      const justChecked = _checkedByCount.delete(id);
       if (!latest) {
         _pendingCounts.delete(id);
         return;
@@ -208,7 +214,12 @@ function scheduleBoughtWrite(
         .update({ bought_count: latest.boughtCount, is_checked: latest.isChecked })
         .eq('id', id)
         .then(async ({ error }) => {
-          if (!error) return;
+          if (!error) {
+            if (justChecked && latest.isChecked && get().items.every((i) => i.isChecked)) {
+              celebrate('grocery');
+            }
+            return;
+          }
           // The optimistic count never saved. Drop the guard (no echo will
           // arrive to clear it) and resync this item from the server so the UI
           // stops showing a count that was never persisted.
@@ -532,6 +543,7 @@ export const useGroceryStore = create<GroceryStore>()(
         _boughtTimers.clear();
         _pendingCounts.clear();
         _pendingChecked.clear();
+        _checkedByCount.clear();
         _recentlyDeleted.clear();
         if (_channel) {
           supabase.removeChannel(_channel);
@@ -639,7 +651,9 @@ export const useGroceryStore = create<GroceryStore>()(
             items: get().items.map((i) => (i.id === id ? { ...i, isChecked: !newChecked } : i)),
           });
           captureError(error, { context: 'toggle-grocery-item', id });
+          return;
         }
+        if (newChecked && get().items.every((i) => i.isChecked)) celebrate('grocery');
       },
 
       incrementBought: async (id): Promise<void> => {
@@ -657,6 +671,7 @@ export const useGroceryStore = create<GroceryStore>()(
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
+        if (isChecked && !item.isChecked) _checkedByCount.add(id);
         scheduleBoughtWrite(id, get, set);
       },
 
@@ -694,6 +709,7 @@ export const useGroceryStore = create<GroceryStore>()(
         set({
           items: get().items.map((i) => (i.id === id ? { ...i, boughtCount: next, isChecked } : i)),
         });
+        if (isChecked && !item.isChecked) _checkedByCount.add(id);
         scheduleBoughtWrite(id, get, set);
       },
 

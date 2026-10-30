@@ -1,321 +1,37 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { withFeatureGuard } from '@components/shared/withFeatureGuard';
-import { captureError } from '@lib/errorTracking';
 import {
   View,
   StyleSheet,
   FlatList,
-  Pressable,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
+  type ListRenderItemInfo,
 } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
-import { useChatStore, type ChatMessage } from '@stores/chatStore';
-import { useAuthStore } from '@stores/authStore';
-import { useHousematesStore } from '@stores/housematesStore';
-import { resolveName } from '@utils/housemates';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
-import { Alert } from '@lib/alert';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { sizes } from '@constants/sizes';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
+import { BackLink } from '@components/shared/BackLink';
+import { Mate } from '@components/shared/Mate';
+import { DayHeading } from '@components/chat/DayHeading';
+import { MessageBar } from '@components/chat/MessageBar';
+import { MessageSlip } from '@components/chat/MessageSlip';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-
+import { Alert } from '@lib/alert';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
+import { useChatStore } from '@stores/chatStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { buildListItems, type ChatListItem } from '@utils/chatDays';
+import { resolveName } from '@utils/housemates';
 import { mf, ms } from '@utils/responsive';
-const DELETE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-// ── Time helpers ─────────────────────────────────────────────────────────────
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-function formatDateLabel(iso: string): string {
-  const d = new Date(iso);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const msgDay = new Date(d);
-  msgDay.setHours(0, 0, 0, 0);
-  if (msgDay.getTime() === today.getTime()) return 'Today';
-  if (msgDay.getTime() === yesterday.getTime()) return 'Yesterday';
-  return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-function sameDateKey(iso: string): string {
-  return new Date(iso).toISOString().split('T')[0];
-}
-
-// ── List item types ───────────────────────────────────────────────────────────
-
-type ListItem =
-  | { kind: 'separator'; id: string; label: string }
-  | { kind: 'message'; msg: ChatMessage };
-
-function buildListItems(messages: ChatMessage[]): ListItem[] {
-  const items: ListItem[] = [];
-  let lastDateKey = '';
-  for (const msg of messages) {
-    const key = sameDateKey(msg.createdAt);
-    if (key !== lastDateKey) {
-      items.push({ kind: 'separator', id: `sep-${key}`, label: formatDateLabel(msg.createdAt) });
-      lastDateKey = key;
-    }
-    items.push({ kind: 'message', msg });
-  }
-  return items;
-}
-
-const makeStyles = (C: ColorTokens) =>
-  StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: sizes.md,
-      paddingVertical: sizes.sm,
-      backgroundColor: C.surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    backBtn: {
-      width: ms(60),
-      minHeight: ms(44),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(2),
-    },
-    backText: { color: C.primary, fontSize: sizes.fontMd, ...font.medium },
-    headerTitle: { color: C.textPrimary, ...font.bold, fontSize: sizes.fontLg },
-
-    list: { padding: sizes.md, gap: sizes.sm, paddingBottom: sizes.lg },
-
-    separatorRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.sm,
-      marginVertical: sizes.sm,
-    },
-    separatorLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: C.border },
-    separatorLabel: {
-      color: C.textSecondary,
-      fontSize: mf(11),
-      ...font.semibold,
-      paddingHorizontal: ms(4),
-    },
-
-    row: { flexDirection: 'row', alignItems: 'flex-end', gap: sizes.sm },
-    rowMine: { flexDirection: 'row-reverse' },
-    avatar: {
-      width: ms(32),
-      height: ms(32),
-      borderRadius: ms(16),
-      backgroundColor: C.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: ms(2),
-      overflow: 'hidden',
-    },
-    avatarImg: { width: ms(32), height: ms(32) },
-    avatarText: { color: '#fff', ...font.bold, fontSize: sizes.fontSm },
-
-    bubble: {
-      backgroundColor: C.surface,
-      borderRadius: ms(18),
-      borderBottomStartRadius: ms(4),
-      padding: ms(10),
-      paddingHorizontal: ms(13),
-      maxWidth: '72%',
-      gap: ms(3),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    bubbleMine: {
-      backgroundColor: C.primary,
-      borderBottomStartRadius: ms(18),
-      borderBottomEndRadius: ms(4),
-    },
-
-    author: { color: C.primary, fontSize: mf(11), ...font.bold, marginBottom: ms(1) },
-    msgText: { color: C.textPrimary, fontSize: mf(15), ...font.regular },
-    msgTextMine: { color: '#fff' },
-
-    meta: { flexDirection: 'row', alignItems: 'center', gap: ms(6), marginTop: ms(1) },
-    time: { color: C.textSecondary, fontSize: mf(11), ...font.regular },
-    timeMine: { color: 'rgba(255,255,255,0.7)' },
-    deleteHint: { color: 'rgba(255,255,255,0.55)', fontSize: mf(10), ...font.regular },
-    reportHint: { color: C.textDisabled, fontSize: mf(10), ...font.regular },
-
-    empty: { alignItems: 'center', paddingTop: sizes.xxl },
-    emptyText: { color: C.textDisabled, ...font.regular, fontSize: sizes.fontMd },
-
-    errorBanner: {
-      backgroundColor: C.danger + '15',
-      padding: sizes.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: C.danger + '40',
-    },
-    errorBannerText: {
-      fontSize: sizes.fontSm,
-      ...font.regular,
-      color: C.danger,
-      textAlign: 'center',
-    },
-
-    inputBar: {
-      flexDirection: 'row',
-      gap: sizes.sm,
-      padding: sizes.md,
-      paddingBottom: sizes.md,
-      backgroundColor: C.surface,
-      alignItems: 'flex-end',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    input: {
-      flex: 1,
-      backgroundColor: C.background,
-      borderRadius: ms(22),
-      paddingHorizontal: sizes.md,
-      paddingVertical: ms(10),
-      fontSize: sizes.fontMd,
-      color: C.textPrimary,
-      borderWidth: 1,
-      borderColor: C.border,
-      ...font.regular,
-    },
-    sendBtn: {
-      width: ms(44),
-      height: ms(44),
-      backgroundColor: C.primary,
-      borderRadius: ms(22),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    sendBtnDisabled: { backgroundColor: C.border },
-  });
-
-// ── MessageBubble ─────────────────────────────────────────────────────────────
-
-function MessageBubble({
-  msg,
-  isMine,
-  authorName,
-  authorAvatarUrl,
-  onDelete,
-  onReport,
-}: {
-  msg: ChatMessage;
-  isMine: boolean;
-  authorName: string;
-  authorAvatarUrl?: string;
-  onDelete: (id: string) => void;
-  onReport: (id: string, authorName: string, authorId: string) => void;
-}): React.JSX.Element {
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const initial = authorName[0]?.toUpperCase() ?? '?';
-  const canDelete = isMine && Date.now() - new Date(msg.createdAt).getTime() < DELETE_WINDOW_MS;
-
-  const { t } = useTranslation();
-
-  const handleLongPress = useCallback(() => {
-    if (isMine) {
-      if (!canDelete) return;
-      Alert.alert(t('chat.delete_title'), t('chat.delete_body'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
-      ]);
-    } else {
-      Alert.alert(t('chat.report_title'), t('chat.report_body', { name: authorName }), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('chat.report_action'),
-          style: 'destructive',
-          onPress: (): void => onReport(msg.id, authorName, msg.author),
-        },
-      ]);
-    }
-  }, [isMine, canDelete, msg.id, msg.author, authorName, onDelete, onReport, t]);
-
-  return (
-    <Pressable
-      style={[styles.row, isMine && styles.rowMine]}
-      onLongPress={handleLongPress}
-      delayLongPress={400}
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={
-        isMine
-          ? canDelete
-            ? t('chat.your_message_hint')
-            : t('chat.your_message_hint_locked')
-          : t('chat.other_message_hint', { name: authorName })
-      }
-    >
-      {!isMine && (
-        <View
-          style={[styles.avatar, authorAvatarUrl ? { backgroundColor: 'transparent' } : undefined]}
-        >
-          {authorAvatarUrl ? (
-            <Image source={{ uri: authorAvatarUrl }} style={styles.avatarImg} contentFit="cover" />
-          ) : (
-            <Text style={styles.avatarText}>{initial}</Text>
-          )}
-        </View>
-      )}
-      <View style={[styles.bubble, isMine && styles.bubbleMine]}>
-        {!isMine && <Text style={styles.author}>{authorName}</Text>}
-        <Text style={[styles.msgText, isMine && styles.msgTextMine]}>{msg.text}</Text>
-        <View style={styles.meta}>
-          <Text style={[styles.time, isMine && styles.timeMine]}>{formatTime(msg.createdAt)}</Text>
-          {canDelete && <Text style={styles.deleteHint}>{t('chat.hold_to_delete')}</Text>}
-          {!isMine && <Text style={styles.reportHint}>{t('chat.hold_to_report')}</Text>}
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-// ── DateSeparator ─────────────────────────────────────────────────────────────
-
-function DateSeparator({ label }: { label: string }): React.JSX.Element {
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  return (
-    <View style={styles.separatorRow}>
-      <View style={styles.separatorLine} />
-      <Text style={styles.separatorLabel}>{label}</Text>
-      <View style={styles.separatorLine} />
-    </View>
-  );
-}
-
-// ── Screen ────────────────────────────────────────────────────────────────────
 
 function ChatScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
   const messages = useChatStore((state) => state.messages);
   const isLoading = useChatStore((state) => state.isLoading);
   const chatError = useChatStore((state) => state.error);
@@ -328,14 +44,8 @@ function ChatScreen(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const myId = profile?.id ?? '';
   const myName = profile?.name ?? '';
-
-  const currentLanguage = useLanguageStore((s) => s.language);
   const [text, setText] = useState('');
-  const listRef = useRef<FlatList>(null);
-
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const listRef = useRef<FlatList<ChatListItem>>(null);
 
   // Lazy-load: chat is not loaded at startup, load it when this screen opens
   useEffect(() => {
@@ -349,9 +59,9 @@ function ChatScreen(): React.JSX.Element {
     markRead();
   }, [markRead]);
 
-  const listItems = buildListItems(messages);
+  const listItems = useMemo(() => buildListItems(messages), [messages]);
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(async (): Promise<void> => {
     if (!text.trim() || !houseId) return;
     await send(text.trim(), myId, myName || 'Someone', houseId);
     setText('');
@@ -391,101 +101,98 @@ function ChatScreen(): React.JSX.Element {
     [myId, houseId, t]
   );
 
+  const keyExtractor = useCallback(
+    (item: ChatListItem): string => (item.kind === 'separator' ? item.id : item.msg.id),
+    []
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<ChatListItem>): React.JSX.Element => {
+      if (item.kind === 'separator') return <DayHeading label={item.label} />;
+      return (
+        <MessageSlip
+          msg={item.msg}
+          isMine={item.msg.author === myId}
+          authorName={resolveName(item.msg.author, housemates)}
+          onDelete={handleDelete}
+          onReport={handleReport}
+        />
+      );
+    },
+    [myId, housemates, handleDelete, handleReport]
+  );
+
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={goBack}
-            style={styles.backBtn}
-            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons
-              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
-              size={20}
-              color={C.primary}
-            />
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
-          <Text style={[styles.headerTitle, headingFont]}>{t('chat.title')}</Text>
-          <View style={styles.backBtn} />
-        </View>
-
-        {!!chatError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{chatError}</Text>
-          </View>
-        )}
-
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
+    <SafeAreaView style={[styles.root, { backgroundColor: c.background }]}>
+      <View style={styles.top}>
+        <BackLink label={t('common.back')} />
+        <Text
+          style={[styles.title, headingFont, { color: c.textPrimary }]}
+          numberOfLines={1}
+          accessibilityRole="header"
         >
-          <FlatList
-            ref={listRef}
-            data={listItems}
-            keyExtractor={(item) => (item.kind === 'separator' ? item.id : item.msg.id)}
-            renderItem={({ item }) => {
-              if (item.kind === 'separator') {
-                return <DateSeparator label={item.label} />;
-              }
-              return (
-                <MessageBubble
-                  msg={item.msg}
-                  isMine={item.msg.author === myId}
-                  authorName={resolveName(item.msg.author, housemates)}
-                  authorAvatarUrl={housemates.find((h) => h.id === item.msg.author)?.avatarUrl}
-                  onDelete={handleDelete}
-                  onReport={handleReport}
-                />
-              );
-            }}
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={
-              <View style={styles.empty}>
-                <Text style={styles.emptyText}>
-                  {isLoading ? t('common.loading') : t('chat.no_messages')}
-                </Text>
-              </View>
-            }
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-          />
-
-          <View style={styles.inputBar}>
-            <TextInput
-              style={styles.input}
-              value={text}
-              onChangeText={setText}
-              placeholder={t('chat.message_placeholder')}
-              placeholderTextColor={C.textDisabled}
-              returnKeyType="send"
-              onSubmitEditing={handleSend}
-              multiline={false}
-            />
-            <Pressable
-              style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={!text.trim()}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('chat.send')}
-              accessibilityState={{ disabled: !text.trim() }}
-            >
-              <Ionicons
-                name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-up'}
-                size={20}
-                color="#fff"
-              />
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
+          {t('chat.title')}
+        </Text>
       </View>
+      {!!chatError && (
+        <Text style={[styles.error, { color: c.danger }]} accessibilityRole="alert">
+          {chatError}
+        </Text>
+      )}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          ref={listRef}
+          data={listItems}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            // Mate keeps the empty chat company — the one Mate on this screen.
+            <View style={styles.empty}>
+              {isLoading ? (
+                <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+                  {t('common.loading')}
+                </Text>
+              ) : (
+                <>
+                  <Mate size={ms(84)} />
+                  <Text style={[styles.emptyTitle, headingFont, { color: c.textPrimary }]}>
+                    {t('chat.no_messages')}
+                  </Text>
+                </>
+              )}
+            </View>
+          }
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+        />
+        <MessageBar value={text} onChangeText={setText} onSend={handleSend} />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  top: { paddingHorizontal: ms(18), paddingTop: ms(4), paddingBottom: ms(6) },
+  title: {
+    fontSize: mf(36),
+    // Tall enough for the descenders, so no letter is clipped.
+    lineHeight: mf(46),
+    paddingBottom: ms(2),
+    letterSpacing: -0.5,
+    marginTop: ms(4),
+  },
+  error: { fontSize: mf(14), ...font.medium, textAlign: 'center', paddingHorizontal: ms(18) },
+  list: { paddingHorizontal: ms(18), paddingBottom: ms(16), gap: ms(10), flexGrow: 1 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: ms(40) },
+  emptyTitle: { fontSize: mf(20), textAlign: 'center', marginTop: ms(10) },
+  emptyText: { fontSize: mf(15), ...font.medium, textAlign: 'center' },
+});
 
 export default withFeatureGuard('chat', ChatScreen);

@@ -5,6 +5,8 @@ import {
   formatMonthYear,
   formatPeriod,
   getDueStatus,
+  monthTrack,
+  formatMonthShort,
   nextUnpaidPeriod,
   periodsOverlap,
   sortBillsByDue,
@@ -48,6 +50,45 @@ const payments: HouseholdPayment[] = [
   pay('vaad', '2026-07-01', 3, '2026-07-05'),
   pay('vaad', '2026-10-01', 3, '2026-10-02'),
 ];
+
+describe('monthTrack', () => {
+  it('marks the last months paid, the overdue period late, and ends on next month', () => {
+    const arnonaPays = payments.filter((x) => x.billId === 'arnona');
+    const status = getDueStatus(arnona, arnonaPays, TODAY);
+    const track = monthTrack(arnonaPays, status, TODAY);
+    expect(track.map((m) => m.month)).toEqual([
+      '2026-06-01',
+      '2026-07-01',
+      '2026-08-01',
+      '2026-09-01',
+      '2026-10-01',
+      '2026-11-01',
+    ]);
+    expect(track.map((m) => m.mark)).toEqual(['paid', 'paid', 'paid', 'late', 'late', 'none']);
+  });
+
+  it('marks the upcoming unpaid period as next when nothing is late', () => {
+    const vaadPays = payments.filter((x) => x.billId === 'vaad');
+    const status = getDueStatus(vaad, vaadPays, '2026-12-20');
+    const track = monthTrack(vaadPays, status, '2026-12-20');
+    expect(track.map((m) => m.mark)).toEqual(['paid', 'paid', 'paid', 'paid', 'paid', 'next']);
+  });
+
+  it('marks all uncovered months since the overdue period start as late', () => {
+    // Monthly bill last covered through Feb 2026; today is Oct 2026 — overdue by 7+ months.
+    const b = bill('late', 'monthly');
+    const latePayments = [pay('late', '2026-02-01', 1, '2026-02-01')];
+    const status = getDueStatus(b, latePayments, TODAY);
+    const track = monthTrack(latePayments, status, TODAY);
+    // Track window: Jun–Nov 2026. All of Jun–Oct are past the overdue start (Mar),
+    // none are covered, so they must be 'late'. Nov is future → 'none'.
+    expect(track.map((m) => m.mark)).toEqual(['late', 'late', 'late', 'late', 'late', 'none']);
+  });
+
+  it('labels a month by its short name', () => {
+    expect(formatMonthShort('2026-08-01', 'en')).toBe('Aug');
+  });
+});
 
 describe('coveredThrough', () => {
   it('is the last month covered by the latest coverage', () => {

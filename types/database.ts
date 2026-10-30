@@ -15,6 +15,8 @@ export interface HouseTaskRow {
   created_by: string;
   created_at: string;
   updated_at: string | null;
+  recurrence: 'once' | 'weekly' | 'monthly';
+  recurrence_day: string | null;
 }
 
 export interface ExpenseCategoryRow {

@@ -36,7 +36,7 @@ function escape(term: string): string {
  *  - `=term` must be a whole word, so "water" skips "watermelon" and "דג"
  *    (fish) skips "דגני בוקר" (cereal).
  */
-function words(terms: string[]): RegExp {
+export function words(terms: string[]): RegExp {
   const start = `(?:^|[^${LETTER}])`;
   const end = `(?=$|[^${LETTER}])`;
   const parts = terms.map((raw) => {

@@ -163,6 +163,48 @@ export function sortBillsByDue(
   });
 }
 
+// ── Month tracker ────────────────────────────────────────────────────────────
+
+export type MonthMark = 'paid' | 'late' | 'next' | 'none';
+
+/**
+ * The row of month boxes on a bill: the last `count - 1` months up to this
+ * one, plus next month. Each is paid (some payment covers it), late (part of
+ * the overdue unpaid period), next (the upcoming unpaid period) or none.
+ */
+export function monthTrack(
+  payments: HouseholdPayment[],
+  status: DueStatus | null,
+  today: string,
+  count = 6
+): { month: string; mark: MonthMark }[] {
+  const covered = new Set<string>();
+  for (const p of payments) {
+    const period = paymentPeriod(p);
+    if (period) periodMonths(period).forEach((m) => covered.add(m));
+  }
+  const due = new Set(status ? periodMonths(status.period) : []);
+  const thisMonth = monthStart(today);
+  const first = shiftMonth(monthStart(today), -(count - 2));
+  return Array.from({ length: count }, (_, i) => {
+    const month = shiftMonth(first, i);
+    const overdueMonth = !!status?.isOverdue && month >= status.period.start && month <= thisMonth;
+    const mark: MonthMark = covered.has(month)
+      ? 'paid'
+      : overdueMonth || (status?.isOverdue && due.has(month))
+        ? 'late'
+        : due.has(month)
+          ? 'next'
+          : 'none';
+    return { month, mark };
+  });
+}
+
+/** "Aug" for a YYYY-MM-01 month, in the app language. */
+export function formatMonthShort(month: string, language: string): string {
+  return format(parseISO(month), 'MMM', { locale: getDateFnsLocale(language) });
+}
+
 // ── Labels ────────────────────────────────────────────────────────────────────
 
 /** "Aug 2026" for a YYYY-MM-01 month, in the app language. */

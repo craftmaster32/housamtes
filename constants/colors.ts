@@ -1,10 +1,12 @@
 // Design tokens — light + dark palettes (v2 "HouseMates" design system)
 // `colors` is kept as an alias for lightColors so existing screens don't break.
 //
-// Light  = the warm cream mockup (F6F2EA canvas, white cards).
-// Dark   = the deep navy mockup   (0A0F1B canvas, slate cards).
-// Both share the blue brand accent and the same gradient recipes for the
-// "You're owed" hero and the "Spending" card.
+// Light  = warm stone canvas (F2F1EE), white cards.
+// Dark   = neutral graphite canvas (1E2024), lighter graphite cards — a grey
+//          that lifts toward you as surfaces stack, never brown or pure black.
+// Both share the blue brand accent. The home screen adds two "paper" surfaces:
+// a notebook page for the money card and a blue sticky note for house notes.
+// Bills adds a receipt slip; drawings sit on a light sticker in dark mode.
 
 export type Gradient = readonly [string, string];
 
@@ -46,6 +48,26 @@ export interface ColorPalette {
   successGradient: Gradient;
   dangerGradient: Gradient;
   avatar: string[];
+  // Paper surfaces (home screen): notebook page + sticky note
+  paper: string;
+  paperInk: string;
+  paperMuted: string;
+  paperRule: string;
+  paperMargin: string;
+  note: string;
+  noteInk: string;
+  // Receipt paper (bills): stays light in dark mode, like a real slip
+  receipt: string;
+  receiptInk: string;
+  receiptMuted: string;
+  receiptRule: string;
+  // Brown paper grocery bag (grocery list): stays light in dark mode too
+  kraft: string;
+  kraftInk: string;
+  kraftMuted: string;
+  kraftRule: string;
+  // Light backing behind hand-drawn pictures in dark mode (a sticker)
+  sticker: string;
 }
 
 export const lightColors: ColorPalette = {
@@ -67,15 +89,15 @@ export const lightColors: ColorPalette = {
   // Neutrals
   white: '#FFFFFF',
   black: '#000000',
-  background: '#F6F2EA',
+  background: '#F2F1EE',
   surface: '#FFFFFF',
-  surfaceSecondary: '#F1ECE3',
-  border: 'rgba(20,24,32,0.08)',
-  borderLight: 'rgba(20,24,32,0.05)',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textTertiary: '#94A3B8',
-  textDisabled: '#C7C7CC',
+  surfaceSecondary: '#EFEDE9',
+  border: 'rgba(34,32,29,0.08)',
+  borderLight: 'rgba(34,32,29,0.05)',
+  textPrimary: '#22201D',
+  textSecondary: '#6F6A63',
+  textTertiary: '#A19B93',
+  textDisabled: '#C9C5BF',
 
   // Secondary palette
   secondary: '#E5EEFB',
@@ -98,10 +120,28 @@ export const lightColors: ColorPalette = {
 
   // Avatar palette
   avatar: ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'],
+
+  // Paper
+  paper: '#FBF3D3',
+  paperInk: '#22201D',
+  paperMuted: '#6B6250',
+  paperRule: 'rgba(59,111,191,0.10)',
+  paperMargin: 'rgba(214,88,74,0.32)',
+  note: '#D6E4F7',
+  noteInk: '#14243D',
+  receipt: '#FFFDF8',
+  receiptInk: '#22201D',
+  receiptMuted: '#7A746B',
+  receiptRule: 'rgba(34,32,29,0.2)',
+  kraft: '#DCC39A',
+  kraftInk: '#2E2416',
+  kraftMuted: '#5E4A2E',
+  kraftRule: 'rgba(90,60,20,0.28)',
+  sticker: 'transparent',
 };
 
 export const darkColors: ColorPalette = {
-  // Brand — brighter to pop on the dark navy canvas
+  // Brand — brighter to pop on the graphite canvas
   primary: '#4E82D4',
   primaryLight: '#5B90E0',
   primaryDark: '#3A61A0',
@@ -119,15 +159,15 @@ export const darkColors: ColorPalette = {
   // Neutrals
   white: '#FFFFFF',
   black: '#000000',
-  background: '#0A0F1B',
-  surface: '#151D2E',
-  surfaceSecondary: '#1F2940',
-  border: 'rgba(255,255,255,0.08)',
-  borderLight: 'rgba(255,255,255,0.05)',
-  textPrimary: '#EEF2F8',
-  textSecondary: '#8A95AA',
-  textTertiary: '#586279',
-  textDisabled: '#3A4A65',
+  background: '#1E2024',
+  surface: '#2A2D32',
+  surfaceSecondary: '#353940',
+  border: 'rgba(235,238,243,0.09)',
+  borderLight: 'rgba(235,238,243,0.05)',
+  textPrimary: '#EEF0F3',
+  textSecondary: '#A3A8B0',
+  textTertiary: '#6E737B',
+  textDisabled: '#4A4E55',
 
   // Secondary palette
   secondary: '#1A2A48',
@@ -150,6 +190,24 @@ export const darkColors: ColorPalette = {
 
   // Avatar palette (same — these are identity colors)
   avatar: ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'],
+
+  // Paper — stays light in dark mode, like a real page on a dark table
+  paper: '#F3EBCB',
+  paperInk: '#22201D',
+  paperMuted: '#6B6250',
+  paperRule: 'rgba(59,111,191,0.10)',
+  paperMargin: 'rgba(214,88,74,0.35)',
+  note: '#CADBF2',
+  noteInk: '#14243D',
+  receipt: '#F4F1EA',
+  receiptInk: '#22201D',
+  receiptMuted: '#7A746B',
+  receiptRule: 'rgba(34,32,29,0.2)',
+  kraft: '#D6BC91',
+  kraftInk: '#2E2416',
+  kraftMuted: '#5E4A2E',
+  kraftRule: 'rgba(90,60,20,0.28)',
+  sticker: '#F3EEE3',
 };
 
 // Backward-compat alias — existing screens that import `colors` get light theme.

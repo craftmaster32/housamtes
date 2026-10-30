@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
+import { Alert } from '@lib/alert';
 
 // expo-calendar is mobile-only — import lazily so web doesn't crash
 let ExpoCalendar: typeof import('expo-calendar') | null = null;

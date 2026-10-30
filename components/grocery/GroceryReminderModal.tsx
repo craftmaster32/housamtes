@@ -1,40 +1,56 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   Pressable,
-  TextInput,
   Modal,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { Alert } from '@lib/alert';
+import { getDateFnsLocale } from '@utils/dates';
+import type { GroceryReminder } from '@stores/groceryStore';
+import { SheetHeader } from '@components/bills/recurring/SheetHeader';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
 import { ReminderDateTimeField } from '@components/grocery/ReminderDateTimeField';
-
 import { mf, ms } from '@utils/responsive';
+
+// The pink of the reminder tag clipped to the bag.
+const TAG = '#F6D8D2';
+const TAG_INK = '#8E2F28';
+
 export interface GroceryReminderModalProps {
   visible: boolean;
   defaultLabel?: string;
+  /** Upcoming reminders, shown as pink tags above the form. */
+  reminders: GroceryReminder[];
+  onDelete: (id: string) => void;
   onClose: () => void;
   onSave: (label: string, remindAt: string) => Promise<void>;
 }
 
+/** Your grocery reminders as pink tags, and "Set reminder" with the note, date and time on lines. */
 export function GroceryReminderModal({
   visible,
   defaultLabel = '',
+  reminders,
+  onDelete,
   onClose,
   onSave,
 }: GroceryReminderModalProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(), []);
-  const headingFont = useHeadingFont('bold');
+  const { t, i18n } = useTranslation();
+  const c = useThemedColors();
+  const hand = useHandFont();
+  const overlay = c === darkColors ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)';
+  const dateLocale = getDateFnsLocale(i18n.language);
 
   const [label, setLabel] = useState('');
   const [remindAtIso, setRemindAtIso] = useState<string | null>(null);
@@ -66,6 +82,23 @@ export function GroceryReminderModal({
     }
   }, [canSave, remindAtIso, label, onSave, onClose, t]);
 
+  const handleDelete = useCallback(
+    (reminder: GroceryReminder): void => {
+      Alert.alert(t('grocery.cancel_reminder_title'), t('grocery.cancel_reminder_body'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: (): void => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+            onDelete(reminder.id);
+          },
+        },
+      ]);
+    },
+    [onDelete, t]
+  );
+
   return (
     <Modal
       visible={visible}
@@ -75,139 +108,121 @@ export function GroceryReminderModal({
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        style={s.overlay}
+        style={[styles.overlay, { backgroundColor: overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Pressable style={s.backdrop} onPress={onClose} accessible={false} />
-        <View style={[s.sheet, { backgroundColor: C.surface }]}>
-          <View style={[s.handle, { backgroundColor: C.border }]} />
-          <View style={s.header}>
-            <View style={s.headerText}>
-              <Text style={[s.title, headingFont, { color: C.textPrimary }]}>
-                {t('grocery.set_reminder')}
-              </Text>
-              <Text style={[s.subtitle, { color: C.textSecondary }]}>
-                {t('grocery.reminder_sub')}
-              </Text>
-            </View>
-            <Pressable
-              onPress={onClose}
-              style={[s.closeBtn, { backgroundColor: C.surfaceSecondary }]}
-              hitSlop={{ top: ms(7), bottom: ms(7), left: ms(7), right: ms(7) }}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
-            >
-              <Ionicons name="close" size={18} color={C.textSecondary} />
-            </Pressable>
-          </View>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+        <View style={[styles.sheet, { backgroundColor: c.background }]} accessibilityViewIsModal>
+          <SheetHeader
+            eyebrow={t('grocery.reminders')}
+            title={t('grocery.set_reminder')}
+            onClose={onClose}
+          />
+          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+            <Text style={[styles.sub, { color: c.textSecondary }]}>
+              {t('grocery.reminder_sub')}
+            </Text>
 
-          <View
-            style={[s.inputBox, { backgroundColor: C.surfaceSecondary, borderColor: C.border }]}
-          >
-            <TextInput
+            {reminders.map((r) => (
+              <View key={r.id} style={[styles.reminder, { borderBottomColor: c.border }]}>
+                <View style={styles.tag}>
+                  <Text style={[styles.tagText, hand]}>
+                    {format(new Date(r.remindAt), 'EEE p', { locale: dateLocale })}
+                  </Text>
+                </View>
+                <Text style={[styles.reminderLabel, { color: c.textPrimary }]} numberOfLines={2}>
+                  {r.label}
+                </Text>
+                <Pressable
+                  onPress={() => handleDelete(r)}
+                  style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('grocery.cancel_reminder_name', { name: r.label })}
+                >
+                  <Text style={[styles.cancelText, { color: c.negative }]}>
+                    {t('common.cancel')}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+
+            <UnderlineInput
+              label={t('grocery.reminder_label')}
               value={label}
               onChangeText={setLabel}
               placeholder={t('grocery.reminder_label_placeholder')}
-              placeholderTextColor={C.textSecondary}
-              style={[s.input, { color: C.textPrimary }]}
-              maxLength={200}
-              accessible
               accessibilityLabel={t('grocery.reminder_label')}
               accessibilityHint={t('grocery.reminder_label_hint')}
             />
-          </View>
 
-          <ReminderDateTimeField visible={visible} onChange={setRemindAtIso} />
+            <ReminderDateTimeField visible={visible} onChange={setRemindAtIso} />
 
-          {!!saveError && <Text style={[s.saveError, { color: C.danger }]}>{saveError}</Text>}
+            {!!saveError && <Text style={[styles.error, { color: c.danger }]}>{saveError}</Text>}
 
-          <View style={s.actions}>
-            <Pressable
-              onPress={onClose}
-              style={[s.btn, { borderColor: C.border }]}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
-            >
-              <Text style={[s.btnText, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
-            </Pressable>
             <Pressable
               onPress={handleSave}
               disabled={!canSave}
-              style={[s.btn, s.btnPrimary, { backgroundColor: C.primary }, !canSave && s.btnOff]}
+              style={({ pressed }) => [
+                styles.primary,
+                { backgroundColor: c.primary },
+                (!canSave || pressed) && styles.dim,
+              ]}
               accessible
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSave }}
               accessibilityLabel={isSaving ? t('grocery.saving') : t('grocery.set_reminder')}
             >
-              <Text style={[s.btnText, s.btnPrimaryText]}>
+              <Text style={styles.primaryText}>
                 {isSaving ? t('grocery.saving') : t('grocery.set_reminder')}
               </Text>
             </Pressable>
-          </View>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-function makeStyles(): ReturnType<typeof StyleSheet.create> {
-  return StyleSheet.create({
-    overlay: { flex: 1, justifyContent: 'flex-end' },
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-    sheet: {
-      borderTopLeftRadius: ms(26),
-      borderTopRightRadius: ms(26),
-      padding: ms(22),
-      paddingBottom: ms(40),
-      gap: ms(14),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(-4) },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      elevation: 10,
-    },
-    handle: {
-      width: ms(40),
-      height: ms(4),
-      borderRadius: ms(2),
-      alignSelf: 'center',
-      marginBottom: ms(2),
-    },
-    header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-    headerText: { flex: 1 },
-    title: { fontSize: mf(21), letterSpacing: -0.3 },
-    subtitle: { fontSize: mf(12.5), ...font.medium, marginTop: ms(2) },
-    closeBtn: {
-      width: ms(30),
-      height: ms(30),
-      borderRadius: ms(15),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    inputBox: { borderRadius: ms(12), borderWidth: 1, paddingHorizontal: ms(14) },
-    input: { fontSize: mf(15), ...font.regular, minHeight: ms(48) },
-    saveError: { fontSize: mf(12) },
-    actions: { flexDirection: 'row', gap: ms(10), marginTop: ms(2) },
-    btn: {
-      flex: 1,
-      height: ms(50),
-      borderRadius: ms(14),
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1.5,
-    },
-    btnPrimary: {
-      borderWidth: 0,
-      shadowColor: '#3B6FBF',
-      shadowOffset: { width: 0, height: ms(8) },
-      shadowOpacity: 0.28,
-      shadowRadius: 16,
-      elevation: 6,
-    },
-    btnOff: { opacity: 0.5 },
-    btnText: { fontSize: mf(15), ...font.bold },
-    btnPrimaryText: { color: '#FFFFFF' },
-  });
-}
+const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    borderTopLeftRadius: ms(26),
+    borderTopRightRadius: ms(26),
+    maxHeight: '90%',
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  body: { padding: ms(20), paddingTop: ms(8), paddingBottom: ms(36), gap: ms(16) },
+  sub: { fontSize: mf(14), ...font.regular, lineHeight: mf(20) },
+  reminder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(12),
+    minHeight: 54,
+    borderBottomWidth: 1.5,
+  },
+  tag: {
+    backgroundColor: TAG,
+    paddingHorizontal: ms(8),
+    paddingVertical: ms(3),
+    transform: [{ rotate: '-3deg' }],
+    minWidth: ms(70),
+    alignItems: 'center',
+  },
+  tagText: { fontSize: mf(17), color: TAG_INK },
+  reminderLabel: { flex: 1, fontSize: mf(15.5), ...font.semibold },
+  cancelBtn: { minHeight: 44, justifyContent: 'center' },
+  cancelText: { fontSize: mf(14), ...font.semibold },
+  error: { fontSize: mf(13) },
+  primary: { minHeight: 52, borderRadius: ms(17), alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: mf(16), ...font.semibold, color: '#FFFFFF' },
+  dim: { opacity: 0.5 },
+  pressed: { opacity: 0.6 },
+});
