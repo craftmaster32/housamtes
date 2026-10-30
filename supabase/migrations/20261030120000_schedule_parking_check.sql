@@ -6,17 +6,15 @@
 -- by a flag or status change, so running it often never repeats one.
 --
 -- Only runs where pg_cron + pg_net exist (the live project; staging has
--- neither). The project URL and the x-cron-secret header (checked by
--- _shared/cronAuth.ts once CRON_SECRET is set) are copied from the existing
--- reminder jobs, so this file never hard-codes the project or a secret.
+-- neither). The project URL is copied from an existing cron job. The
+-- x-cron-secret header is resolved at execution time via JSON parsing so the
+-- secret is never embedded in the stored cron command or written to cron logs.
 -- cron.schedule with an existing job name updates that job, so re-running
 -- this is safe.
 
 DO $$
 DECLARE
   base_url text;
-  cron_secret text;
-  headers jsonb := '{"Content-Type": "application/json"}'::jsonb;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')
      OR NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_net') THEN
@@ -37,29 +35,35 @@ BEGIN
     RETURN;
   END IF;
 
-  EXECUTE $q$
-    SELECT substring(command FROM '"x-cron-secret"\s*:\s*"([^"]+)"')
-    FROM cron.job
-    WHERE command LIKE '%x-cron-secret%'
-    ORDER BY jobid
-    LIMIT 1
-  $q$ INTO cron_secret;
-
-  IF cron_secret IS NOT NULL THEN
-    headers := headers || jsonb_build_object('x-cron-secret', cron_secret);
-  END IF;
-
+  -- The stored command resolves x-cron-secret at execution time by extracting
+  -- the headers JSON from an existing cron job and parsing it with the jsonb
+  -- ->> operator (properly decodes escape sequences). The secret therefore
+  -- never appears in the cron.job command column or in pg_cron log entries.
   EXECUTE format(
     $q$SELECT cron.schedule('parking-check', '*/5 * * * *', %L)$q$,
     format(
       $c$select net.http_post(
   url := %L,
-  headers := %L::jsonb,
+  headers := (
+    select '{"Content-Type": "application/json"}'::jsonb
+      || case when s is not null
+              then jsonb_build_object('x-cron-secret', s)
+              else '{}'::jsonb
+         end
+    from (
+      select (regexp_match(command, 'headers\s*:=\s*''(\{[^'']+\})'''))[1]::jsonb
+               ->> 'x-cron-secret' as s
+      from cron.job
+      where command like '%%x-cron-secret%%'
+        and jobname <> 'parking-check'
+      order by jobid
+      limit 1
+    ) t
+  ),
   body := '{}'::jsonb,
   timeout_milliseconds := 10000
 );$c$,
-      base_url || '/functions/v1/parking-check',
-      headers::text
+      base_url || '/functions/v1/parking-check'
     )
   );
 END
