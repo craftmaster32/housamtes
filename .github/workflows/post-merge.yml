@@ -10,12 +10,6 @@ on:
         type: boolean
         default: false
 
-# One deploy at a time, in merge order: a newer merge waits instead of racing
-# an older run that could otherwise redeploy older function code after it.
-concurrency:
-  group: post-merge-deploy
-  cancel-in-progress: false
-
 permissions:
   contents: write
   pull-requests: write
