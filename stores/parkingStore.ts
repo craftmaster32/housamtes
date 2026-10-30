@@ -910,7 +910,8 @@ export const useParkingStore = create<ParkingStore>()(
               current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
             });
             await markAutoClaimed();
-            await notifyReservationStarted(houseId, dueReservation.requestedBy);
+            // Not awaited: a slow push must never hold up load() subscribing.
+            void notifyReservationStarted(houseId, dueReservation.requestedBy);
           }
         } catch (err) {
           captureError(err, { context: 'checkReservationAutoApply', houseId });
