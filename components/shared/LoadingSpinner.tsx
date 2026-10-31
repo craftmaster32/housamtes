@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Animated, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -23,14 +22,21 @@ interface LoadingSpinnerProps {
   onDark?: boolean;
 }
 
-const QUIP_EVERY_MS = 2600;
+// Long enough to read a line comfortably before the next one fades in.
+const QUIP_EVERY_MS = 5000;
+const QUIP_FADE_MS = 300;
+// One sweep of the progress bar across its track.
+const BAR_SWEEP_MS = 1400;
+const BAR_WIDTH = 140;
+const BAR_FILL = 0.35;
 // Big loaders (boot splash, full screens) talk; small inline ones just hop.
 const QUIP_MIN_SIZE = 120;
 
 /**
  * HouseMates' loading indicator: Mate hops on the spot and waves, with his
- * shadow shrinking as he leaves the ground. Big loaders add a funny line that
- * changes every few seconds.
+ * shadow shrinking as he leaves the ground. Big loaders add a progress bar that
+ * keeps sweeping (so it's obvious the app is working) and a funny line that
+ * gently fades to a new one every few seconds.
  *
  * Driven by requestAnimationFrame — NOT reanimated. Reanimated's shared-value
  * animations don't run on this app's react-native-web build (see
@@ -69,11 +75,36 @@ export function LoadingSpinner({
 
   // Start on a random line so repeat visits don't always open the same joke.
   const [quipIndex, setQuipIndex] = useState(() => Math.floor(Math.random() * QUIP_KEYS.length));
+  const quipOpacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!talks) return;
-    const id = setInterval(() => setQuipIndex((i) => (i + 1) % QUIP_KEYS.length), QUIP_EVERY_MS);
-    return (): void => clearInterval(id);
-  }, [talks]);
+    const next = (): void => setQuipIndex((i) => (i + 1) % QUIP_KEYS.length);
+    const id = setInterval(() => {
+      if (reduceMotion) {
+        next();
+        return;
+      }
+      // Fade the old line out, swap it while invisible, then fade the new one in.
+      Animated.timing(quipOpacity, {
+        toValue: 0,
+        duration: QUIP_FADE_MS,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) return;
+        next();
+        Animated.timing(quipOpacity, {
+          toValue: 1,
+          duration: QUIP_FADE_MS,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, QUIP_EVERY_MS);
+    return (): void => {
+      clearInterval(id);
+      quipOpacity.stopAnimation();
+      quipOpacity.setValue(1);
+    };
+  }, [talks, reduceMotion, quipOpacity]);
 
   const mateSize = Math.max(36, Math.round(size * 0.55));
   const hopHeight = mateSize * 0.22;
@@ -91,6 +122,12 @@ export function LoadingSpinner({
 
   const dark = onDark ?? C.background === darkColors.background;
   const quipColor = dark ? darkColors.textSecondary : C.textSecondary;
+  const barColor = color ?? (dark ? darkColors.primary : C.primary);
+  const trackColor = dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+
+  // The bar's filled chunk slides in from the left and out the right, over and over.
+  const barSweep = ((progress * duration) / BAR_SWEEP_MS) % 1;
+  const barLeft = (barSweep * (1 + BAR_FILL) - BAR_FILL) * BAR_WIDTH;
 
   return (
     <View
@@ -128,10 +165,22 @@ export function LoadingSpinner({
           <MateDrawing size={mateSize} armAngle={pose.arm} onDark={onDark} roofColor={color} />
         </View>
       </View>
+      {size >= QUIP_MIN_SIZE && !reduceMotion && (
+        <View
+          testID="loading-bar"
+          style={[styles.barTrack, { backgroundColor: trackColor }]}
+          importantForAccessibility="no-hide-descendants"
+        >
+          <View style={[styles.barFill, { backgroundColor: barColor, left: barLeft }]} />
+        </View>
+      )}
       {talks && (
-        <Text style={[styles.quip, { color: quipColor }]} numberOfLines={2}>
+        <Animated.Text
+          style={[styles.quip, { color: quipColor, opacity: quipOpacity }]}
+          numberOfLines={2}
+        >
           {t(QUIP_KEYS[quipIndex])}
-        </Text>
+        </Animated.Text>
       )}
     </View>
   );
@@ -140,6 +189,20 @@ export function LoadingSpinner({
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center' },
   shadow: { position: 'absolute' },
+  barTrack: {
+    marginTop: 14,
+    width: BAR_WIDTH,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  barFill: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: BAR_WIDTH * BAR_FILL,
+    borderRadius: 2,
+  },
   quip: {
     marginTop: 14,
     maxWidth: 260,
