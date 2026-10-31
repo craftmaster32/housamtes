@@ -165,7 +165,7 @@ export function LoadingSpinner({
           <MateDrawing size={mateSize} armAngle={pose.arm} onDark={onDark} roofColor={color} />
         </View>
       </View>
-      {talks && !reduceMotion && (
+      {size >= QUIP_MIN_SIZE && !reduceMotion && (
         <View
           testID="loading-bar"
           style={[styles.barTrack, { backgroundColor: trackColor }]}
