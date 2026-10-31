@@ -89,7 +89,8 @@ export function LoadingSpinner({
         toValue: 0,
         duration: QUIP_FADE_MS,
         useNativeDriver: true,
-      }).start(() => {
+      }).start(({ finished }) => {
+        if (!finished) return;
         next();
         Animated.timing(quipOpacity, {
           toValue: 1,
