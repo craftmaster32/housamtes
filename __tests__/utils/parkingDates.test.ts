@@ -1,4 +1,10 @@
-import { byStartTime, parseDateParts, timeRange, toDateString } from '@utils/parkingDates';
+import {
+  byStartTime,
+  formatSince,
+  parseDateParts,
+  timeRange,
+  toDateString,
+} from '@utils/parkingDates';
 import { reservationStatus } from '@components/parking/reservationStatus';
 import type { ParkingReservation } from '@stores/parkingStore';
 
@@ -17,6 +23,31 @@ const res = (over: Partial<ParkingReservation>): ParkingReservation => ({
 const t = (key: string): string => key;
 
 describe('parkingDates', () => {
+  describe('formatSince', () => {
+    const now = new Date(2026, 9, 31, 12, 27);
+    const at = (d: number, h: number, m: number): string =>
+      new Date(2026, 9, d, h, m).toISOString();
+
+    it('shows just the time when parked today', () => {
+      const since = formatSince(at(31, 9, 5), 'en-US', 'yesterday', now);
+      expect(since.day).toBeNull();
+      expect(since.time).toEqual(expect.stringContaining('09:05'));
+    });
+
+    it('says yesterday when parked the day before', () => {
+      const since = formatSince(at(30, 13, 23), 'en-US', 'yesterday', now);
+      expect(since.day).toBe('yesterday');
+      expect(since.time).toEqual(expect.stringContaining('01:23'));
+    });
+
+    it('shows the date when parked further back', () => {
+      const day = formatSince(at(28, 8, 0), 'en-US', 'yesterday', now).day;
+      expect(day).toEqual(expect.stringContaining('Wed'));
+      expect(day).toEqual(expect.stringContaining('Oct'));
+      expect(day).toEqual(expect.stringContaining('28'));
+    });
+  });
+
   it('formats a local date as YYYY-MM-DD', () => {
     expect(toDateString(new Date(2026, 0, 5))).toBe('2026-01-05');
   });
