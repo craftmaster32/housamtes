@@ -41,7 +41,7 @@ import {
   type ParkingReservation,
 } from '@stores/parkingStore';
 import { resolveName } from '@utils/housemates';
-import { formatTime, todayString } from '@utils/parkingDates';
+import { formatSince, todayString } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
 
 // ── List item union type ───────────────────────────────────────────────────────
@@ -87,17 +87,22 @@ function ParkingScreen(): React.JSX.Element {
     [housemates, t]
   );
   const occupantName = nameOf(current?.occupant ?? '');
+  // The big headline only has room for a first name; the line below keeps the full one.
+  const occupantFirstName = occupantName.trim().split(/\s+/)[0] || occupantName;
+  const since = current?.startTime
+    ? formatSince(current.startTime, language, t('common.yesterday').toLowerCase())
+    : '';
 
   const statusLine = !current
     ? t('parking.free_real_estate')
     : isMine
       ? current.startTime
-        ? t('parking.your_car_since', { time: formatTime(current.startTime, language) })
+        ? t('parking.your_car_since', { time: since })
         : t('parking.your_car_all_day')
       : current.startTime
         ? t('parking.took_spot_since', {
             name: occupantName,
-            time: formatTime(current.startTime, language),
+            time: since,
           })
         : t('parking.took_spot_all_day', { name: occupantName });
 
@@ -196,7 +201,7 @@ function ParkingScreen(): React.JSX.Element {
             <SpotCard
               current={current}
               isMine={isMine}
-              occupantName={occupantName}
+              occupantName={occupantFirstName}
               statusLine={statusLine}
               blockedReservation={blockedReservation}
               myId={myId}

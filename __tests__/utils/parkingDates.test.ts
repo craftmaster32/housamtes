@@ -1,4 +1,10 @@
-import { byStartTime, parseDateParts, timeRange, toDateString } from '@utils/parkingDates';
+import {
+  byStartTime,
+  formatSince,
+  parseDateParts,
+  timeRange,
+  toDateString,
+} from '@utils/parkingDates';
 import { reservationStatus } from '@components/parking/reservationStatus';
 import type { ParkingReservation } from '@stores/parkingStore';
 
@@ -17,6 +23,24 @@ const res = (over: Partial<ParkingReservation>): ParkingReservation => ({
 const t = (key: string): string => key;
 
 describe('parkingDates', () => {
+  describe('formatSince', () => {
+    const now = new Date(2026, 9, 31, 12, 27);
+    const at = (d: number, h: number, m: number): string =>
+      new Date(2026, 9, d, h, m).toISOString();
+
+    it('shows just the time when parked today', () => {
+      expect(formatSince(at(31, 9, 5), 'en-US', 'yesterday', now)).toMatch(/^09:05/);
+    });
+
+    it('says yesterday when parked the day before', () => {
+      expect(formatSince(at(30, 13, 23), 'en-US', 'yesterday', now)).toMatch(/^yesterday 01:23/);
+    });
+
+    it('shows the date when parked further back', () => {
+      expect(formatSince(at(28, 8, 0), 'en-US', 'yesterday', now)).toMatch(/^Wed, Oct 28, 08:00/);
+    });
+  });
+
   it('formats a local date as YYYY-MM-DD', () => {
     expect(toDateString(new Date(2026, 0, 5))).toBe('2026-01-05');
   });

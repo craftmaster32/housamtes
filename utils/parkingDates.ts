@@ -5,6 +5,31 @@ export function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * When a car was parked: just the time if it was today, "yesterday 08:40" the
+ * day before, or "Fri, Oct 30, 08:40" further back — so an old claim doesn't
+ * look like it's from today.
+ */
+export function formatSince(
+  iso: string,
+  locale: string,
+  yesterdayLabel: string,
+  now: Date = new Date()
+): string {
+  const parked = new Date(iso);
+  const time = formatTime(iso, locale);
+  const parkedDay = toDateString(parked);
+  if (parkedDay === toDateString(now)) return time;
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (parkedDay === toDateString(yesterday)) return `${yesterdayLabel} ${time}`;
+  const day = parked.toLocaleDateString(locale, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+  return `${day}, ${time}`;
+}
+
 /** Local YYYY-MM-DD for a Date. */
 export function toDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
