@@ -41,7 +41,7 @@ import {
   type ParkingReservation,
 } from '@stores/parkingStore';
 import { resolveName } from '@utils/housemates';
-import { formatTime, todayString } from '@utils/parkingDates';
+import { formatSince, todayString } from '@utils/parkingDates';
 import { mf, ms } from '@utils/responsive';
 
 // ── List item union type ───────────────────────────────────────────────────────
@@ -87,18 +87,32 @@ function ParkingScreen(): React.JSX.Element {
     [housemates, t]
   );
   const occupantName = nameOf(current?.occupant ?? '');
+  // The big headline only has room for a first name; the line below keeps the
+  // full one. The "unknown" fallback is kept whole (in Hebrew its first word is "no").
+  const isKnownOccupant = housemates.some((h) => h.id === current?.occupant);
+  const occupantFirstName = isKnownOccupant
+    ? occupantName.trim().split(/\s+/)[0] || occupantName
+    : occupantName;
+  const since = current?.startTime
+    ? formatSince(current.startTime, language, t('common.yesterday').toLowerCase())
+    : null;
 
   const statusLine = !current
     ? t('parking.free_real_estate')
     : isMine
-      ? current.startTime
-        ? t('parking.your_car_since', { time: formatTime(current.startTime, language) })
+      ? since
+        ? since.day
+          ? t('parking.your_car_since_day', { day: since.day, time: since.time })
+          : t('parking.your_car_since', { time: since.time })
         : t('parking.your_car_all_day')
-      : current.startTime
-        ? t('parking.took_spot_since', {
-            name: occupantName,
-            time: formatTime(current.startTime, language),
-          })
+      : since
+        ? since.day
+          ? t('parking.took_spot_since_day', {
+              name: occupantName,
+              day: since.day,
+              time: since.time,
+            })
+          : t('parking.took_spot_since', { name: occupantName, time: since.time })
         : t('parking.took_spot_all_day', { name: occupantName });
 
   // Split into upcoming (date >= today) and history (date < today)
@@ -196,7 +210,7 @@ function ParkingScreen(): React.JSX.Element {
             <SpotCard
               current={current}
               isMine={isMine}
-              occupantName={occupantName}
+              occupantName={occupantFirstName}
               statusLine={statusLine}
               blockedReservation={blockedReservation}
               myId={myId}

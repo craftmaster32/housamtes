@@ -7,6 +7,7 @@
 //   #5  Slot started and the spot is free → mark it as the holder's (once per reservation)
 //   #6  Pending reservation approaching date → notice; date passed or time reached → auto-reject
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
+//   #8  Slot over and the holder is still marked in the spot → free it
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fetchPushDevices, sendPush } from '../_shared/push.ts';
@@ -80,6 +81,7 @@ interface Session {
   id: string;
   house_id: string;
   occupant: string;
+  start_time: string;
   is_active: boolean;
 }
 
@@ -330,6 +332,35 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       byHouse.set(r.house_id, list);
     }
 
+    // Pre-seed byHouse for houses that only have active sessions (no reservations in the
+    // notification window) so the #8 ended-session cleanup still runs for them.
+    for (const s of allSessions) {
+      if (!byHouse.has(s.house_id)) byHouse.set(s.house_id, []);
+    }
+
+    // Fetch approved reservations older than the window for active session occupants.
+    // Without this, #8 cannot free a session whose reservation predates the window.
+    const sessionOccupants = [...new Set(allSessions.map((s) => s.occupant))];
+    if (sessionOccupants.length > 0) {
+      const { data: olderData, error: olderErr } = await supabase
+        .from('parking_reservations')
+        .select('*')
+        .eq('status', 'approved')
+        .lt('date', windowStart)
+        .in('requested_by', sessionOccupants);
+      if (olderErr) {
+        console.error('[parking-check] older session reservations fetch error:', olderErr.message);
+      } else {
+        const existingIds = new Set(allReservations.map((r) => r.id));
+        for (const r of (olderData ?? []) as Reservation[]) {
+          if (existingIds.has(r.id)) continue;
+          const list = byHouse.get(r.house_id) ?? [];
+          list.push(r);
+          byHouse.set(r.house_id, list);
+        }
+      }
+    }
+
     // Collect all user IDs for the names lookup
     const allUserIds = new Set<string>();
     for (const r of allReservations) allUserIds.add(r.requested_by);
@@ -354,6 +385,58 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       }
       const { nowMins, today, tomorrow } = localCtx;
       let session = sessionByHouse.get(houseId);
+
+      // ── #8: Slot over → free the spot the holder is still marked in ─────────
+      // Runs before the per-reservation pass, and never while another of the
+      // holder's slots is running (back-to-back bookings keep the spot). Only a
+      // car parked before the slot ended is freed — a fresh claim afterwards is
+      // the holder parking again, and stays.
+      if (session) {
+        const parked = session;
+        const minsSinceEnd = (r: Reservation): number => {
+          const dayGap = Math.round((Date.parse(today) - Date.parse(r.date)) / 86_400_000);
+          const slotEndMins = r.end_time ? toMinutes(r.end_time) : 24 * 60;
+          return dayGap * 24 * 60 + nowMins - slotEndMins;
+        };
+        const holderSlots = houseReservations.filter(
+          (r) => r.status === 'approved' && r.requested_by === parked.occupant && r.date <= today
+        );
+        const hasRunningSlot = holderSlots.some((r) => {
+          const startMins = r.start_time ? toMinutes(r.start_time) : 0;
+          return r.date === today && nowMins >= startMins && minsSinceEnd(r) < 0;
+        });
+        const ended = hasRunningSlot
+          ? undefined
+          : holderSlots.find((r) => {
+              const mins = minsSinceEnd(r);
+              return mins >= 0 && Date.parse(parked.start_time) < Date.now() - mins * 60_000;
+            });
+        if (ended) {
+          const { data: freed, error: freeErr } = await supabase
+            .from('parking_sessions')
+            .update({ is_active: false })
+            .eq('id', parked.id)
+            .eq('is_active', true)
+            .select('id');
+          if (freeErr) {
+            console.error('[parking-check] release (#8) failed for', ended.id, freeErr.message);
+          } else {
+            session = undefined;
+            sessionByHouse.delete(houseId);
+            if (freed?.length) {
+              await sendToUser(
+                supabase,
+                ended.requested_by,
+                ended.house_id,
+                '🅿️ Your slot has ended',
+                'Your reserved parking time is over — the spot is now marked as free.',
+                { screen: 'parking' },
+                'parking_claimed'
+              );
+            }
+          }
+        }
+      }
 
       for (const r of houseReservations) {
         const rName = names.get(r.requested_by) ?? 'A housemate';
@@ -632,7 +715,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
             const { data: claimed, error: claimErr } = await supabase
               .from('parking_sessions')
               .insert({ house_id: r.house_id, occupant: r.requested_by, is_active: true })
-              .select('id, house_id, occupant, is_active')
+              .select('id, house_id, occupant, start_time, is_active')
               .single();
             if (claimErr || !claimed) {
               // A unique-index clash means someone claimed it a moment ago — fine.
