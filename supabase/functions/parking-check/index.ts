@@ -7,6 +7,7 @@
 //   #5  Slot started and the spot is free → mark it as the holder's (once per reservation)
 //   #6  Pending reservation approaching date → notice; date passed or time reached → auto-reject
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
+//   #8  Slot over and the holder is still marked in the spot → free it
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fetchPushDevices, sendPush } from '../_shared/push.ts';
@@ -80,6 +81,7 @@ interface Session {
   id: string;
   house_id: string;
   occupant: string;
+  start_time: string;
   is_active: boolean;
 }
 
@@ -575,6 +577,41 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
         if (r.status !== 'approved') continue;
 
+        // ── #8: Slot over → free the spot the holder is still marked in ─────────
+        // Only a car parked before the slot ended — a fresh claim afterwards is
+        // the holder parking again, and stays.
+        if (session && session.occupant === r.requested_by && r.date <= today) {
+          const dayGap = Math.round((Date.parse(today) - Date.parse(r.date)) / 86_400_000);
+          const slotEndMins = r.end_time ? toMinutes(r.end_time) : 24 * 60;
+          const minsSinceEnd = dayGap * 24 * 60 + nowMins - slotEndMins;
+          const endedAtMs = Date.now() - minsSinceEnd * 60_000;
+          if (minsSinceEnd >= 0 && Date.parse(session.start_time) < endedAtMs) {
+            const { data: freed, error: freeErr } = await supabase
+              .from('parking_sessions')
+              .update({ is_active: false })
+              .eq('id', session.id)
+              .eq('is_active', true)
+              .select('id');
+            if (freeErr) {
+              console.error('[parking-check] release (#8) failed for', r.id, freeErr.message);
+            } else {
+              session = undefined;
+              sessionByHouse.delete(houseId);
+              if (freed?.length) {
+                await sendToUser(
+                  supabase,
+                  r.requested_by,
+                  r.house_id,
+                  '🅿️ Your slot has ended',
+                  'Your reserved parking time is over — the spot is now marked as free.',
+                  { screen: 'parking' },
+                  'parking_claimed'
+                );
+              }
+            }
+          }
+        }
+
         // ── Approved reservations only from here — today, or tomorrow for the
         //    advance warning of an early-morning slot ──────────────────────────
         if (r.date !== today && r.date !== tomorrow) continue;
@@ -632,7 +669,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
             const { data: claimed, error: claimErr } = await supabase
               .from('parking_sessions')
               .insert({ house_id: r.house_id, occupant: r.requested_by, is_active: true })
-              .select('id, house_id, occupant, is_active')
+              .select('id, house_id, occupant, start_time, is_active')
               .single();
             if (claimErr || !claimed) {
               // A unique-index clash means someone claimed it a moment ago — fine.

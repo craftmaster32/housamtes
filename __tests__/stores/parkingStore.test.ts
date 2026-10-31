@@ -6,7 +6,8 @@
  *  2. claim — server-side guard, DB error, empty-name scenario
  *  3. release — null-current no-op, DB error
  *  4. addReservation — client-side conflict guard, DB error
- *  5. checkReservationAutoApply — already occupied, server guard, successful auto-claim
+ *  5. checkReservationAutoApply — already occupied, server guard, successful auto-claim,
+ *     freeing the spot once the holder's slot has ended
  *  6. approveReservation — ⚠️ BUG: DB error not caught, state mutated anyway
  *  7. cancelReservation — ⚠️ BUG: DB error not caught, item removed from state anyway
  *
@@ -23,6 +24,7 @@ import {
   isVoteChangeLocked,
   tallyParkingReservationVotes,
   findBlockedReservation,
+  findEndedReservation,
   useParkingStore,
   type ParkingReservation,
 } from '../../stores/parkingStore';
@@ -509,7 +511,67 @@ describe('parkingStore — addReservation', () => {
 // 5. checkReservationAutoApply
 // ─────────────────────────────────────────────────────────────────────────────
 
+describe('findEndedReservation', () => {
+  const now = new Date(2026, 9, 31, 19, 30);
+  const parkedAt = (d: number, h: number): string => new Date(2026, 9, d, h, 0).toISOString();
+  const slot = reservation({
+    status: 'approved',
+    requestedBy: 'ido',
+    date: '2026-10-31',
+    startTime: '13:00',
+    endTime: '19:00',
+  });
+
+  it('finds the slot when the holder parked before it ended and it is over', () => {
+    const current = { id: 's', occupant: 'ido', startTime: parkedAt(30, 13) };
+    expect(findEndedReservation(current, [slot], now)).toBe(slot);
+  });
+
+  it('ignores a slot that is still running', () => {
+    const current = { id: 's', occupant: 'ido', startTime: parkedAt(31, 13) };
+    expect(findEndedReservation(current, [slot], new Date(2026, 9, 31, 18, 0))).toBeNull();
+  });
+
+  it('leaves a fresh claim made after the slot ended', () => {
+    const current = {
+      id: 's',
+      occupant: 'ido',
+      startTime: new Date(2026, 9, 31, 19, 10).toISOString(),
+    };
+    expect(findEndedReservation(current, [slot], now)).toBeNull();
+  });
+
+  it('ignores someone else parked in the spot', () => {
+    const current = { id: 's', occupant: 'lior', startTime: parkedAt(31, 12) };
+    expect(findEndedReservation(current, [slot], now)).toBeNull();
+  });
+
+  it('treats an all-day slot as ending at midnight', () => {
+    const allDay = reservation({ status: 'approved', requestedBy: 'ido', date: '2026-10-30' });
+    const current = { id: 's', occupant: 'ido', startTime: parkedAt(30, 9) };
+    expect(findEndedReservation(current, [allDay], now)).toBe(allDay);
+  });
+});
+
 describe('parkingStore — checkReservationAutoApply', () => {
+  it("frees the spot when the holder's slot has ended", async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const parked = new Date(yesterday);
+    parked.setHours(0, 0, 0, 0);
+    useParkingStore.setState({
+      current: { id: 'ps1', occupant: 'Alice', startTime: parked.toISOString() },
+      reservations: [reservation({ status: 'approved', date: yStr, autoClaimed: true })],
+    });
+    mockFrom.mockReturnValueOnce(ok([{ id: 'ps1' }]));
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(mockFrom).toHaveBeenCalledWith('parking_sessions');
+    expect(useParkingStore.getState().current).toBeNull();
+  });
+
   it('does nothing when a session is already active locally', async () => {
     useParkingStore.setState({
       current: { id: 'ps1', occupant: 'Alice', startTime: '08:00' },

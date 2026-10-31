@@ -185,6 +185,34 @@ export function findBlockedReservation(
   );
 }
 
+// The moment a reservation's slot ends, in device-local time: its end time on
+// its date, or the following midnight for an open-ended / all-day slot.
+function reservationEndsAt(r: ParkingReservation): Date {
+  const [y, m, d] = r.date.split('-').map(Number);
+  const endMinutes = r.endTime ? toMinutes(r.endTime) : 24 * 60;
+  return new Date(y, m - 1, d, 0, endMinutes);
+}
+
+// The holder's car is still marked in the spot after their reserved slot ended,
+// and they parked before it ended (so a fresh claim afterwards is left alone).
+// Returns that reservation — the spot should be freed — or null.
+export function findEndedReservation(
+  current: ParkingSession | null,
+  reservations: ParkingReservation[],
+  now: Date = new Date()
+): ParkingReservation | null {
+  if (!current) return null;
+  const parkedAt = new Date(current.startTime).getTime();
+  if (Number.isNaN(parkedAt)) return null;
+  return (
+    reservations.find((r) => {
+      if (r.status !== 'approved' || r.requestedBy !== current.occupant) return false;
+      const endsAt = reservationEndsAt(r).getTime();
+      return endsAt <= now.getTime() && parkedAt < endsAt;
+    }) ?? null
+  );
+}
+
 export interface ConflictResult {
   conflict: string | null;
   warning: string | null;
@@ -815,6 +843,28 @@ export const useParkingStore = create<ParkingStore>()(
                   ),
                 });
               }
+            }
+          }
+
+          // The holder's slot is over but their car is still marked in the spot —
+          // free it, so the spot doesn't stay "taken" for days.
+          const ended = findEndedReservation(get().current, get().reservations, now);
+          const endedSession = ended ? get().current : null;
+          if (endedSession && endedSession.id !== 'optimistic') {
+            const { data: freed, error: freeError } = await supabase
+              .from('parking_sessions')
+              .update({ is_active: false })
+              .eq('id', endedSession.id)
+              .eq('house_id', houseId)
+              .eq('is_active', true)
+              .select('id');
+            if (freeError) {
+              captureError(freeError, {
+                context: 'checkReservationAutoApply:releaseEnded',
+                houseId,
+              });
+            } else if (freed?.length && get().current?.id === endedSession.id) {
+              set({ current: null });
             }
           }
 
