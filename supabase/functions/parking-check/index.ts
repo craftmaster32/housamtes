@@ -332,6 +332,35 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       byHouse.set(r.house_id, list);
     }
 
+    // Pre-seed byHouse for houses that only have active sessions (no reservations in the
+    // notification window) so the #8 ended-session cleanup still runs for them.
+    for (const s of allSessions) {
+      if (!byHouse.has(s.house_id)) byHouse.set(s.house_id, []);
+    }
+
+    // Fetch approved reservations older than the window for active session occupants.
+    // Without this, #8 cannot free a session whose reservation predates the window.
+    const sessionOccupants = [...new Set(allSessions.map((s) => s.occupant))];
+    if (sessionOccupants.length > 0) {
+      const { data: olderData, error: olderErr } = await supabase
+        .from('parking_reservations')
+        .select('*')
+        .eq('status', 'approved')
+        .lt('date', windowStart)
+        .in('requested_by', sessionOccupants);
+      if (olderErr) {
+        console.error('[parking-check] older session reservations fetch error:', olderErr.message);
+      } else {
+        const existingIds = new Set(allReservations.map((r) => r.id));
+        for (const r of (olderData ?? []) as Reservation[]) {
+          if (existingIds.has(r.id)) continue;
+          const list = byHouse.get(r.house_id) ?? [];
+          list.push(r);
+          byHouse.set(r.house_id, list);
+        }
+      }
+    }
+
     // Collect all user IDs for the names lookup
     const allUserIds = new Set<string>();
     for (const r of allReservations) allUserIds.add(r.requested_by);
