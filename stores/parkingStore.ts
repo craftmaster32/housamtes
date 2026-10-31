@@ -185,45 +185,12 @@ export function findBlockedReservation(
   );
 }
 
-// The moment a reservation's slot ends, as a UTC Date. When a house timezone is
-// supplied the local time is converted to UTC via Newton's method (probe + offset);
-// without one it falls back to the device timezone.
-function reservationEndsAt(r: ParkingReservation, tz?: string): Date {
+// The moment a reservation's slot ends, in device-local time: its end time on
+// its date, or the following midnight for an open-ended / all-day slot.
+function reservationEndsAt(r: ParkingReservation): Date {
   const [y, m, d] = r.date.split('-').map(Number);
   const endMinutes = r.endTime ? toMinutes(r.endTime) : 24 * 60;
-  if (!tz) {
-    return new Date(y, m - 1, d, 0, endMinutes);
-  }
-  // All-day/midnight: endMinutes = 24 * 60 → next day at 00:00 in the house tz.
-  const endH = Math.floor(endMinutes / 60);
-  const endM = endMinutes % 60;
-  const dayOffset = endH >= 24 ? 1 : 0;
-  const localH = endH % 24;
-  // Treat the target local time as UTC (probe), read back what tz says at that
-  // moment, then add the difference as the UTC offset to get the true UTC instant.
-  const probeUTC = new Date(Date.UTC(y, m - 1, d + dayOffset, localH, endM));
-  const dtf = new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const parts = Object.fromEntries(
-    dtf.formatToParts(probeUTC).filter((p) => p.type !== 'literal').map((p) => [p.type, p.value])
-  );
-  const localFromProbe = new Date(
-    Date.UTC(
-      parseInt(parts['year'] ?? '0', 10),
-      parseInt(parts['month'] ?? '1', 10) - 1,
-      parseInt(parts['day'] ?? '1', 10),
-      parseInt(parts['hour'] ?? '0', 10),
-      parseInt(parts['minute'] ?? '0', 10)
-    )
-  );
-  return new Date(2 * probeUTC.getTime() - localFromProbe.getTime());
+  return new Date(y, m - 1, d, 0, endMinutes);
 }
 
 // The holder's car is still marked in the spot after their reserved slot ended,
@@ -232,37 +199,15 @@ function reservationEndsAt(r: ParkingReservation, tz?: string): Date {
 export function findEndedReservation(
   current: ParkingSession | null,
   reservations: ParkingReservation[],
-  now: Date = new Date(),
-  houseTimezone?: string
+  now: Date = new Date()
 ): ParkingReservation | null {
   if (!current) return null;
   const parkedAt = new Date(current.startTime).getTime();
   if (Number.isNaN(parkedAt)) return null;
-  // Express "now" in the house timezone (or device timezone as fallback) so
-  // local date and slot-hours comparisons are accurate even when the user travels.
-  let today: string;
-  let nowMinutes: number;
-  if (houseTimezone) {
-    const dtf = new Intl.DateTimeFormat('en-CA', {
-      timeZone: houseTimezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    const parts = Object.fromEntries(
-      dtf.formatToParts(now).filter((p) => p.type !== 'literal').map((p) => [p.type, p.value])
-    );
-    today = `${parts['year']}-${parts['month']}-${parts['day']}`;
-    nowMinutes = parseInt(parts['hour'] ?? '0', 10) * 60 + parseInt(parts['minute'] ?? '0', 10);
-  } else {
-    today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    nowMinutes = now.getHours() * 60 + now.getMinutes();
-  }
   // Back-to-back bookings: while another of the holder's slots is running,
   // the spot stays theirs.
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const hasRunningSlot = reservations.some((r) => {
     if (r.status !== 'approved' || r.requestedBy !== current.occupant || r.date !== today) {
       return false;
@@ -275,7 +220,7 @@ export function findEndedReservation(
   return (
     reservations.find((r) => {
       if (r.status !== 'approved' || r.requestedBy !== current.occupant) return false;
-      const endsAt = reservationEndsAt(r, houseTimezone).getTime();
+      const endsAt = reservationEndsAt(r).getTime();
       return endsAt <= now.getTime() && parkedAt < endsAt;
     }) ?? null
   );
@@ -864,19 +809,6 @@ export const useParkingStore = create<ParkingStore>()(
           const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-          // Fetch the house timezone so slot-end comparisons use the house's local
-          // time rather than the device timezone, which may differ when a housemate travels.
-          const { data: houseRow, error: tzError } = await supabase
-            .from('houses')
-            .select('timezone')
-            .eq('id', houseId)
-            .maybeSingle();
-          if (tzError) {
-            captureError(tzError, { context: 'checkReservationAutoApply:timezone', houseId });
-          }
-          const houseTimezone: string | undefined =
-            (houseRow as { timezone?: string | null } | null)?.timezone ?? undefined;
-
           // Resolve pending reservations: past-due ones by the same logic as the
           // cron, and upcoming ones whose votes already decide the outcome (e.g. a
           // vote cast before the "half is enough" rule, or a member who left).
@@ -929,7 +861,7 @@ export const useParkingStore = create<ParkingStore>()(
 
           // The holder's slot is over but their car is still marked in the spot —
           // free it, so the spot doesn't stay "taken" for days.
-          const ended = findEndedReservation(get().current, get().reservations, now, houseTimezone);
+          const ended = findEndedReservation(get().current, get().reservations, now);
           const endedSession = ended ? get().current : null;
           if (endedSession && endedSession.id !== 'optimistic') {
             const { data: freed, error: freeError } = await supabase
