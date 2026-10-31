@@ -204,6 +204,19 @@ export function findEndedReservation(
   if (!current) return null;
   const parkedAt = new Date(current.startTime).getTime();
   if (Number.isNaN(parkedAt)) return null;
+  // Back-to-back bookings: while another of the holder's slots is running,
+  // the spot stays theirs.
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const hasRunningSlot = reservations.some((r) => {
+    if (r.status !== 'approved' || r.requestedBy !== current.occupant || r.date !== today) {
+      return false;
+    }
+    const start = r.startTime ? toMinutes(r.startTime) : 0;
+    const end = r.endTime ? toMinutes(r.endTime) : 24 * 60;
+    return nowMinutes >= start && nowMinutes < end;
+  });
+  if (hasRunningSlot) return null;
   return (
     reservations.find((r) => {
       if (r.status !== 'approved' || r.requestedBy !== current.occupant) return false;

@@ -546,6 +546,19 @@ describe('findEndedReservation', () => {
     expect(findEndedReservation(current, [slot], now)).toBeNull();
   });
 
+  it("keeps the spot while another of the holder's slots is running", () => {
+    const next = reservation({
+      id: 'r2',
+      status: 'approved',
+      requestedBy: 'ido',
+      date: '2026-10-31',
+      startTime: '19:00',
+      endTime: '22:00',
+    });
+    const current = { id: 's', occupant: 'ido', startTime: parkedAt(31, 13) };
+    expect(findEndedReservation(current, [slot, next], now)).toBeNull();
+  });
+
   it('treats an all-day slot as ending at midnight', () => {
     const allDay = reservation({ status: 'approved', requestedBy: 'ido', date: '2026-10-30' });
     const current = { id: 's', occupant: 'ido', startTime: parkedAt(30, 9) };

@@ -5,29 +5,34 @@ export function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
+export interface SinceParts {
+  /** null when parked today; "yesterday" or e.g. "Fri, Oct 30" otherwise. */
+  day: string | null;
+  time: string;
+}
+
 /**
- * When a car was parked: just the time if it was today, "yesterday 08:40" the
- * day before, or "Fri, Oct 30, 08:40" further back — so an old claim doesn't
- * look like it's from today.
+ * When a car was parked, split into a day and a time, so an old claim doesn't
+ * look like it's from today. The day is null when it was parked today.
  */
 export function formatSince(
   iso: string,
   locale: string,
   yesterdayLabel: string,
   now: Date = new Date()
-): string {
+): SinceParts {
   const parked = new Date(iso);
   const time = formatTime(iso, locale);
   const parkedDay = toDateString(parked);
-  if (parkedDay === toDateString(now)) return time;
+  if (parkedDay === toDateString(now)) return { day: null, time };
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  if (parkedDay === toDateString(yesterday)) return `${yesterdayLabel} ${time}`;
+  if (parkedDay === toDateString(yesterday)) return { day: yesterdayLabel, time };
   const day = parked.toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
-  return `${day}, ${time}`;
+  return { day, time };
 }
 
 /** Local YYYY-MM-DD for a Date. */

@@ -29,15 +29,19 @@ describe('parkingDates', () => {
       new Date(2026, 9, d, h, m).toISOString();
 
     it('shows just the time when parked today', () => {
-      expect(formatSince(at(31, 9, 5), 'en-US', 'yesterday', now)).toMatch(/^09:05/);
+      const since = formatSince(at(31, 9, 5), 'en-US', 'yesterday', now);
+      expect(since.day).toBeNull();
+      expect(since.time).toMatch(/^09:05/);
     });
 
     it('says yesterday when parked the day before', () => {
-      expect(formatSince(at(30, 13, 23), 'en-US', 'yesterday', now)).toMatch(/^yesterday 01:23/);
+      const since = formatSince(at(30, 13, 23), 'en-US', 'yesterday', now);
+      expect(since.day).toBe('yesterday');
+      expect(since.time).toMatch(/^01:23/);
     });
 
     it('shows the date when parked further back', () => {
-      expect(formatSince(at(28, 8, 0), 'en-US', 'yesterday', now)).toMatch(/^Wed, Oct 28, 08:00/);
+      expect(formatSince(at(28, 8, 0), 'en-US', 'yesterday', now).day).toBe('Wed, Oct 28');
     });
   });
 
