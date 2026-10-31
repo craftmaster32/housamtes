@@ -28,6 +28,7 @@ import {
 } from '../../stores/parkingStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 import { useAuthStore } from '../../stores/authStore';
+import { notifyHousemates } from '@lib/notifyHousemates';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -703,6 +704,39 @@ describe('parkingStore — checkReservationAutoApply hands the spot over once', 
     expect(s.current).toMatchObject({ occupant: 'ido' });
     expect(s.reservations[0].autoClaimed).toBe(true);
     expect(mockFrom).toHaveBeenNthCalledWith(3, 'parking_reservations');
+  });
+
+  it('tells the rest of the house the reservation took the spot', async () => {
+    useParkingStore.setState({ current: null, reservations: [runningSlot()] });
+    mockFrom
+      .mockReturnValueOnce(ok(null)) // no active session on the server
+      .mockReturnValueOnce(ok({ id: 'ps-new', occupant: 'ido', start_time: '00:00' })) // insert
+      .mockReturnValueOnce(ok()) // auto_claimed = true
+      .mockReturnValueOnce(ok({ name: 'Ido' })); // holder's name
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(notifyHousemates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        houseId: 'house-1',
+        excludeUserId: 'ido',
+        copyKey: 'parking_reservation_started',
+        copyParams: { name: 'Ido' },
+        notificationType: 'parking_claimed',
+      })
+    );
+  });
+
+  it('sends nothing when the holder already had the spot', async () => {
+    useParkingStore.setState({
+      current: { id: 'ps1', occupant: 'ido', startTime: '00:00' },
+      reservations: [runningSlot()],
+    });
+    mockFrom.mockReturnValueOnce(ok());
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(notifyHousemates).not.toHaveBeenCalled();
   });
 
   it('does not grab the spot back after the holder already had it', async () => {

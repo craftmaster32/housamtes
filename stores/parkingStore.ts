@@ -150,6 +150,30 @@ export function isReservationPastDue(
   return now.getTime() >= dueDate.getTime();
 }
 
+/**
+ * Tell the rest of the house a reservation just took the spot (the app handed
+ * it over before the server check did). Non-fatal — never blocks the claim.
+ */
+async function notifyReservationStarted(houseId: string, holderId: string): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', holderId)
+      .maybeSingle();
+    await notifyHousemates({
+      houseId,
+      excludeUserId: holderId,
+      copyKey: 'parking_reservation_started',
+      copyParams: { name: (data as { name?: string } | null)?.name ?? '' },
+      data: { screen: 'parking' },
+      notificationType: 'parking_claimed',
+    });
+  } catch (err) {
+    captureError(err, { context: 'notify-reservation-started', houseId });
+  }
+}
+
 // Once inside this window before the due time, members who already voted can
 // no longer change their vote — non-voters can still cast a fresh vote until
 // isReservationPastDue is true.
@@ -886,6 +910,8 @@ export const useParkingStore = create<ParkingStore>()(
               current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
             });
             await markAutoClaimed();
+            // Not awaited: a slow push must never hold up load() subscribing.
+            void notifyReservationStarted(houseId, dueReservation.requestedBy);
           }
         } catch (err) {
           captureError(err, { context: 'checkReservationAutoApply', houseId });

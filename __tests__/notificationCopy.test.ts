@@ -189,3 +189,22 @@ describe('groceryStaleCopy — "still on the list?" nudge', () => {
     expect(groceryStaleCopy('es', { names: ['Leche'] }).body).toContain('Leche lleva 3+ días');
   });
 });
+
+describe('instantPushCopy — a reservation took the spot', () => {
+  it('names the holder in each language', () => {
+    expect(instantPushCopy('parking_reservation_started', 'en', { name: 'Ido' })!.body).toContain(
+      "Ido's reservation started"
+    );
+    expect(instantPushCopy('parking_reservation_started', 'es', { name: 'Ido' })!.body).toContain(
+      'Ido'
+    );
+    expect(instantPushCopy('parking_reservation_started', 'he', { name: 'Ido' })!.body).toContain(
+      'Ido'
+    );
+  });
+
+  it('still reads well without a name', () => {
+    const copy = instantPushCopy('parking_reservation_started', 'en', {});
+    expect(copy!.body).toBe('A reservation started — the parking spot is taken now.');
+  });
+});

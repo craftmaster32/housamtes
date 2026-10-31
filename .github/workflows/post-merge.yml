@@ -108,6 +108,12 @@ jobs:
             changed=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
           else
             changed=$(git diff --name-only HEAD^ HEAD | grep '^supabase/functions/' | cut -d/ -f3 | sort -u)
+            # Shared code (e.g. notification wording) only goes live when the
+            # functions that import it are redeployed, so add every one of them.
+            if git diff --name-only HEAD^ HEAD | grep -q '^supabase/functions/_shared/'; then
+              users=$(grep -rl --include='*.ts' '_shared/' supabase/functions | grep -v '^supabase/functions/_shared/' | cut -d/ -f3 | sort -u)
+              changed=$(printf '%s\n%s\n' "$changed" "$users" | grep -v '^$' | sort -u)
+            fi
           fi
           for fn in $changed; do
             # Folders starting with "_" (e.g. _shared) hold code imported by the

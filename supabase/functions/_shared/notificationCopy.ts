@@ -309,6 +309,30 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       };
     }
 
+    case 'parking_reservation_started': {
+      const name = str(p, 'name');
+      if (es)
+        return {
+          title: '🅿️ Empezó una reserva',
+          body: name
+            ? `Empezó la reserva de ${name}: la plaza de parking es suya ahora.`
+            : 'Empezó una reserva: la plaza de parking ya está ocupada.',
+        };
+      if (he)
+        return {
+          title: '🅿️ הזמנת חניה התחילה',
+          body: name
+            ? `ההזמנה של ${name} התחילה — החניה שלו/ה עכשיו.`
+            : 'הזמנת חניה התחילה — החניה תפוסה עכשיו.',
+        };
+      return {
+        title: '🅿️ Reservation started',
+        body: name
+          ? `${name}'s reservation started — the parking spot is theirs now.`
+          : 'A reservation started — the parking spot is taken now.',
+      };
+    }
+
     case 'parking_freed': {
       const name = str(p, 'name');
       if (es)
