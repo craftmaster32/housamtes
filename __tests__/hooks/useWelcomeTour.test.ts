@@ -11,6 +11,12 @@ jest.mock('react-i18next', () => ({
   useTranslation: (): { t: (key: string) => string } => ({ t: (key: string): string => key }),
 }));
 jest.mock('@lib/alert', () => ({ Alert: { alert: jest.fn() } }));
+jest.mock('@stores/authStore', () => {
+  const state = { user: { id: 'u1', created_at: '2025-01-01T00:00:00Z', user_metadata: {} } };
+  const useAuthStore = (sel: (s: typeof state) => unknown): unknown => sel(state);
+  useAuthStore.getState = (): typeof state => state;
+  return { useAuthStore };
+});
 jest.mock('@utils/tour', () => ({
   shouldShowTour: jest.fn(),
   markTourSeen: jest.fn(),
@@ -33,6 +39,11 @@ describe('useWelcomeTour', () => {
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledTimes(1));
     expect((Alert.alert as jest.Mock).mock.calls[0][0]).toBe('dashboard.whats_new_title');
     expect(markWhatsNewSeen).toHaveBeenCalledTimes(1);
+    // Decided from the signed-in account, so "seen" follows the person, not the phone.
+    expect(shouldShowWhatsNew).toHaveBeenCalledWith({
+      createdAt: '2025-01-01T00:00:00Z',
+      metadata: {},
+    });
   });
 
   it('shows the tour, not the note, to a brand-new account', async () => {
