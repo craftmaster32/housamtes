@@ -100,7 +100,10 @@ export function SettleActions({ plan }: SettleActionsProps): React.JSX.Element |
         </Pressable>
       ) : null}
       <View style={styles.row}>
-        <Action icon="cash-outline" label={t('bills.settle_record_btn')} onPress={openRecord} />
+        {/* Nothing owed = nothing to settle; new spending is added as a bill. */}
+        {plan.length > 0 && (
+          <Action icon="cash-outline" label={t('bills.settle_record_btn')} onPress={openRecord} />
+        )}
         {plan.length > 0 && (
           <Action icon="calendar-outline" label={t('bills.settle_upto_btn')} onPress={openUpTo} />
         )}

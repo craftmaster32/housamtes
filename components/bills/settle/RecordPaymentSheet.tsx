@@ -3,6 +3,10 @@ import { View, Pressable, ScrollView, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useSettingsStore } from '@stores/settingsStore';
+import { useMemberName } from '@hooks/useMemberName';
+import { formatFull } from '@constants/currencies';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { ChoiceChips, type ChoiceOption } from '@components/bills/recurring/ChoiceChips';
 import { useRecurringPalette } from '@components/bills/recurring/palette';
@@ -46,6 +50,18 @@ export function RecordPaymentSheet({
     },
     [setPaidOn]
   );
+
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const memberName = useMemberName();
+  const fromName = memberName(form.from);
+  const toName = memberName(form.to);
+  const { setAmount, maxSettle } = form;
+  const fillMax = useCallback((): void => setAmount(maxSettle.toFixed(2)), [setAmount, maxSettle]);
+  // Money beyond what's owed is a new shared expense, not a settle-up.
+  const addAsBill = useCallback((): void => {
+    onClose();
+    router.push('/(tabs)/bills/add');
+  }, [onClose]);
 
   const inputStyle = [styles.input, { borderColor: p.border, color: p.text }];
 
@@ -118,6 +134,41 @@ export function RecordPaymentSheet({
             />
           </View>
 
+          {form.tooMuch && (
+            <View style={styles.tooMuch} accessibilityRole="alert">
+              <Text style={[styles.error, { color: p.overdueText }]}>
+                {form.maxSettle < 0.01
+                  ? t('bills.settle_nothing_owed', { from: fromName, to: toName })
+                  : t('bills.settle_too_much', {
+                      from: fromName,
+                      to: toName,
+                      max: formatFull(form.maxSettle, currencyCode),
+                    })}
+              </Text>
+              <View style={styles.tooMuchActions}>
+                {form.maxSettle >= 0.01 && (
+                  <Pressable
+                    style={({ pressed }) => [styles.linkBtn, pressed && styles.dimmed]}
+                    onPress={fillMax}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.linkText, { color: p.primary }]}>
+                      {t('bills.settle_use_max', { max: formatFull(form.maxSettle, currencyCode) })}
+                    </Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  style={({ pressed }) => [styles.linkBtn, pressed && styles.dimmed]}
+                  onPress={addAsBill}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.linkText, { color: p.primary }]}>
+                    {t('bills.settle_add_as_bill')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
           {form.isFuture && (
             <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
               {t('bills.settle_future_date')}

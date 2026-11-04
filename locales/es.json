@@ -770,10 +770,6 @@
     "settle_record_save": "Guardar pago",
     "settle_not_involved": "Solo puedes registrar un pago que hayas hecho o recibido.",
     "settle_save_failed": "No se pudo guardar. Inténtalo de nuevo.",
-    "settle_overpay_title": "Más de lo que se debe",
-    "settle_overpay_body": "{{from}} le debe {{owed}} a {{to}} ahora mismo. Los {{extra}} de más contarán como dinero que {{to}} le debe a {{from}}.",
-    "settle_overpay_none": "{{from}} no le debe nada a {{to}} ahora mismo. Los {{extra}} contarán como dinero que {{to}} le debe a {{from}}.",
-    "settle_overpay_confirm": "Guardar igualmente",
     "settle_upto_title": "Saldar hasta una fecha",
     "settle_upto_help": "Úsalo cuando todo hasta una fecha ya se pagó fuera de la app. Los gastos posteriores siguen pendientes.",
     "settle_upto_date": "Todo pagado hasta",
@@ -804,7 +800,11 @@
     "settled_change_body": "Todo hasta el {{date}} ya se saldó. Los pagos ya registrados se quedan como están, así que este cambio aparecerá como una nueva cantidad a pagar (o a devolver). Tus compañeros recibirán un mensaje sobre ello.",
     "settled_change_confirm": "Cambiar igualmente",
     "settled_unknown_title": "No se pudieron comprobar los meses saldados",
-    "settled_unknown_body": "No pudimos cargar los pagos para saldar cuentas, así que no sabemos si este cambio afecta a un mes ya saldado. Revisa tu conexión o continúa igualmente."
+    "settled_unknown_body": "No pudimos cargar los pagos para saldar cuentas, así que no sabemos si este cambio afecta a un mes ya saldado. Revisa tu conexión o continúa igualmente.",
+    "settle_too_much": "Lo máximo que {{from}} puede saldar con {{to}} ahora es {{max}}: eso lo deja en cero. Lo que pase de eso no es devolver una deuda, así que añádelo como gasto.",
+    "settle_nothing_owed": "{{from}} no le debe nada a {{to}} ahora mismo, así que no hay nada que saldar. Si es un gasto nuevo, añádelo como gasto.",
+    "settle_use_max": "Usar {{max}}",
+    "settle_add_as_bill": "Añadir como gasto"
   },
   "parking": {
     "title": "Estacionamiento",

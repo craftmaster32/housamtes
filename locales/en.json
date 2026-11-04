@@ -770,10 +770,6 @@
     "settle_record_save": "Save payment",
     "settle_not_involved": "You can only record a payment that you paid or received.",
     "settle_save_failed": "Could not save. Please try again.",
-    "settle_overpay_title": "More than what's owed",
-    "settle_overpay_body": "{{from}} owes {{to}} {{owed}} right now. The extra {{extra}} will count as money {{to}} owes back to {{from}}.",
-    "settle_overpay_none": "{{from}} doesn't owe {{to}} anything right now. The whole {{extra}} will count as money {{to}} owes back to {{from}}.",
-    "settle_overpay_confirm": "Save anyway",
     "settle_upto_title": "Settle up to a date",
     "settle_upto_help": "Use this when everything up to a date was already paid outside the app. Expenses after that date stay open.",
     "settle_upto_date": "All paid up to",
@@ -804,7 +800,11 @@
     "settled_change_body": "Everything up to {{date}} was already settled up. The payments already recorded stay as they are, so changing this will show up as a new amount owed (or owed back). Your housemates will get one message about it.",
     "settled_change_confirm": "Change anyway",
     "settled_unknown_title": "Couldn't check settled months",
-    "settled_unknown_body": "We couldn't load the house's settle-up payments, so we can't tell if this change affects a month that was already settled. Check your connection, or go ahead anyway."
+    "settled_unknown_body": "We couldn't load the house's settle-up payments, so we can't tell if this change affects a month that was already settled. Check your connection, or go ahead anyway.",
+    "settle_too_much": "The most {{from}} can settle with {{to}} right now is {{max}} — that brings it to zero. Anything extra isn't paying back a debt, so add it as a bill.",
+    "settle_nothing_owed": "{{from}} doesn't owe {{to}} anything right now, so there's nothing to settle. If this is new spending, add it as a bill.",
+    "settle_use_max": "Use {{max}}",
+    "settle_add_as_bill": "Add as a bill instead"
   },
   "parking": {
     "title": "Parking",

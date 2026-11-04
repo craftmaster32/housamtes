@@ -52,6 +52,10 @@ export interface RecordPaymentForm {
   notInvolved: boolean;
   /** The chosen date is after today. */
   isFuture: boolean;
+  /** The most this payer can settle with this receiver right now (brings them to 0). */
+  maxSettle: number;
+  /** The amount is more than `maxSettle` — anything extra must be added as a bill. */
+  tooMuch: boolean;
   canSave: boolean;
   setFrom: (id: string) => void;
   setTo: (id: string) => void;
@@ -118,8 +122,19 @@ export function useRecordPaymentForm({
   const value = parseAmount(amount);
   const notInvolved = from !== '' && to !== '' && myId !== from && myId !== to;
   const isFuture = paidOn > todayISO();
+  // A settle-up can only bring a debt down to zero, never past it. Money
+  // beyond that isn't paying anyone back — it's a new expense (add a bill).
+  const maxSettle = from && to && from !== to ? maxOwedBetween(net, from, to) : 0;
+  const tooMuch = value > 0 && value > maxSettle + 0.005;
   const canSave =
-    !saving && from !== '' && to !== '' && from !== to && !notInvolved && value > 0 && !isFuture;
+    !saving &&
+    from !== '' &&
+    to !== '' &&
+    from !== to &&
+    !notInvolved &&
+    value > 0 &&
+    !isFuture &&
+    !tooMuch;
 
   const doSave = useCallback(async (): Promise<void> => {
     setSaving(true);
@@ -169,29 +184,10 @@ export function useRecordPaymentForm({
         return;
       }
 
-      // 2) More than is owed: allowed, but say exactly what will happen first.
-      const owed = maxOwedBetween(net, from, to);
-      if (value > owed + 0.005) {
-        const names = { from: memberName(from), to: memberName(to) };
-        const extra = formatFull(value - owed, currencyCode);
-        const ok = await confirm(
-          t('bills.settle_overpay_title'),
-          owed < 0.01
-            ? t('bills.settle_overpay_none', { ...names, extra })
-            : t('bills.settle_overpay_body', {
-                ...names,
-                owed: formatFull(owed, currencyCode),
-                extra,
-              }),
-          t('bills.settle_overpay_confirm'),
-          t('common.cancel')
-        );
-        if (!ok) return;
-      }
       await doSave();
     };
     void run();
-  }, [canSave, payments, from, to, value, paidOn, net, doSave, memberName, currencyCode, t]);
+  }, [canSave, payments, from, to, value, paidOn, doSave, memberName, currencyCode, t]);
 
   return {
     from,
@@ -203,6 +199,8 @@ export function useRecordPaymentForm({
     error,
     notInvolved,
     isFuture,
+    maxSettle,
+    tooMuch,
     canSave,
     setFrom,
     setTo,

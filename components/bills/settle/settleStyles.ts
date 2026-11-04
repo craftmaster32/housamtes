@@ -30,6 +30,10 @@ export const settleStyles = StyleSheet.create({
   },
   primaryText: { fontSize: mf(17), ...font.bold, textAlign: 'center' },
   dimmed: { opacity: 0.6 },
+  tooMuch: { gap: ms(6) },
+  tooMuchActions: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(16) },
+  linkBtn: { minHeight: 44, justifyContent: 'center' },
+  linkText: { fontSize: mf(15), ...font.bold },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
