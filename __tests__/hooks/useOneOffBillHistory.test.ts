@@ -49,6 +49,19 @@ jest.mock('@stores/authStore', () => ({
     selector({ houseId: 'house-1' }),
 }));
 
+let mockSettlements: unknown[] = [];
+jest.mock('@stores/settlementPaymentsStore', () => ({
+  useSettlementPaymentsStore: (selector: (s: { payments: unknown[] }) => unknown): unknown =>
+    selector({ payments: mockSettlements }),
+}));
+
+jest.mock('@hooks/useMemberName', () => ({
+  useMemberName:
+    (): ((id: string) => string) =>
+    (id: string): string =>
+      ({ u1: 'Ann', u2: 'Ben' })[id] ?? id,
+}));
+
 import { useOneOffBillHistory } from '@hooks/useOneOffBillHistory';
 
 function bill(overrides: Partial<Bill> = {}): Bill {
@@ -107,5 +120,52 @@ describe('useOneOffBillHistory — presentCategories', () => {
     const { result } = renderHook(() => useOneOffBillHistory(''));
 
     expect(result.current.presentCategories).toEqual(['groceries']);
+  });
+});
+
+describe('useOneOffBillHistory — settle-up payments', () => {
+  beforeEach(() => {
+    mockCategoriesState = { categories: [cat('Other', 99)], load: (): void => {} };
+    mockBillsState = { bills: [bill({ id: 'b1', date: '2026-10-05' })] };
+    mockSettlements = [
+      {
+        id: 's1',
+        from: 'u2',
+        to: 'u1',
+        amount: 300,
+        paidOn: '2026-11-02',
+        coversUntil: '2026-10-31',
+        note: null,
+        createdBy: 'u1',
+        createdAt: '2026-11-02T10:00:00Z',
+      },
+    ];
+  });
+  afterEach(() => {
+    mockSettlements = [];
+  });
+
+  it('shows every settle-up payment in the history, on the day it was paid', () => {
+    const { result } = renderHook(() => useOneOffBillHistory(''));
+    const rows = result.current.billSections.flatMap((s) => s.data);
+    const settle = rows.find((r) => r.kind === 'settlement');
+    expect(settle).toBeDefined();
+    expect(settle?.date).toBe('2026-11-02');
+    // Newest first: the settle-up (Nov) comes before the bill (Oct).
+    expect(rows.map((r) => r.key)).toEqual(['settlement:s1', 'b1']);
+  });
+
+  it('can be found by searching a housemate’s name', () => {
+    const { result } = renderHook(() => useOneOffBillHistory('ben'));
+    const rows = result.current.billSections.flatMap((s) => s.data);
+    expect(rows.map((r) => r.kind)).toEqual(['settlement']);
+  });
+
+  it('is hidden when a specific category chip is chosen', () => {
+    const { result, rerender } = renderHook(() => useOneOffBillHistory(''));
+    result.current.setCategory('other');
+    rerender({});
+    const rows = result.current.billSections.flatMap((s) => s.data);
+    expect(rows.every((r) => r.kind === 'bill')).toBe(true);
   });
 });

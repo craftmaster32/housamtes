@@ -797,7 +797,12 @@
     "settle_dupe_title": "כבר נרשם?",
     "settle_dupe_body": "{{from}} ← {{to}} {{money}} כבר נרשם ב-{{date}}. שמירה נוספת תספור את הכסף הזה פעמיים.",
     "settle_dupe_confirm": "זה תשלום חדש",
-    "settle_future_date": "בחרו את היום או תאריך מוקדם יותר."
+    "settle_future_date": "בחרו את היום או תאריך מוקדם יותר.",
+    "settle_line_meta": "תשלום סגירת חשבון",
+    "settle_paid_tag": "שולם",
+    "settled_change_title": "זה מתקופה שכבר נסגרה",
+    "settled_change_body": "כל מה שהיה עד {{date}} כבר נסגר. התשלומים שכבר נרשמו נשארים כמו שהם, אז שינוי כאן יופיע כסכום חדש לתשלום (או להחזר). השותפים יקבלו הודעה אחת על זה.",
+    "settled_change_confirm": "לשנות בכל זאת"
   },
   "parking": {
     "title": "חניה",

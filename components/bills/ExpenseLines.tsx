@@ -17,6 +17,7 @@ import { doodleKind, type DoodleKind } from '@components/bills/art/doodleKind';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors } from '@constants/colors';
@@ -51,7 +52,7 @@ export function DayHeader({ title }: { title: string }): React.JSX.Element {
   );
 }
 
-interface LineProps {
+export interface LineProps {
   kind: DoodleKind;
   title: string;
   meta: string;
@@ -64,7 +65,7 @@ interface LineProps {
 
 // One printed line: a small drawing of the category in its colour, the name,
 // a dotted leader and the price.
-function ReceiptLine({
+export function ReceiptLine({
   kind,
   title,
   meta,
@@ -120,6 +121,7 @@ export function BillLine({
   const role = useAuthStore((s) => s.role);
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const deleteBill = useBillsStore((s) => s.deleteBill);
+  const settledGuard = useSettledPeriodGuard();
   // Same rule as the detail screen's delete button: only owners/admins can
   // remove a bill, and settled bills stay locked as permanent history. A valid
   // house context is required too, so deletion never fires without one.
@@ -136,25 +138,33 @@ export function BillLine({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     // Deleting a bill can't be undone and shifts everyone's balances, so
     // confirm before removing — unlike the throwaway grocery rows.
-    Alert.alert(t('bills.delete_bill_confirm_title'), t('bills.delete_bill_confirm_msg'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: (): void => {
-          if (deletingRef.current) return;
-          deletingRef.current = true;
-          deleteBill(bill.id, houseId)
-            .catch(() => {
-              Alert.alert(t('bills.failed_delete'));
-            })
-            .finally(() => {
-              deletingRef.current = false;
-            });
+    const inSettledPeriod = settledGuard.isSettled(bill.date);
+    Alert.alert(
+      inSettledPeriod ? t('bills.settled_change_title') : t('bills.delete_bill_confirm_title'),
+      inSettledPeriod ? settledGuard.warning() : t('bills.delete_bill_confirm_msg'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: (): void => {
+            if (deletingRef.current) return;
+            deletingRef.current = true;
+            deleteBill(bill.id, houseId, { skipNotify: inSettledPeriod })
+              .then(() => {
+                if (inSettledPeriod) settledGuard.notifyChange(bill.title);
+              })
+              .catch(() => {
+                Alert.alert(t('bills.failed_delete'));
+              })
+              .finally(() => {
+                deletingRef.current = false;
+              });
+          },
         },
-      },
-    ]);
-  }, [bill.id, houseId, deleteBill, t]);
+      ]
+    );
+  }, [bill.id, bill.date, bill.title, houseId, deleteBill, settledGuard, t]);
 
   const line = (
     <Pressable

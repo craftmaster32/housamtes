@@ -797,7 +797,12 @@
     "settle_dupe_title": "¿Ya registrado?",
     "settle_dupe_body": "{{from}} → {{to}} {{money}} ya se registró el {{date}}. Guardarlo otra vez contará este dinero dos veces.",
     "settle_dupe_confirm": "Es un pago nuevo",
-    "settle_future_date": "Elige hoy o una fecha anterior."
+    "settle_future_date": "Elige hoy o una fecha anterior.",
+    "settle_line_meta": "Pago para saldar cuentas",
+    "settle_paid_tag": "Pagado",
+    "settled_change_title": "Esto es de un periodo ya saldado",
+    "settled_change_body": "Todo hasta el {{date}} ya se saldó. Los pagos ya registrados se quedan como están, así que este cambio aparecerá como una nueva cantidad a pagar (o a devolver). Tus compañeros recibirán un mensaje sobre ello.",
+    "settled_change_confirm": "Cambiar igualmente"
   },
   "parking": {
     "title": "Estacionamiento",

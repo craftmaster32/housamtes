@@ -797,7 +797,12 @@
     "settle_dupe_title": "Already recorded?",
     "settle_dupe_body": "{{from}} → {{to}} {{money}} was already recorded on {{date}}. Saving again will count this money twice.",
     "settle_dupe_confirm": "It's a new payment",
-    "settle_future_date": "Pick today or an earlier date."
+    "settle_future_date": "Pick today or an earlier date.",
+    "settle_line_meta": "Settle-up payment",
+    "settle_paid_tag": "Paid",
+    "settled_change_title": "This is from a settled period",
+    "settled_change_body": "Everything up to {{date}} was already settled up. The payments already recorded stay as they are, so changing this will show up as a new amount owed (or owed back). Your housemates will get one message about it.",
+    "settled_change_confirm": "Change anyway"
   },
   "parking": {
     "title": "Parking",

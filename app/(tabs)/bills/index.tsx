@@ -21,6 +21,8 @@ import { useBillsStore, calculateSimplifiedBalancesForUser, settleDebts } from '
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useHouseMoney } from '@hooks/useHouseMoney';
 import { SettleActions } from '@components/bills/settle/SettleActions';
+import { SettlementLine } from '@components/bills/settle/SettlementLine';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -110,6 +112,9 @@ function BillsScreen(): React.JSX.Element {
   const mateSpot = useMateScene(MATE_SPOTS, billSections.length > 0);
 
   const payments = useRecurringBillsStore((s) => s.payments);
+  const settlementCount = useSettlementPaymentsStore((s) => s.payments.length);
+  // Everything that shows in the history: bills, rent-type payments, settle-ups.
+  const historyCount = bills.length + payments.length + settlementCount;
   const housemates = useHousematesStore((s) => s.housemates);
 
   const myId = profile?.id ?? '';
@@ -161,8 +166,10 @@ function BillsScreen(): React.JSX.Element {
         {item.data.map((row) =>
           row.kind === 'bill' ? (
             <BillLine key={row.key} bill={row.bill} />
-          ) : (
+          ) : row.kind === 'payment' ? (
             <RecurringPaymentLine key={row.key} row={row.payment} />
+          ) : (
+            <SettlementLine key={row.key} settlement={row.settlement} />
           )
         )}
       </ReceiptRoll>
@@ -261,7 +268,7 @@ function BillsScreen(): React.JSX.Element {
       )}
 
       {/* One-off: search + category words + list heading */}
-      {filter === 'one-off' && bills.length + payments.length > 0 && (
+      {filter === 'one-off' && historyCount > 0 && (
         <View style={styles.oneOffControls}>
           <View style={[styles.searchBar, { borderColor: c.border }]}>
             <Ionicons name="search" size={18} color={c.textTertiary} />
@@ -350,7 +357,7 @@ function BillsScreen(): React.JSX.Element {
         ListHeaderComponent={ListHeader}
         ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="bills" always /> : null}
         ListEmptyComponent={
-          bills.length + payments.length > 0 ? (
+          historyCount > 0 ? (
             <EmptyState
               icon="search-outline"
               title={t('bills.no_results')}
