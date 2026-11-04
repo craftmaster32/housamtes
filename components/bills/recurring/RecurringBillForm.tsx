@@ -97,8 +97,12 @@ export function RecurringBillForm({
       : // The first payment covers the month it was paid in.
         [lastPaidDate ? monthStart(lastPaidDate) : null];
     confirmingRef.current = true;
-    const check = await settledGuard.confirmChange(...affectedDates);
-    confirmingRef.current = false;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(...affectedDates);
+    } finally {
+      confirmingRef.current = false;
+    }
     if (!check.proceed) return;
     const inSettledPeriod = check.settled;
     try {

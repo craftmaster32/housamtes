@@ -179,8 +179,12 @@ export function usePaymentForm({
     const after = periodKnown
       ? period.start
       : firstCoveredDay({ ...fields, id: '', billId: bill.id }, bill);
-    const check = await settledGuard.confirmChange(before, after);
-    confirmingRef.current = false;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(before, after);
+    } finally {
+      confirmingRef.current = false;
+    }
     if (!check.proceed) return;
     const inSettledPeriod = check.settled;
     try {

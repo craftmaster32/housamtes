@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -70,6 +70,8 @@ function BillDetailScreen(): React.JSX.Element {
   const editBill = useBillsStore((s) => s.editBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
   const settledGuard = useSettledPeriodGuard();
+  // Blocks a second tap while the settled-month question is still open.
+  const confirmingRef = useRef(false);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
   const profile = useAuthStore((s) => s.profile);
@@ -240,7 +242,14 @@ function BillDetailScreen(): React.JSX.Element {
     }
     // An expense from a period that was already settled up: ask first, and
     // send the house one "settled period changed" message instead of the usual one.
-    const check = await settledGuard.confirmChange(bill.date, payload.date);
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(bill.date, payload.date);
+    } finally {
+      confirmingRef.current = false;
+    }
     if (!check.proceed) return;
     const inSettledPeriod = check.settled;
     try {
@@ -292,7 +301,14 @@ function BillDetailScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill || !houseId || isDeleting || isSaving) return;
-    const check = await settledGuard.confirmChange(bill.date);
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(bill.date);
+    } finally {
+      confirmingRef.current = false;
+    }
     if (!check.proceed) return;
     const inSettledPeriod = check.settled;
     try {

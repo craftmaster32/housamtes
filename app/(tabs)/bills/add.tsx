@@ -266,8 +266,12 @@ function AddBillScreen(): React.JSX.Element {
     // A new expense dated in a month that was already settled up reopens it:
     // ask first, and send the house one "settled period changed" message.
     confirmingRef.current = true;
-    const check = await settledGuard.confirmChange(payload.date);
-    confirmingRef.current = false;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(payload.date);
+    } finally {
+      confirmingRef.current = false;
+    }
     if (!check.proceed) return;
     const inSettledPeriod = check.settled;
     try {
