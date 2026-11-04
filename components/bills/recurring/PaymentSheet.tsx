@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import type { HouseholdPayment, RecurringBill } from '@stores/recurringBillsStore';
 import { usePaymentForm } from '@hooks/usePaymentForm';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { Alert } from '@lib/alert';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -45,6 +46,7 @@ export function PaymentSheet({
     onDone: onClose,
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const settledGuard = useSettledPeriodGuard();
   const isEdit = payment !== undefined;
 
   const close = useCallback((): void => {
@@ -67,18 +69,20 @@ export function PaymentSheet({
     const period = form.periodKnown
       ? formatPeriod(form.period, i18n.language)
       : payment.note || formatDateDDMMYYYY(payment.paidAt);
+    const body = t('bills.household_delete_payment_body', {
+      amount: formatMoney(currency, payment.amount),
+      period,
+    });
     Alert.alert(
       t('bills.household_delete_payment_title'),
-      t('bills.household_delete_payment_body', {
-        amount: formatMoney(currency, payment.amount),
-        period,
-      }),
+      // From a period that was already settled up: say what that means.
+      settledGuard.isSettled(payment.paidAt) ? `${body}\n\n${settledGuard.warning()}` : body,
       [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('common.delete'), style: 'destructive', onPress: (): void => void remove() },
       ]
     );
-  }, [payment, currency, form.period, form.periodKnown, i18n.language, remove, t]);
+  }, [payment, currency, form.period, form.periodKnown, i18n.language, remove, settledGuard, t]);
 
   const inputStyle = [styles.input, { borderColor: p.border, color: p.text }];
 

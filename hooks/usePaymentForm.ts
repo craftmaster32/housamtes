@@ -7,6 +7,7 @@ import {
   type RecurringBill,
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import {
   FREQUENCY_MONTHS,
   monthStart,
@@ -63,6 +64,7 @@ export function usePaymentForm({
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
   const updatePayment = useRecurringBillsStore((s) => s.updatePayment);
   const deletePayment = useRecurringBillsStore((s) => s.deletePayment);
+  const settledGuard = useSettledPeriodGuard();
   const houseId = useAuthStore((s) => s.houseId);
 
   const initial = useMemo(() => {
@@ -144,6 +146,10 @@ export function usePaymentForm({
       coverageMonths: periodKnown ? period.months : undefined,
       paidBy: paidBy || undefined,
     };
+    // A payment dated in a period that was already settled up changes old
+    // balances: ask first, and tell the house once it's saved.
+    const inSettledPeriod = settledGuard.isSettled(payment?.paidAt, paidAt);
+    if (inSettledPeriod && !(await settledGuard.confirmChange(payment?.paidAt, paidAt))) return;
     try {
       setSaving(true);
       setError('');
@@ -152,6 +158,7 @@ export function usePaymentForm({
       } else {
         await logPayment({ billId: bill.id, ...fields }, houseId);
       }
+      if (inSettledPeriod) settledGuard.notifyChange(bill.name);
       onDone();
     } catch {
       setError(t('bills.failed_save'));
@@ -172,6 +179,8 @@ export function usePaymentForm({
     updatePayment,
     logPayment,
     bill.id,
+    bill.name,
+    settledGuard,
     onDone,
     t,
   ]);
@@ -182,6 +191,9 @@ export function usePaymentForm({
       setSaving(true);
       setError('');
       await deletePayment(payment.id);
+      // The delete was confirmed in the sheet (with the settled-period warning
+      // when it applies) — tell the house once.
+      if (settledGuard.isSettled(payment.paidAt)) settledGuard.notifyChange(bill.name);
       onDone();
     } catch (err) {
       setError(
@@ -192,7 +204,7 @@ export function usePaymentForm({
     } finally {
       setSaving(false);
     }
-  }, [payment, saving, deletePayment, onDone, t]);
+  }, [payment, saving, deletePayment, settledGuard, bill.name, onDone, t]);
 
   return {
     period,

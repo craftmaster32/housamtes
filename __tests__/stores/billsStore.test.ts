@@ -430,6 +430,18 @@ describe('billsStore — deleteBill', () => {
 
     expect(useBillsStore.getState().bills).toHaveLength(0);
   });
+
+  it('sends no message of its own when the caller sends one (settled-period change)', async () => {
+    useBillsStore.setState({ bills: [bill({ id: 'b1' })] });
+    mockFrom.mockReturnValue(ok());
+    const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
+    (notifyHousemates as jest.Mock).mockClear();
+
+    await useBillsStore.getState().deleteBill('b1', 'house1', { skipNotify: true });
+
+    expect(useBillsStore.getState().bills).toHaveLength(0);
+    expect(notifyHousemates).not.toHaveBeenCalled();
+  });
 });
 
 describe('billsStore — editBill', () => {

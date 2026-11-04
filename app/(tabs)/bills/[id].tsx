@@ -41,6 +41,7 @@ import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 
 import { mf, ms } from '@utils/responsive';
 
@@ -68,6 +69,7 @@ function BillDetailScreen(): React.JSX.Element {
   const storeError = useBillsStore((s) => s.error);
   const editBill = useBillsStore((s) => s.editBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
+  const settledGuard = useSettledPeriodGuard();
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
   const profile = useAuthStore((s) => s.profile);
@@ -236,6 +238,10 @@ function BillDetailScreen(): React.JSX.Element {
       }
       return;
     }
+    // An expense from a period that was already settled up: ask first, and
+    // send the house one "settled period changed" message instead of the usual one.
+    const inSettledPeriod = settledGuard.isSettled(bill.date, payload.date);
+    if (inSettledPeriod && !(await settledGuard.confirmChange(bill.date, payload.date))) return;
     try {
       setIsSaving(true);
       await editBill(
@@ -251,8 +257,10 @@ function BillDetailScreen(): React.JSX.Element {
           splitAmounts: payload.splitAmounts,
           splitType: payload.splitType,
         },
-        houseId
+        houseId,
+        { skipNotify: inSettledPeriod }
       );
+      if (inSettledPeriod) settledGuard.notifyChange(payload.title);
       setError('');
       setIsEditing(false);
     } catch (err) {
@@ -275,6 +283,7 @@ function BillDetailScreen(): React.JSX.Element {
     customAmounts,
     percentAmounts,
     editBill,
+    settledGuard,
     t,
     isSaving,
     isDeleting,
@@ -282,16 +291,19 @@ function BillDetailScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill || !houseId || isDeleting || isSaving) return;
+    const inSettledPeriod = settledGuard.isSettled(bill.date);
+    if (inSettledPeriod && !(await settledGuard.confirmChange(bill.date))) return;
     try {
       setIsDeleting(true);
-      await deleteBill(bill.id, houseId);
+      await deleteBill(bill.id, houseId, { skipNotify: inSettledPeriod });
+      if (inSettledPeriod) settledGuard.notifyChange(bill.title);
       goBack();
     } catch (err) {
       console.error(err);
       setError(t('bills.failed_delete'));
       setIsDeleting(false);
     }
-  }, [bill, houseId, isDeleting, isSaving, deleteBill, t]);
+  }, [bill, houseId, isDeleting, isSaving, deleteBill, settledGuard, t]);
 
   const handleBack = useCallback((): void => {
     // Editing is a step of its own: back closes the form and returns to the

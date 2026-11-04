@@ -302,6 +302,26 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       return { title: '🤝 Settled up', body: `${who} settled up everything until ${d}.` };
     }
 
+    case 'settled_period_changed': {
+      const who = str(p, 'name');
+      const t = str(p, 'billTitle');
+      const d = shortDate(lang, str(p, 'date'));
+      if (es)
+        return {
+          title: '✏️ Cambio en un periodo ya saldado',
+          body: `${who} cambió "${t}" (antes del ${d}, ya saldado). Los saldos se actualizaron.`,
+        };
+      if (he)
+        return {
+          title: '✏️ שינוי בתקופה שכבר נסגרה',
+          body: `${who} שינה/תה את "${t}" (לפני ${d}, כבר נסגר). היתרות עודכנו.`,
+        };
+      return {
+        title: '✏️ Change in a settled period',
+        body: `${who} changed "${t}" (before ${d}, already settled). Balances were updated.`,
+      };
+    }
+
     case 'bill_deleted': {
       const t = str(p, 'billTitle');
       if (es)

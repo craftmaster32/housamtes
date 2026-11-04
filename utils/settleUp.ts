@@ -234,3 +234,15 @@ export function maxOwedBetween(net: NetBalances, from: string, to: string): numb
   const credit = Math.max(0, net.get(to) ?? 0);
   return cents(Math.min(debt, credit));
 }
+
+/**
+ * The latest "settled up to" date in the house (YYYY-MM-DD), or null if
+ * nobody has used "Settle up to a date" yet.
+ */
+export function latestSettledUntil(payments: SettlementPayment[]): string | null {
+  let latest: string | null = null;
+  for (const p of payments) {
+    if (p.coversUntil && (latest === null || p.coversUntil > latest)) latest = p.coversUntil;
+  }
+  return latest;
+}
