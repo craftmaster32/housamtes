@@ -11,7 +11,8 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useMemberName } from '@hooks/useMemberName';
-import type { SettlementPayment } from '@utils/settleUp';
+import { fullySettledUntil, type SettlementPayment } from '@utils/settleUp';
+import { useHouseMoney } from '@hooks/useHouseMoney';
 import { toAppLocale } from '@utils/dates';
 import {
   FREQUENCY_MONTHS,
@@ -33,6 +34,8 @@ export interface RecurringPaymentRow {
   coverage: string; // localized covered month(s), e.g. "Sep 2026"
   /** First day of the LAST month it pays for (YYYY-MM-01) — fully settled once this is. */
   lastCoveredMonth: string;
+  /** Every month it pays for is inside a fully settled period. */
+  inSettledPeriod: boolean;
 }
 
 /** The last month a payment pays for — same months rule as settling up. */
@@ -51,7 +54,14 @@ function coverageLabel(payment: HouseholdPayment, language: string): string {
 }
 
 export type BillRow =
-  | { kind: 'bill'; key: string; date: string; bill: Bill }
+  | {
+      kind: 'bill';
+      key: string;
+      date: string;
+      bill: Bill;
+      /** Inside a period that's fully settled up ("settle up to a date"). */
+      inSettledPeriod: boolean;
+    }
   | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow }
   | { kind: 'settlement'; key: string; date: string; settlement: SettlementPayment };
 
@@ -114,6 +124,9 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const loadExpenseCategories = useExpenseCategoriesStore((s) => s.load);
   const houseId = useAuthStore((s) => s.houseId);
   const settlements = useSettlementPaymentsStore((s) => s.payments);
+  // Only a period that's really fully paid is shown as settled.
+  const { money, net } = useHouseMoney();
+  const settledUntil = useMemo(() => fullySettledUntil(money, net), [money, net]);
   const memberName = useMemberName();
 
   // Ensure managed categories are loaded so presentCategories uses the
@@ -178,6 +191,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
           key: bill.id,
           date: bill.date,
           bill,
+          inSettledPeriod: settledUntil !== null && bill.date <= settledUntil,
         })
       ),
       ...payments.map((p): Extract<BillRow, { kind: 'payment' }> => {
@@ -198,6 +212,9 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
                 : membersOn(memberSpans, p.paidAt),
             coverage: coverageLabel(p, i18n.language),
             lastCoveredMonth: lastCoveredMonth(p, meta?.frequency ?? 'monthly'),
+            inSettledPeriod:
+              settledUntil !== null &&
+              lastCoveredMonth(p, meta?.frequency ?? 'monthly') <= settledUntil,
           },
         };
       }),
@@ -250,6 +267,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
     bills,
     payments,
     settlements,
+    settledUntil,
     householdBills,
     memberSpans,
     memberName,

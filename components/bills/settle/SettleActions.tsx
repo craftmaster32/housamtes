@@ -56,6 +56,7 @@ export function SettleActions({ plan }: SettleActionsProps): React.JSX.Element |
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const housemates = useHousematesStore((s) => s.housemates);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
   const paymentCount = useSettlementPaymentsStore((s) => s.payments.length);
   const loadError = useSettlementPaymentsStore((s) => s.error);
   const reload = useSettlementPaymentsStore((s) => s.load);
@@ -66,10 +67,14 @@ export function SettleActions({ plan }: SettleActionsProps): React.JSX.Element |
       [
         profile ? { id: profile.id, name: profile.name ?? '' } : null,
         ...housemates.map((h) => ({ id: h.id, name: h.name })),
+        // Someone who moved out but still has an open debt can be paid back.
+        ...formerMembers
+          .filter((f) => plan.some((x) => x.from === f.id || x.to === f.id))
+          .map((f) => ({ id: f.id, name: t('bills.settle_former_name', { name: f.name }) })),
       ]
         .filter((p): p is { id: string; name: string } => Boolean(p?.id && p?.name))
         .filter((p, i, arr) => arr.findIndex((q) => q.id === p.id) === i),
-    [profile, housemates]
+    [profile, housemates, formerMembers, plan, t]
   );
 
   const close = useCallback((): void => setOpen(null), []);

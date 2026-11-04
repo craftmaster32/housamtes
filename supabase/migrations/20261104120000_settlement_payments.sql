@@ -33,21 +33,34 @@ DROP POLICY IF EXISTS "house members can read settlement payments" ON settlement
 CREATE POLICY "house members can read settlement payments" ON settlement_payments FOR SELECT
   USING (house_id IN (SELECT public.get_my_house_ids()));
 
--- Only the payer or the receiver can record it, as themselves, and both people
--- must currently be members of the house.
+-- Only the payer or the receiver can record it, as themselves, while living in
+-- the house. The other person must be in the house now, or have lived there
+-- (so a debt with someone who moved out can still be paid back).
 DROP POLICY IF EXISTS "payer or receiver can record settlement payments" ON settlement_payments;
 CREATE POLICY "payer or receiver can record settlement payments" ON settlement_payments FOR INSERT
   WITH CHECK (
     house_id IN (SELECT public.get_my_house_ids())
     AND created_by = auth.uid()
     AND auth.uid() IN (from_user, to_user)
-    AND EXISTS (
-      SELECT 1 FROM house_members m
-      WHERE m.house_id = settlement_payments.house_id AND m.user_id = settlement_payments.from_user
+    AND (
+      EXISTS (
+        SELECT 1 FROM house_members m
+        WHERE m.house_id = settlement_payments.house_id AND m.user_id = settlement_payments.from_user
+      )
+      OR EXISTS (
+        SELECT 1 FROM former_members f
+        WHERE f.house_id = settlement_payments.house_id AND f.user_id = settlement_payments.from_user
+      )
     )
-    AND EXISTS (
-      SELECT 1 FROM house_members m
-      WHERE m.house_id = settlement_payments.house_id AND m.user_id = settlement_payments.to_user
+    AND (
+      EXISTS (
+        SELECT 1 FROM house_members m
+        WHERE m.house_id = settlement_payments.house_id AND m.user_id = settlement_payments.to_user
+      )
+      OR EXISTS (
+        SELECT 1 FROM former_members f
+        WHERE f.house_id = settlement_payments.house_id AND f.user_id = settlement_payments.to_user
+      )
     )
   );
 

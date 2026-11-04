@@ -4,7 +4,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useHouseMoney } from '@hooks/useHouseMoney';
-import { pairwiseDebts, planSettleUpTo, type Transfer } from '@utils/settleUp';
+import { isSafeToRecord, pairwiseDebts, planSettleUpTo, type Transfer } from '@utils/settleUp';
 import { todayISO } from '@utils/recurringCoverage';
 
 export interface PlannedTransfer extends Transfer {
@@ -21,6 +21,8 @@ export interface SettleUpToDate {
   error: string;
   /** The chosen date is after today — nothing can be settled yet. */
   isFuture: boolean;
+  /** The user's part isn't safe on its own: the others must settle theirs first. */
+  othersFirst: boolean;
   confirm: () => void;
 }
 
@@ -63,6 +65,7 @@ export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleU
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const housemates = useHousematesStore((s) => s.housemates);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
   const recordSettleUpTo = useSettlementPaymentsStore((s) => s.recordSettleUpTo);
   const { money, net } = useHouseMoney();
   const myId = profile?.id ?? '';
@@ -77,21 +80,42 @@ export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleU
     setError('');
   }, [visible]);
 
-  const plan = useMemo((): PlannedTransfer[] => {
-    const memberIds = new Set(housemates.map((h) => h.id));
-    return planSettleUpTo(net, pairwiseDebts(money, upTo)).map((x) => ({
-      ...x,
-      // The database only accepts payments between current members that the
-      // user is part of; anything else is left for the people involved.
-      canRecord: (x.from === myId || x.to === myId) && memberIds.has(x.from) && memberIds.has(x.to),
-    }));
-  }, [net, money, upTo, housemates, myId]);
-
-  const isFuture = upTo > todayISO();
-  const recordable = useMemo(
-    () => (isFuture ? [] : plan.filter((x) => x.canRecord)),
-    [plan, isFuture]
+  // Who a payment can be recorded with: anyone in the house now, or someone
+  // who has left (a debt with them can still be paid back).
+  const recordableWith = useMemo(
+    () => new Set([...housemates.map((h) => h.id), ...formerMembers.map((f) => f.id)]),
+    [housemates, formerMembers]
   );
+  const isFuture = upTo > todayISO();
+
+  const { plan, recordable, othersFirst } = useMemo(() => {
+    const mark = (list: Transfer[]): PlannedTransfer[] =>
+      list.map((x) => ({
+        ...x,
+        // The database only accepts payments the user is part of; anything
+        // else is left for the people involved.
+        canRecord:
+          (x.from === myId || x.to === myId) &&
+          recordableWith.has(x.from) &&
+          recordableWith.has(x.to),
+      }));
+    const mine = (list: PlannedTransfer[]): PlannedTransfer[] => list.filter((x) => x.canRecord);
+    const debts = pairwiseDebts(money, upTo);
+
+    // 1) Who-actually-owes-whom routes, if the part this user can record is
+    //    safe on its own.
+    const real = mark(planSettleUpTo(net, debts));
+    if (isSafeToRecord(net, mine(real))) {
+      return { plan: real, recordable: isFuture ? [] : mine(real), othersFirst: false };
+    }
+    // 2) Otherwise the direct route (Dana pays Maya, skipping the middle).
+    const direct = mark(planSettleUpTo(net, debts, { direct: true }));
+    if (isSafeToRecord(net, mine(direct))) {
+      return { plan: direct, recordable: isFuture ? [] : mine(direct), othersFirst: false };
+    }
+    // 3) Still not safe alone: the others need to settle their part first.
+    return { plan: real, recordable: [] as PlannedTransfer[], othersFirst: true };
+  }, [net, money, upTo, myId, recordableWith, isFuture]);
 
   const confirm = useCallback((): void => {
     if (saving || recordable.length === 0) return;
@@ -110,5 +134,5 @@ export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleU
       .finally(() => setSaving(false));
   }, [saving, recordable, recordSettleUpTo, upTo, houseId, profile?.name, onDone, t]);
 
-  return { upTo, setUpTo, plan, recordable, saving, error, isFuture, confirm };
+  return { upTo, setUpTo, plan, recordable, saving, error, isFuture, othersFirst, confirm };
 }

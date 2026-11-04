@@ -167,7 +167,13 @@ export function SettleUpToDateSheet({
           {t('bills.settle_future_date')}
         </Text>
       )}
-      {!s.isFuture && s.plan.length > 0 && s.recordable.length === 0 && (
+      {!s.isFuture && s.recordable.length > 0 && s.recordable.length < s.plan.length && (
+        <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_only_yours')}</Text>
+      )}
+      {!s.isFuture && s.othersFirst && (
+        <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_others_first')}</Text>
+      )}
+      {!s.isFuture && !s.othersFirst && s.plan.length > 0 && s.recordable.length === 0 && (
         <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_none_mine')}</Text>
       )}
       {s.recordable.length > 0 && (

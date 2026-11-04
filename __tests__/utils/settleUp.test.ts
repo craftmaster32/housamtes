@@ -14,6 +14,8 @@ import {
   applySettlementPayments,
   computeHouseNet,
   maxOwedBetween,
+  fullySettledUntil,
+  isSafeToRecord,
   pairwiseDebts,
   recurringShareUpTo,
   planSettleUpTo,
@@ -543,5 +545,56 @@ describe("Maya's real case: two months in the app, September paid outside it", (
     const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-01'));
     const after = computeHouseNet(record(m, plan));
     expect(round(after.get(DANA))).not.toBe(-350);
+  });
+});
+
+describe('only part of a plan can be recorded (3+ people)', () => {
+  // Dana owes Tom 100 and Tom owes Maya 100: Tom is square overall.
+  const net = new Map([
+    [DANA, -100],
+    [TOM, 0],
+    [MAYA, 100],
+  ]);
+  const debts: Transfer[] = [
+    { from: DANA, to: TOM, amount: 100 },
+    { from: TOM, to: MAYA, amount: 100 },
+  ];
+
+  it('the full plan is safe', () => {
+    expect(isSafeToRecord(net, planSettleUpTo(net, debts))).toBe(true);
+  });
+
+  it('recording only Dana → Tom is NOT safe on its own (Tom would look like he owes)', () => {
+    expect(isSafeToRecord(net, [{ from: DANA, to: TOM, amount: 100 }])).toBe(false);
+  });
+
+  it('the direct route skips the middle person: Dana pays Maya', () => {
+    const direct = planSettleUpTo(net, debts, { direct: true });
+    expect(direct).toEqual([{ from: DANA, to: MAYA, amount: 100 }]);
+    expect(isSafeToRecord(net, direct)).toBe(true);
+  });
+});
+
+describe('fullySettledUntil — "Settled" only when a period is really fully paid', () => {
+  const m = money({
+    householdPayments: [rentPayment('oct', '2026-10-01'), rentPayment('nov', '2026-11-01')],
+  });
+  const settle = (from: string, amount: number): SettlementPayment => ({
+    ...paid(from, MAYA, amount, '2026-11-04'),
+    coversUntil: '2026-10-31',
+  });
+
+  it('nothing settled yet → no settled period', () => {
+    expect(fullySettledUntil(m, computeHouseNet(m))).toBeNull();
+  });
+
+  it('only Dana recorded her part of October → October is NOT shown as settled', () => {
+    const partly = money({ ...m, settlementPayments: [settle(DANA, 300)] });
+    expect(fullySettledUntil(partly, computeHouseNet(partly))).toBeNull();
+  });
+
+  it('Dana and Tom both recorded October → October is settled', () => {
+    const fully = money({ ...m, settlementPayments: [settle(DANA, 300), settle(TOM, 300)] });
+    expect(fullySettledUntil(fully, computeHouseNet(fully))).toBe('2026-10-31');
   });
 });

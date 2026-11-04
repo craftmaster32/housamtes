@@ -62,6 +62,19 @@ jest.mock('@hooks/useMemberName', () => ({
       ({ u1: 'Ann', u2: 'Ben' })[id] ?? id,
 }));
 
+jest.mock('@hooks/useHouseMoney', () => ({
+  useHouseMoney: (): unknown => ({
+    money: {
+      bills: [],
+      householdBills: [],
+      householdPayments: [],
+      members: [],
+      settlementPayments: [],
+    },
+    net: new Map(),
+  }),
+}));
+
 import { useOneOffBillHistory } from '@hooks/useOneOffBillHistory';
 
 function bill(overrides: Partial<Bill> = {}): Bill {

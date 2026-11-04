@@ -165,7 +165,7 @@ function BillsScreen(): React.JSX.Element {
         <DayHeader title={item.title} />
         {item.data.map((row) =>
           row.kind === 'bill' ? (
-            <BillLine key={row.key} bill={row.bill} />
+            <BillLine key={row.key} bill={row.bill} inSettledPeriod={row.inSettledPeriod} />
           ) : row.kind === 'payment' ? (
             <RecurringPaymentLine key={row.key} row={row.payment} />
           ) : (

@@ -207,7 +207,11 @@ export function pairwiseDebts(money: HouseMoney, upTo?: string): Transfer[] {
  * more, or flip from being owed to owing. The limited changes are then met
  * using the real routes first, and the fewest extra transfers for the rest.
  */
-export function planSettleUpTo(currentNet: NetBalances, upToDebts: Transfer[]): Transfer[] {
+export function planSettleUpTo(
+  currentNet: NetBalances,
+  upToDebts: Transfer[],
+  opts: { direct?: boolean } = {}
+): Transfer[] {
   // How each person's balance would change if every pair settled.
   const change = new Map<string, number>();
   for (const t of upToDebts) {
@@ -226,7 +230,7 @@ export function planSettleUpTo(currentNet: NetBalances, upToDebts: Transfer[]): 
     if (Math.abs(limited - after) > 0.01) safe = false;
     target.set(person, limited);
   });
-  if (safe) return upToDebts.filter((t) => t.amount >= 0.01);
+  if (safe && !opts.direct) return upToDebts.filter((t) => t.amount >= 0.01);
 
   // Payers raise their balance toward 0, receivers lower theirs toward 0.
   const pay = new Map<string, number>();
@@ -259,10 +263,12 @@ export function planSettleUpTo(currentNet: NetBalances, upToDebts: Transfer[]): 
     pay.set(from, (pay.get(from) ?? 0) - amount);
     receive.set(to, (receive.get(to) ?? 0) - amount);
   };
-  // 1) Real routes first.
-  for (const t of upToDebts) {
-    const amount = Math.min(t.amount, pay.get(t.from) ?? 0, receive.get(t.to) ?? 0);
-    if (amount > 0) add(t.from, t.to, amount);
+  // 1) Real routes first (skipped when asked for the direct, fewest-transfer route).
+  if (!opts.direct) {
+    for (const t of upToDebts) {
+      const amount = Math.min(t.amount, pay.get(t.from) ?? 0, receive.get(t.to) ?? 0);
+      if (amount > 0) add(t.from, t.to, amount);
+    }
   }
   // 2) Whatever is left, with the fewest transfers.
   const rest = new Map<string, number>();
@@ -277,6 +283,37 @@ export function planSettleUpTo(currentNet: NetBalances, upToDebts: Transfer[]): 
     if (rounded >= 0.01) out.push({ from, to, amount: rounded });
   });
   return out.sort((x, y) => y.amount - x.amount);
+}
+
+/**
+ * True when recording these transfers on their own leaves nobody worse off:
+ * no balance grows, and nobody flips from owed to owing (or back).
+ *
+ * A full plan can be safe while part of it isn't: if Dana owes Tom and Tom owes
+ * Maya, recording only "Dana → Tom" makes Tom look like he owes more until he
+ * passes it on. When only part of a plan can be recorded, check that part.
+ */
+export function isSafeToRecord(currentNet: NetBalances, transfers: Transfer[]): boolean {
+  const after = applySettlementPayments(
+    currentNet,
+    transfers.map((t, i) => ({
+      id: `check-${i}`,
+      from: t.from,
+      to: t.to,
+      amount: t.amount,
+      paidOn: '',
+      coversUntil: null,
+      note: null,
+      createdBy: '',
+      createdAt: '',
+    }))
+  );
+  for (const [person, a] of after) {
+    const b = currentNet.get(person) ?? 0;
+    if (Math.abs(a) > Math.abs(b) + 0.005) return false;
+    if (Math.abs(a) > 0.005 && Math.abs(b) > 0.005 && Math.sign(a) !== Math.sign(b)) return false;
+  }
+  return true;
 }
 
 /**
@@ -300,4 +337,20 @@ export function latestSettledUntil(payments: SettlementPayment[]): string | null
     if (p.coversUntil && (latest === null || p.coversUntil > latest)) latest = p.coversUntil;
   }
   return latest;
+}
+
+/**
+ * The latest "settled up to" date where everything up to it really is paid:
+ * nothing is left to settle for that period. In a 3+ person house, a date can
+ * be partly settled (one person recorded their part, another hasn't yet) —
+ * that date doesn't count until the rest is recorded.
+ */
+export function fullySettledUntil(money: HouseMoney, net: NetBalances): string | null {
+  const dates = Array.from(
+    new Set(money.settlementPayments.map((p) => p.coversUntil).filter((d): d is string => !!d))
+  ).sort((a, b) => b.localeCompare(a));
+  for (const date of dates) {
+    if (planSettleUpTo(net, pairwiseDebts(money, date)).length === 0) return date;
+  }
+  return null;
 }

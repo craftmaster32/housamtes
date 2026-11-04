@@ -809,7 +809,14 @@
     "settle_upto_end_of": "Fin de {{month}}",
     "settle_upto_explain": "Todo hasta el {{date}} (incluido) cuenta como pagado. Los gastos desde el {{next}} siguen pendientes.",
     "settle_upto_first_of_month": "Cuidado: el {{date}} está incluido, así que el alquiler y las cuentas de ese mes también cuentan como pagados. Si quieres decir \"todo antes del {{date}}\", elige el {{before}}.",
-    "settle_upto_use_day_before": "Usar el {{before}}"
+    "settle_upto_use_day_before": "Usar el {{before}}",
+    "settle_upto_only_yours": "Al confirmar se registran solo los pagos en los que participas. Los demás pueden registrar los suyos desde su móvil.",
+    "settle_upto_others_first": "Tu parte depende de que primero se pase dinero entre los demás. Pídeles que salden su parte y vuelve aquí.",
+    "settle_former_name": "{{name}} (se mudó)",
+    "mark_settled_already_covered": "Esta cuenta está en un periodo ya saldado hasta una fecha, así que ya está pagada. Marcarla también como saldada contaría el dinero dos veces.",
+    "mark_settled_check_title": "¿Ya se devolvió?",
+    "mark_settled_check_body": "Algunas personas de esta cuenta registraron pagos para saldar entre ellas. Si alguno ya cubrió esta cuenta, marcarla como saldada contaría el dinero dos veces.",
+    "mark_settled_check_confirm": "No está cubierta, marcar saldada"
   },
   "parking": {
     "title": "Estacionamiento",

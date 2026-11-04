@@ -111,8 +111,11 @@ export function ReceiptLine({
 /** A one-off expense line. Owners/admins can swipe an unsettled one to delete. */
 export function BillLine({
   bill,
+  inSettledPeriod = false,
 }: {
   bill: Extract<BillRow, { kind: 'bill' }>['bill'];
+  /** Covered by a fully settled period ("settle up to a date"). */
+  inSettledPeriod?: boolean;
 }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -127,7 +130,7 @@ export function BillLine({
   // house context is required too, so deletion never fires without one.
   const canDelete = (role === 'owner' || role === 'admin') && !bill.settled && !!houseId;
   // Marked settled on its own, or covered by "settle up to a date".
-  const isSettled = bill.settled || settledGuard.isSettled(bill.date);
+  const isSettled = bill.settled || inSettledPeriod;
   const payer = memberName(bill.paidBy).split(' ')[0];
   const catLabel = bill.category ? localizeCategoryName(bill.category, t) : '';
   const look = useCategoryLook()(bill.category);
@@ -138,34 +141,42 @@ export function BillLine({
   const handleDelete = useCallback((): void => {
     if (deletingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    // Deleting a bill can't be undone and shifts everyone's balances, so
-    // confirm before removing — unlike the throwaway grocery rows.
-    const inSettledPeriod = settledGuard.isSettled(bill.date);
-    Alert.alert(
-      inSettledPeriod ? t('bills.settled_change_title') : t('bills.delete_bill_confirm_title'),
-      inSettledPeriod ? settledGuard.warning() : t('bills.delete_bill_confirm_msg'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: (): void => {
-            if (deletingRef.current) return;
-            deletingRef.current = true;
-            deleteBill(bill.id, houseId, { skipNotify: inSettledPeriod })
-              .then(() => {
-                if (inSettledPeriod) settledGuard.notifyChange(bill.title);
-              })
-              .catch(() => {
-                Alert.alert(t('bills.failed_delete'));
-              })
-              .finally(() => {
-                deletingRef.current = false;
-              });
-          },
-        },
-      ]
-    );
+    const remove = (inSettledPeriod: boolean): void => {
+      if (deletingRef.current) return;
+      deletingRef.current = true;
+      deleteBill(bill.id, houseId, { skipNotify: inSettledPeriod })
+        .then(() => {
+          if (inSettledPeriod) settledGuard.notifyChange(bill.title);
+        })
+        .catch(() => {
+          Alert.alert(t('bills.failed_delete'));
+        })
+        .finally(() => {
+          deletingRef.current = false;
+        });
+    };
+    // Make sure we know whether this bill is in a settled month (loading the
+    // settle-ups first if needed). If it is, that warning is the confirmation.
+    deletingRef.current = true;
+    settledGuard
+      .confirmChange(bill.date)
+      .then((check) => {
+        deletingRef.current = false;
+        if (!check.proceed) return;
+        if (check.settled) {
+          remove(true);
+          return;
+        }
+        // Deleting a bill can't be undone and shifts everyone's balances, so
+        // confirm before removing — unlike the throwaway grocery rows.
+        Alert.alert(t('bills.delete_bill_confirm_title'), t('bills.delete_bill_confirm_msg'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('common.delete'), style: 'destructive', onPress: (): void => remove(false) },
+        ]);
+      })
+      .catch(() => {
+        deletingRef.current = false;
+      });
   }, [bill.id, bill.date, bill.title, houseId, deleteBill, settledGuard, t]);
 
   const line = (
@@ -231,8 +242,8 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
   const paidBy = t('bills.paid_by_name', { name: memberName(row.paidBy).split(' ')[0] });
-  // Every month it pays for is inside a settled period ("settle up to a date").
-  const isSettled = useSettledPeriodGuard().isSettled(row.lastCoveredMonth);
+  // Every month it pays for is inside a fully settled period.
+  const isSettled = row.inSettledPeriod;
   return (
     <Pressable
       style={({ pressed }) => [{ backgroundColor: c.receipt }, pressed && styles.pressed]}

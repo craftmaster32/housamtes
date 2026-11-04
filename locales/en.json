@@ -809,7 +809,14 @@
     "settle_upto_end_of": "End of {{month}}",
     "settle_upto_explain": "Everything up to and including {{date}} counts as paid. Expenses from {{next}} on stay open.",
     "settle_upto_first_of_month": "Careful: {{date}} is included, so that month's rent and bills count as paid too. If you mean \"everything before {{date}}\", pick {{before}}.",
-    "settle_upto_use_day_before": "Use {{before}} instead"
+    "settle_upto_use_day_before": "Use {{before}} instead",
+    "settle_upto_only_yours": "Confirming records only the payments you're part of. The others can record theirs from their own phone.",
+    "settle_upto_others_first": "Your part depends on money passing between the others first. Ask them to settle their part, then come back here.",
+    "settle_former_name": "{{name}} (moved out)",
+    "mark_settled_already_covered": "This bill is in a period that was already settled up to a date, so it's already paid for. Marking it settled too would count the money twice.",
+    "mark_settled_check_title": "Already paid back?",
+    "mark_settled_check_body": "Some of the people in this bill have recorded settle-up payments between them. If one of those already covered this bill, marking it settled too would count the money twice.",
+    "mark_settled_check_confirm": "It's not covered — mark settled"
   },
   "parking": {
     "title": "Parking",
