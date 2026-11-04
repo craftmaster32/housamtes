@@ -40,6 +40,7 @@ import { MonthTrack } from './MonthTrack';
 import { PaperTag } from './PaperTag';
 import { useBillStatusText } from './useBillStatusText';
 import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { firstCoveredDay } from '@utils/settleUp';
 import { useRecurringPalette } from './palette';
 
 interface RecurringBillCardProps {
@@ -103,7 +104,10 @@ export function RecurringBillCard({
   ].join(' · ');
 
   const settledGuard = useSettledPeriodGuard();
-  const hasSettledPayments = billPayments.some((p) => settledGuard.isSettled(p.paidAt));
+  // By the months each payment pays for, the same way settling up counts them.
+  const hasSettledPayments = billPayments.some((p) =>
+    settledGuard.isSettled(firstCoveredDay(p, bill))
+  );
 
   const handleDelete = useCallback(async (): Promise<void> => {
     try {

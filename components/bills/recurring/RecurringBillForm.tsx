@@ -23,6 +23,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { defaultSplitOn, toMemberSpans } from '@utils/membership';
 import { BillIconPicker } from './BillIconPicker';
 import { ChoiceChips, type ChoiceOption } from './ChoiceChips';
+import { firstCoveredDay } from '@utils/settleUp';
 import { useRecurringPalette } from './palette';
 
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
@@ -89,9 +90,12 @@ export function RecurringBillForm({
     const reassigned = !!bill && assignedTo !== bill.assignedTo;
     const affectedDates = bill
       ? reassigned
-        ? payments.filter((pay) => pay.billId === bill.id && !pay.paidBy).map((pay) => pay.paidAt)
+        ? payments
+            .filter((pay) => pay.billId === bill.id && !pay.paidBy)
+            .map((pay) => firstCoveredDay(pay, bill))
         : []
-      : [lastPaidDate];
+      : // The first payment covers the month it was paid in.
+        [lastPaidDate ? monthStart(lastPaidDate) : null];
     confirmingRef.current = true;
     const check = await settledGuard.confirmChange(...affectedDates);
     confirmingRef.current = false;

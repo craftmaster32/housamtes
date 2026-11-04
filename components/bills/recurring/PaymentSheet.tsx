@@ -17,6 +17,7 @@ import { formatMoney } from './money';
 import { PeriodStepper } from './PeriodStepper';
 import { SheetHeader } from './SheetHeader';
 import { ChoiceChips, type ChoiceOption } from './ChoiceChips';
+import { firstCoveredDay } from '@utils/settleUp';
 import { useRecurringPalette } from './palette';
 
 interface PaymentSheetProps {
@@ -76,13 +77,25 @@ export function PaymentSheet({
     Alert.alert(
       t('bills.household_delete_payment_title'),
       // From a period that was already settled up: say what that means.
-      settledGuard.isSettled(payment.paidAt) ? `${body}\n\n${settledGuard.warning()}` : body,
+      settledGuard.isSettled(firstCoveredDay(payment, bill))
+        ? `${body}\n\n${settledGuard.warning()}`
+        : body,
       [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('common.delete'), style: 'destructive', onPress: (): void => void remove() },
       ]
     );
-  }, [payment, currency, form.period, form.periodKnown, i18n.language, remove, settledGuard, t]);
+  }, [
+    payment,
+    bill,
+    currency,
+    form.period,
+    form.periodKnown,
+    i18n.language,
+    remove,
+    settledGuard,
+    t,
+  ]);
 
   const inputStyle = [styles.input, { borderColor: p.border, color: p.text }];
 

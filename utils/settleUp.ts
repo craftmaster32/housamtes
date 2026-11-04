@@ -10,6 +10,14 @@ import {
   type RecurringBill,
 } from '@stores/recurringBillsStore';
 import { membersOn, type MemberSpan } from '@utils/membership';
+import {
+  FREQUENCY_MONTHS,
+  monthStart,
+  paymentPeriod,
+  periodMonths,
+  shiftMonth,
+  type CoveragePeriod,
+} from '@utils/recurringCoverage';
 
 /**
  * Money paid directly from one housemate to another to settle up.
@@ -49,6 +57,40 @@ export interface HouseMoney {
 const cents = (n: number): number => Math.round(n * 100) / 100;
 
 /**
+ * The months a recurring payment pays for. Uses the months chosen when it was
+ * logged; for older payments without that, the bill's frequency counted back
+ * from the month it was paid (same rule as the Spending page).
+ */
+export function recurringPeriod(payment: HouseholdPayment, bill: RecurringBill): CoveragePeriod {
+  const known = paymentPeriod(payment);
+  if (known) return known;
+  const months = FREQUENCY_MONTHS[bill.frequency] ?? 1;
+  return { start: shiftMonth(monthStart(payment.paidAt), -(months - 1)), months };
+}
+
+/** First day a recurring payment pays for (YYYY-MM-DD). */
+export function firstCoveredDay(payment: HouseholdPayment, bill: RecurringBill): string {
+  return recurringPeriod(payment, bill).start;
+}
+
+/**
+ * How much (0–1) of a recurring payment belongs to the time up to `upTo`.
+ *
+ * Counted by the months it PAYS FOR, not the day it was paid, and a month
+ * counts in full once it has started (rent is for the whole month):
+ * November rent paid on 28 Oct counts 0 up to 31 Oct; a 2-month Oct–Nov bill
+ * counts half up to 31 Oct, and all of it up to 4 Nov.
+ */
+export function recurringShareUpTo(
+  payment: HouseholdPayment,
+  bill: RecurringBill,
+  upTo: string
+): number {
+  const months = periodMonths(recurringPeriod(payment, bill));
+  return months.filter((month) => month <= upTo).length / months.length;
+}
+
+/**
  * Adds settle-up payments to a balance map: the payer's debt goes down and the
  * receiver's credit goes down by the same amount, so the map still sums to ~0.
  */
@@ -68,16 +110,22 @@ export function applySettlementPayments(
  * Everyone's balance for the whole house: unsettled one-off bills + recurring
  * bill payments − settle-up payments.
  *
- * With `upTo` (YYYY-MM-DD), only expenses dated on or before that day count.
- * Settle-up payments always count in full, whatever their date: money paid
- * pays off the oldest debts first.
+ * With `upTo` (YYYY-MM-DD), only what belongs to days on or before it counts:
+ * one-off bills by their date, recurring payments by the months they PAY FOR
+ * (see `recurringShareUpTo`). Settle-up payments always count in full,
+ * whatever their date: money paid pays off the oldest debts first.
  */
 export function computeHouseNet(money: HouseMoney, upTo?: string): NetBalances {
   const bills = money.bills.filter((b) => !b.settled && (upTo === undefined || b.date <= upTo));
   const payments =
     upTo === undefined
       ? money.householdPayments
-      : money.householdPayments.filter((p) => p.paidAt <= upTo);
+      : money.householdPayments
+          .map((p) => {
+            const bill = money.householdBills.find((b) => b.id === p.billId);
+            return bill ? { ...p, amount: p.amount * recurringShareUpTo(p, bill, upTo) } : p;
+          })
+          .filter((p) => p.amount > 0);
 
   const net = new Map(calculateAllNetBalances(bills));
   for (const { person, balance } of calculateFairness(
@@ -92,7 +140,8 @@ export function computeHouseNet(money: HouseMoney, upTo?: string): NetBalances {
 
 /**
  * Who owes whom directly, pair by pair, for expenses up to `upTo` (all when
- * omitted): each person in a split owes the person who fronted the money.
+ * omitted; recurring payments by the months they pay for): each person in a
+ * split owes the person who fronted the money.
  * Settle-up payments are taken off the pair they were paid between.
  *
  * This is the "real" view (like Splitwise with "simplify debts" off): Dana
@@ -115,9 +164,11 @@ export function pairwiseDebts(money: HouseMoney, upTo?: string): Transfer[] {
   }
 
   for (const p of money.householdPayments) {
-    if (upTo !== undefined && p.paidAt > upTo) continue;
     const bill = money.householdBills.find((b) => b.id === p.billId);
     if (!bill) continue; // same rule as calculateFairness: orphaned payments don't count
+    // Only the part of the payment for months up to the date counts.
+    const part = upTo === undefined ? 1 : recurringShareUpTo(p, bill, upTo);
+    if (part <= 0) continue;
     const payer = p.paidBy ?? bill.assignedTo;
     const presentThen =
       p.splitBetween && p.splitBetween.length > 0 ? [] : membersOn(money.members, p.paidAt);
@@ -127,7 +178,7 @@ export function pairwiseDebts(money: HouseMoney, upTo?: string): Transfer[] {
         : presentThen.length > 0
           ? presentThen
           : [payer];
-    const share = p.amount / split.length;
+    const share = (p.amount * part) / split.length;
     for (const person of split) owe(person, payer, share);
   }
 

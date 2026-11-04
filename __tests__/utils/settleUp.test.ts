@@ -15,6 +15,7 @@ import {
   computeHouseNet,
   maxOwedBetween,
   pairwiseDebts,
+  recurringShareUpTo,
   planSettleUpTo,
   type HouseMoney,
   type NetBalances,
@@ -371,6 +372,14 @@ describe('"split with everyone" means everyone there on the day', () => {
     expect(membersOn(spans, '2026-11-01').sort()).toEqual([DANA, MAYA, TOM].sort());
   });
 
+  it('never crashes on a missing join or leave date (treated as unknown)', () => {
+    const odd = [
+      { id: MAYA, joinedAt: undefined as unknown as null, leftAt: undefined as unknown as null },
+      { id: DANA, joinedAt: '2026-09-01T00:00:00Z', leftAt: null },
+    ];
+    expect(membersOn(odd, '2026-10-01').sort()).toEqual([DANA, MAYA].sort());
+  });
+
   it('treats an expense dated before the house started in the app as day one', () => {
     // Day one = 1 Sep: Maya, Dana and Sam (who left later) — not Tom.
     expect(membersOn(spans, '2026-08-01').sort()).toEqual([DANA, MAYA, 'sam'].sort());
@@ -412,5 +421,69 @@ describe('"split with everyone" means everyone there on the day', () => {
   it('pair-by-pair debts use the same rule', () => {
     const m = money({ members: spans, householdPayments: [legacy('oct', '2026-10-25')] });
     expect(pairwiseDebts(m)).toEqual([{ from: DANA, to: MAYA, amount: 450 }]);
+  });
+});
+
+describe('settle up to a date counts recurring bills by the months they pay for', () => {
+  const pay = (
+    id: string,
+    paidAt: string,
+    extra: Partial<HouseholdPayment> = {}
+  ): HouseholdPayment => ({
+    id,
+    billId: 'rent',
+    amount: 900,
+    paidAt,
+    note: '',
+    paidBy: MAYA,
+    splitBetween: MEMBERS,
+    ...extra,
+  });
+
+  it('November rent paid early (28 Oct) is NOT part of "up to 31 Oct"', () => {
+    const p = pay('nov-early', '2026-10-28', { coverageStart: '2026-11-01', coverageMonths: 1 });
+    expect(recurringShareUpTo(p, rent, '2026-10-31')).toBe(0);
+    expect(recurringShareUpTo(p, rent, '2026-11-30')).toBe(1);
+  });
+
+  it('October rent paid late (2 Nov) IS part of "up to 31 Oct"', () => {
+    const p = pay('oct-late', '2026-11-02', { coverageStart: '2026-10-01', coverageMonths: 1 });
+    expect(recurringShareUpTo(p, rent, '2026-10-31')).toBe(1);
+  });
+
+  it('a 2-month bill (Oct–Nov) counts half up to 31 Oct', () => {
+    const p = pay('bi', '2026-10-05', { coverageStart: '2026-10-01', coverageMonths: 2 });
+    expect(recurringShareUpTo(p, rent, '2026-10-31')).toBe(0.5);
+  });
+
+  it('a month counts in full once it has started', () => {
+    const p = pay('oct', '2026-10-01', { coverageStart: '2026-10-01', coverageMonths: 1 });
+    expect(recurringShareUpTo(p, rent, '2026-10-01')).toBe(1);
+    expect(recurringShareUpTo(p, rent, '2026-10-15')).toBe(1);
+    expect(recurringShareUpTo(p, rent, '2026-09-30')).toBe(0);
+  });
+
+  it('older payments without months use the bill frequency, counted back from the paid month', () => {
+    const bimonthly: RecurringBill = { ...rent, frequency: 'bimonthly' };
+    const p = pay('old', '2026-10-10'); // no coverage saved → Sep–Oct
+    expect(recurringShareUpTo(p, bimonthly, '2026-09-30')).toBe(0.5);
+    expect(recurringShareUpTo(p, bimonthly, '2026-10-31')).toBe(1);
+  });
+
+  it('end to end: only the October half of a 2-month bill is settled', () => {
+    const m = money({
+      householdPayments: [
+        pay('bi', '2026-10-05', { coverageStart: '2026-10-01', coverageMonths: 2 }),
+      ],
+    });
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-31'));
+    expect(plan).toEqual(
+      expect.arrayContaining([
+        { from: DANA, to: MAYA, amount: 150 },
+        { from: TOM, to: MAYA, amount: 150 },
+      ])
+    );
+    const after = computeHouseNet(record(m, plan));
+    expect(round(after.get(DANA))).toBe(-150); // November half still open
   });
 });

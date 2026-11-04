@@ -24,11 +24,11 @@ export function toMemberSpans(
 ): MemberSpan[] {
   const currentIds = new Set(current.map((m) => m.id));
   return [
-    ...current.map((m) => ({ id: m.id, joinedAt: m.joinedAt, leftAt: null })),
+    ...current.map((m) => ({ id: m.id, joinedAt: m.joinedAt ?? null, leftAt: null })),
     // Someone who left and later came back counts as their current membership.
     ...former
       .filter((f) => !currentIds.has(f.id))
-      .map((f) => ({ id: f.id, joinedAt: null, leftAt: f.leftAt })),
+      .map((f) => ({ id: f.id, joinedAt: null, leftAt: f.leftAt ?? null })),
   ];
 }
 
@@ -50,7 +50,8 @@ export function membersOn(members: MemberSpan[], date: string): string[] {
   return members
     .filter(
       (m) =>
-        (m.joinedAt === null || day(m.joinedAt) <= on) && (m.leftAt === null || day(m.leftAt) >= on)
+        // A missing date (null or absent) means unknown: from the start / still here.
+        (!m.joinedAt || day(m.joinedAt) <= on) && (!m.leftAt || day(m.leftAt) >= on)
     )
     .map((m) => m.id);
 }
