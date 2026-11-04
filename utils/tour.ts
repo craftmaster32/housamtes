@@ -34,6 +34,7 @@ function deviceKey(userId: string): string {
   return `${WHATS_NEW_KEY}_${userId}`;
 }
 
+/** Sets the tour state to 'pending' so the dashboard shows it on first load. */
 export async function markTourPending(): Promise<void> {
   try {
     await AsyncStorage.setItem(TOUR_KEY, 'pending');
@@ -43,6 +44,7 @@ export async function markTourPending(): Promise<void> {
   }
 }
 
+/** Returns true if the "new look" note should be shown for the given account. */
 export async function shouldShowWhatsNew(account: WhatsNewAccount | null): Promise<boolean> {
   // No account yet — wait; never guess and pop it up for the wrong person.
   if (!account) return false;
@@ -56,7 +58,9 @@ export async function shouldShowWhatsNew(account: WhatsNewAccount | null): Promi
     const key = account.id ? deviceKey(account.id) : WHATS_NEW_KEY;
     if ((await AsyncStorage.getItem(key)) === WHATS_NEW_VERSION) {
       // Seen on this device before the account remembered it — copy it over.
-      await saveSeenOnAccount();
+      // Only migrate when we have an id; otherwise we can't bind the save to
+      // this account and risk marking a different account as seen.
+      if (account.id) await saveSeenOnAccount(account.id);
       return false;
     }
     return true;
@@ -65,8 +69,14 @@ export async function shouldShowWhatsNew(account: WhatsNewAccount | null): Promi
   }
 }
 
-async function saveSeenOnAccount(): Promise<void> {
+async function saveSeenOnAccount(expectedUserId?: string): Promise<void> {
   try {
+    // Verify the signed-in user is still the one that initiated the save so a
+    // mid-flight account switch cannot mark the wrong account as seen.
+    if (expectedUserId) {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== expectedUserId) return;
+    }
     const { error } = await supabase.auth.updateUser({
       data: { [WHATS_NEW_META_KEY]: WHATS_NEW_VERSION },
     });
@@ -80,6 +90,7 @@ async function saveSeenOnAccount(): Promise<void> {
   }
 }
 
+/** Records that the "new look" note has been seen, on device and on the account. */
 export async function markWhatsNewSeen(userId?: string): Promise<void> {
   try {
     // Write to the per-account key when we have a userId so other accounts on
@@ -89,9 +100,10 @@ export async function markWhatsNewSeen(userId?: string): Promise<void> {
   } catch {
     // Non-fatal — the account flag below still remembers it.
   }
-  await saveSeenOnAccount();
+  await saveSeenOnAccount(userId);
 }
 
+/** Returns true if the welcome tour is pending for the current device. */
 export async function shouldShowTour(): Promise<boolean> {
   try {
     const value = await AsyncStorage.getItem(TOUR_KEY);
@@ -101,6 +113,7 @@ export async function shouldShowTour(): Promise<boolean> {
   }
 }
 
+/** Marks the welcome tour as done so it never shows again on this device. */
 export async function markTourSeen(): Promise<void> {
   try {
     await AsyncStorage.setItem(TOUR_KEY, 'done');
