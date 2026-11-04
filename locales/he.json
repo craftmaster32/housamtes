@@ -801,7 +801,6 @@
     "settle_btn": "לסגור",
     "settle_with": "לסגור עם {{name}}, {{money}}",
     "settle_left": "נשאר לסגור",
-    "settle_left_after_paid": "נשאר לסגור · {{paid}} כבר שולמו",
     "settle_paid_all": "שולם הכול · {{money}}",
     "settle_paid_part": "שולם רק חלק",
     "settle_paid_so_far": "{{money}} שולמו",
@@ -814,7 +813,12 @@
     "settle_upto_first_short": "{{date}} כלול. התכוונת לפניו? הקישו כדי לבחור {{before}}.",
     "settle_upto_nothing_simple": "אין מה לסגור עד {{date}}",
     "settle_upto_left_label": "נשאר לסגור עד {{date}}",
-    "settle_upto_theirs": "הם רושמים את זה"
+    "settle_upto_theirs": "הם רושמים את זה",
+    "settle_amount_paid": "הסכום ששולם",
+    "settle_already_paid": "{{money}} כבר שולמו",
+    "settle_left_now": "נשארו {{money}} לסגור",
+    "settle_left_after": "נשארו {{money}} אחרי זה",
+    "settle_all_settled_after": "זה סוגר הכול ✓"
   },
   "parking": {
     "title": "חניה",

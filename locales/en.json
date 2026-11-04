@@ -800,8 +800,7 @@
     "mark_settled_check_confirm": "It's not covered — mark settled",
     "settle_btn": "Settle",
     "settle_with": "Settle with {{name}}, {{money}}",
-    "settle_left": "left to settle",
-    "settle_left_after_paid": "left to settle · {{paid}} already paid",
+    "settle_left": "Left to settle",
     "settle_paid_all": "Paid it all · {{money}}",
     "settle_paid_part": "Paid only part of it",
     "settle_paid_so_far": "{{money}} paid",
@@ -814,7 +813,12 @@
     "settle_upto_first_short": "{{date}} is included. Meant before it? Tap to use {{before}}.",
     "settle_upto_nothing_simple": "Nothing to settle up to {{date}}",
     "settle_upto_left_label": "Left to settle up to {{date}}",
-    "settle_upto_theirs": "They record this one"
+    "settle_upto_theirs": "They record this one",
+    "settle_amount_paid": "Amount paid",
+    "settle_already_paid": "{{money}} already paid",
+    "settle_left_now": "{{money}} left to settle",
+    "settle_left_after": "{{money}} left after this",
+    "settle_all_settled_after": "That settles it all ✓"
   },
   "parking": {
     "title": "Parking",

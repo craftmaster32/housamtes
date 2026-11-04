@@ -800,8 +800,7 @@
     "mark_settled_check_confirm": "No está cubierta, marcar saldada",
     "settle_btn": "Saldar",
     "settle_with": "Saldar con {{name}}, {{money}}",
-    "settle_left": "pendiente de saldar",
-    "settle_left_after_paid": "pendiente · {{paid}} ya pagado",
+    "settle_left": "Pendiente de saldar",
     "settle_paid_all": "Pagado todo · {{money}}",
     "settle_paid_part": "Solo se pagó una parte",
     "settle_paid_so_far": "{{money}} pagado",
@@ -814,7 +813,12 @@
     "settle_upto_first_short": "El {{date}} está incluido. ¿Querías antes? Toca para usar el {{before}}.",
     "settle_upto_nothing_simple": "Nada que saldar hasta el {{date}}",
     "settle_upto_left_label": "Pendiente de saldar hasta el {{date}}",
-    "settle_upto_theirs": "Lo registran ellos"
+    "settle_upto_theirs": "Lo registran ellos",
+    "settle_amount_paid": "Cantidad pagada",
+    "settle_already_paid": "{{money}} ya pagado",
+    "settle_left_now": "{{money}} pendiente",
+    "settle_left_after": "{{money}} pendiente después de esto",
+    "settle_all_settled_after": "Con esto queda todo saldado ✓"
   },
   "parking": {
     "title": "Estacionamiento",

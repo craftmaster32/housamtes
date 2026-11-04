@@ -17,6 +17,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { formatFull } from '@constants/currencies';
 import { formatDateDDMMYYYY, toAppLocale } from '@utils/dates';
+import { SheetButton } from '@components/shared/SheetButton';
 import { SettleSheet } from './SettleSheet';
 import { settleStyles as styles } from './settleStyles';
 
@@ -188,23 +189,14 @@ export function SettleUpToDateSheet({
               </Text>
             )}
             {s.recordable.length > 0 && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  { backgroundColor: p.primary },
-                  (s.saving || pressed) && styles.dimmed,
-                ]}
+              <SheetButton
+                label={
+                  s.saving ? t('bills.household_saving') : t('bills.settle_upto_confirm', { date })
+                }
                 onPress={s.confirm}
                 disabled={s.saving}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: s.saving, busy: s.saving }}
-              >
-                <Text style={[styles.primaryText, { color: p.onPrimary }]}>
-                  {s.saving
-                    ? t('bills.household_saving')
-                    : t('bills.settle_upto_confirm', { date })}
-                </Text>
-              </Pressable>
+                loading={s.saving}
+              />
             )}
           </View>
         )}
