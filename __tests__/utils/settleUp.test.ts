@@ -8,10 +8,12 @@ jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 
 import type { Bill } from '@stores/billsStore';
 import type { HouseholdPayment, RecurringBill } from '@stores/recurringBillsStore';
+import { settleDebts } from '@stores/billsStore';
 import {
   applySettlementPayments,
   computeHouseNet,
   maxOwedBetween,
+  pairwiseDebts,
   planSettleUpTo,
   type HouseMoney,
   type NetBalances,
@@ -178,7 +180,7 @@ describe('planSettleUpTo — Maya’s case', () => {
   });
 
   it('records only October, leaving November open', () => {
-    const plan = planSettleUpTo(computeHouseNet(m), computeHouseNet(m, '2026-10-31'));
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-31'));
     expect(plan).toEqual(
       expect.arrayContaining([
         { from: DANA, to: MAYA, amount: 300 },
@@ -194,8 +196,8 @@ describe('planSettleUpTo — Maya’s case', () => {
   });
 
   it('settling again for the same date records nothing (no double counting)', () => {
-    const once = record(m, planSettleUpTo(computeHouseNet(m), computeHouseNet(m, '2026-10-31')));
-    const again = planSettleUpTo(computeHouseNet(once), computeHouseNet(once, '2026-10-31'));
+    const once = record(m, planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-31')));
+    const again = planSettleUpTo(computeHouseNet(once), pairwiseDebts(once, '2026-10-31'));
     expect(again).toEqual([]);
   });
 
@@ -203,7 +205,7 @@ describe('planSettleUpTo — Maya’s case', () => {
     const withPartial = money({ ...m, settlementPayments: [paid(DANA, MAYA, 200)] });
     const plan = planSettleUpTo(
       computeHouseNet(withPartial),
-      computeHouseNet(withPartial, '2026-10-31')
+      pairwiseDebts(withPartial, '2026-10-31')
     );
     expect(plan).toContainEqual({ from: DANA, to: MAYA, amount: 100 });
     const after = computeHouseNet(record(withPartial, plan));
@@ -213,14 +215,14 @@ describe('planSettleUpTo — Maya’s case', () => {
   it('never wipes out a credit: someone who paid extra keeps it', () => {
     // Dana already paid 500: October (300) plus 200 towards November.
     const prepaid = money({ ...m, settlementPayments: [paid(DANA, MAYA, 500)] });
-    const plan = planSettleUpTo(computeHouseNet(prepaid), computeHouseNet(prepaid, '2026-10-31'));
+    const plan = planSettleUpTo(computeHouseNet(prepaid), pairwiseDebts(prepaid, '2026-10-31'));
     expect(plan.find((x) => x.from === DANA || x.to === DANA)).toBeUndefined();
     const after = computeHouseNet(record(prepaid, plan));
     expect(round(after.get(DANA))).toBe(-100); // still owes only the rest of November
   });
 
   it('settling up to today clears everything', () => {
-    const plan = planSettleUpTo(computeHouseNet(m), computeHouseNet(m, '2026-11-04'));
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-11-04'));
     const after = computeHouseNet(record(m, plan));
     for (const id of MEMBERS) expect(round(after.get(id))).toBe(0);
   });
@@ -252,7 +254,7 @@ describe('planSettleUpTo — safety', () => {
       });
       const m = money({ bills, settlementPayments });
       const before = computeHouseNet(m);
-      const plan = planSettleUpTo(before, computeHouseNet(m, '2026-10-31'));
+      const plan = planSettleUpTo(before, pairwiseDebts(m, '2026-10-31'));
       const after = computeHouseNet(record(m, plan));
       expect(Math.abs(sum(after))).toBeLessThanOrEqual(0.02);
       for (const id of MEMBERS) {
@@ -263,6 +265,62 @@ describe('planSettleUpTo — safety', () => {
       }
       for (const t of plan) expect(t.amount).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('3+ person houses', () => {
+  const internet: RecurringBill = { ...rent, id: 'net', name: 'Internet', assignedTo: TOM };
+  const m = money({
+    householdBills: [rent, internet],
+    householdPayments: [
+      rentPayment('oct', '2026-10-01'),
+      { id: 'i', billId: 'net', amount: 90, paidAt: '2026-10-03', note: '', paidBy: TOM },
+    ],
+  });
+
+  it('settle up to a date follows who fronted the money (no made-up routes)', () => {
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-31'));
+    // Rent: Dana & Tom owe Maya 300. Internet: Dana & Maya owe Tom 30.
+    expect(plan).toEqual(
+      expect.arrayContaining([
+        { from: DANA, to: MAYA, amount: 300 },
+        { from: TOM, to: MAYA, amount: 270 }, // 300 rent − 30 internet, netted per pair
+        { from: DANA, to: TOM, amount: 30 },
+      ])
+    );
+    expect(plan).toHaveLength(3);
+    const after = computeHouseNet(record(m, plan));
+    for (const id of MEMBERS) expect(round(after.get(id))).toBe(0);
+  });
+
+  it('per person, the pair-by-pair debts always add up to the same balances', () => {
+    const net = computeHouseNet(m);
+    const fromPairs = new Map<string, number>();
+    for (const t of pairwiseDebts(m)) {
+      fromPairs.set(t.from, (fromPairs.get(t.from) ?? 0) - t.amount);
+      fromPairs.set(t.to, (fromPairs.get(t.to) ?? 0) + t.amount);
+    }
+    for (const id of MEMBERS) expect(round(fromPairs.get(id))).toBe(round(net.get(id)));
+  });
+
+  it('after one person pays, the whole plan is recalculated for everyone else', () => {
+    const SAM = 'sam';
+    const four = money({
+      memberIds: [...MEMBERS, SAM],
+      bills: [
+        bill('trip', 400, '2026-10-10', { splitBetween: [...MEMBERS, SAM] }), // Maya paid
+        bill('food', 200, '2026-10-12', { paidBy: SAM, splitBetween: [...MEMBERS, SAM] }),
+      ],
+      householdBills: [],
+    });
+    const before = settleDebts(computeHouseNet(four));
+    const first = before[0];
+    const afterOne = computeHouseNet(record(four, [first]));
+    const replan = settleDebts(new Map(afterOne));
+    // The paid transfer is gone and the rest still clears everyone exactly.
+    expect(replan).not.toContainEqual(first);
+    const done = computeHouseNet(record(record(four, [first]), replan));
+    for (const id of [...MEMBERS, SAM]) expect(round(done.get(id))).toBe(0);
   });
 });
 

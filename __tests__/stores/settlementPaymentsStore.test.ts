@@ -7,11 +7,13 @@
  */
 const mockFrom = jest.fn();
 const mockNotify = jest.fn();
+const mockRpc = jest.fn();
 let mockUserId = 'maya';
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
       subscribe: jest.fn().mockReturnThis(),
@@ -63,6 +65,7 @@ beforeEach(() => {
   useSettlementPaymentsStore.setState({ payments: [], isLoading: false, error: null });
   jest.clearAllMocks();
   mockFrom.mockReset();
+  mockRpc.mockReset();
   mockUserId = 'maya';
 });
 
@@ -118,6 +121,15 @@ describe('recordPayment', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  it('refuses a payment dated in the future', async () => {
+    await expect(
+      useSettlementPaymentsStore
+        .getState()
+        .recordPayment({ ...partial, paidOn: '2999-01-01' }, 'house-1', names)
+    ).rejects.toThrow(/future/);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it('keeps the list unchanged when saving fails', async () => {
     mockFrom.mockReturnValue(fail('nope'));
     await expect(
@@ -129,17 +141,12 @@ describe('recordPayment', () => {
 });
 
 describe('recordSettleUpTo', () => {
-  it('saves every transfer in one insert, labelled with the date', async () => {
-    // A multi-row insert is awaited as insert([...]).select() — the shared
-    // helper only fakes insert().select().single(), so fake this one directly.
+  it('saves every transfer in one locked database call, labelled with the date', async () => {
     const rows = [
       row('s1', 'dana', 'maya', 300, '2026-10-31'),
       row('s2', 'tom', 'maya', 300, '2026-10-31'),
     ];
-    const insert = jest.fn(() => ({
-      select: jest.fn(() => Promise.resolve({ data: rows, error: null })),
-    }));
-    mockFrom.mockReturnValue({ insert });
+    mockRpc.mockResolvedValue({ data: rows, error: null });
     await useSettlementPaymentsStore.getState().recordSettleUpTo(
       [
         { from: 'dana', to: 'maya', amount: 300 },
@@ -149,17 +156,59 @@ describe('recordSettleUpTo', () => {
       'house-1',
       'Maya'
     );
-    expect(mockFrom).toHaveBeenCalledTimes(1);
-    expect(insert).toHaveBeenCalledWith([
-      expect.objectContaining({ from_user: 'dana', amount: 300, covers_until: '2026-10-31' }),
-      expect.objectContaining({ from_user: 'tom', amount: 300, covers_until: '2026-10-31' }),
-    ]);
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'record_settle_up_to',
+      expect.objectContaining({
+        p_house_id: 'house-1',
+        p_up_to: '2026-10-31',
+        p_seen_count: 0,
+        p_seen_latest: null,
+        p_transfers: [
+          { from: 'dana', to: 'maya', amount: 300 },
+          { from: 'tom', to: 'maya', amount: 300 },
+        ],
+      })
+    );
     const payments = useSettlementPaymentsStore.getState().payments;
     expect(payments).toHaveLength(2);
     expect(payments.every((p) => p.coversUntil === '2026-10-31')).toBe(true);
+    // Exactly one message, only to the two people whose money moved.
+    expect(mockNotify).toHaveBeenCalledTimes(1);
     expect(mockNotify).toHaveBeenCalledWith(
       expect.objectContaining({ includeUserIds: ['dana', 'tom'], copyKey: 'settled_up_to' })
     );
+  });
+
+  it('refuses when another phone just recorded a payment, and refreshes', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'stale_balances' } });
+    mockFrom.mockReturnValue(ok([row('s9', 'dana', 'maya', 300)]));
+    await expect(
+      useSettlementPaymentsStore
+        .getState()
+        .recordSettleUpTo(
+          [{ from: 'dana', to: 'maya', amount: 300 }],
+          '2026-10-31',
+          'house-1',
+          'Maya'
+        )
+    ).rejects.toThrow(/just recorded a payment/);
+    expect(useSettlementPaymentsStore.getState().payments).toHaveLength(1); // reloaded
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('refuses a date in the future', async () => {
+    await expect(
+      useSettlementPaymentsStore
+        .getState()
+        .recordSettleUpTo(
+          [{ from: 'dana', to: 'maya', amount: 1 }],
+          '2999-01-01',
+          'house-1',
+          'Maya'
+        )
+    ).rejects.toThrow(/earlier date/);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('refuses transfers the current user is not part of', async () => {
@@ -173,14 +222,14 @@ describe('recordSettleUpTo', () => {
           'Maya'
         )
     ).rejects.toThrow(/paid or received/);
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('does nothing for an empty plan', async () => {
     await useSettlementPaymentsStore
       .getState()
       .recordSettleUpTo([], '2026-10-31', 'house-1', 'Maya');
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 

@@ -4,7 +4,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useHouseMoney } from '@hooks/useHouseMoney';
-import { computeHouseNet, planSettleUpTo, type Transfer } from '@utils/settleUp';
+import { pairwiseDebts, planSettleUpTo, type Transfer } from '@utils/settleUp';
 import { todayISO } from '@utils/recurringCoverage';
 
 export interface PlannedTransfer extends Transfer {
@@ -19,6 +19,8 @@ export interface SettleUpToDate {
   recordable: PlannedTransfer[];
   saving: boolean;
   error: string;
+  /** The chosen date is after today — nothing can be settled yet. */
+  isFuture: boolean;
   confirm: () => void;
 }
 
@@ -52,7 +54,7 @@ export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleU
 
   const plan = useMemo((): PlannedTransfer[] => {
     const memberIds = new Set(housemates.map((h) => h.id));
-    return planSettleUpTo(net, computeHouseNet(money, upTo)).map((x) => ({
+    return planSettleUpTo(net, pairwiseDebts(money, upTo)).map((x) => ({
       ...x,
       // The database only accepts payments between current members that the
       // user is part of; anything else is left for the people involved.
@@ -60,7 +62,11 @@ export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleU
     }));
   }, [net, money, upTo, housemates, myId]);
 
-  const recordable = useMemo(() => plan.filter((x) => x.canRecord), [plan]);
+  const isFuture = upTo > todayISO();
+  const recordable = useMemo(
+    () => (isFuture ? [] : plan.filter((x) => x.canRecord)),
+    [plan, isFuture]
+  );
 
   const confirm = useCallback((): void => {
     if (saving || recordable.length === 0) return;
@@ -79,5 +85,5 @@ export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleU
       .finally(() => setSaving(false));
   }, [saving, recordable, recordSettleUpTo, upTo, houseId, profile?.name, onDone, t]);
 
-  return { upTo, setUpTo, plan, recordable, saving, error, confirm };
+  return { upTo, setUpTo, plan, recordable, saving, error, isFuture, confirm };
 }

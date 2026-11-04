@@ -118,6 +118,11 @@ export function RecordPaymentSheet({
             />
           </View>
 
+          {form.isFuture && (
+            <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
+              {t('bills.settle_future_date')}
+            </Text>
+          )}
           {form.notInvolved && (
             <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
               {t('bills.settle_not_involved')}

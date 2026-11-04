@@ -104,7 +104,12 @@ export function SettleUpToDateSheet({
           {s.error}
         </Text>
       )}
-      {s.plan.length > 0 && s.recordable.length === 0 && (
+      {s.isFuture && (
+        <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
+          {t('bills.settle_future_date')}
+        </Text>
+      )}
+      {!s.isFuture && s.plan.length > 0 && s.recordable.length === 0 && (
         <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_none_mine')}</Text>
       )}
       {s.recordable.length > 0 && (

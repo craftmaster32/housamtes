@@ -1,4 +1,9 @@
-import { calculateAllNetBalances, settleDebts, type Bill } from '@stores/billsStore';
+import {
+  calculateAllNetBalances,
+  getPersonShare,
+  settleDebts,
+  type Bill,
+} from '@stores/billsStore';
 import {
   calculateFairness,
   type HouseholdPayment,
@@ -84,27 +89,139 @@ export function computeHouseNet(money: HouseMoney, upTo?: string): NetBalances {
 }
 
 /**
+ * Who owes whom directly, pair by pair, for expenses up to `upTo` (all when
+ * omitted): each person in a split owes the person who fronted the money.
+ * Settle-up payments are taken off the pair they were paid between.
+ *
+ * This is the "real" view (like Splitwise with "simplify debts" off): Dana
+ * owes Maya because Maya paid the rent — not a shortcut like "Dana → Tom".
+ * Each pair is netted, so it appears at most once. Biggest first.
+ */
+export function pairwiseDebts(money: HouseMoney, upTo?: string): Transfer[] {
+  // Key "a|b" with a < b; positive = a owes b, negative = b owes a.
+  const pairs = new Map<string, number>();
+  const owe = (debtor: string, creditor: string, amount: number): void => {
+    if (!debtor || !creditor || debtor === creditor || amount === 0) return;
+    const [a, b] = debtor < creditor ? [debtor, creditor] : [creditor, debtor];
+    const key = `${a}|${b}`;
+    pairs.set(key, (pairs.get(key) ?? 0) + (debtor === a ? amount : -amount));
+  };
+
+  for (const bill of money.bills) {
+    if (bill.settled || (upTo !== undefined && bill.date > upTo)) continue;
+    for (const person of bill.splitBetween) owe(person, bill.paidBy, getPersonShare(bill, person));
+  }
+
+  for (const p of money.householdPayments) {
+    if (upTo !== undefined && p.paidAt > upTo) continue;
+    const bill = money.householdBills.find((b) => b.id === p.billId);
+    if (!bill) continue; // same rule as calculateFairness: orphaned payments don't count
+    const payer = p.paidBy ?? bill.assignedTo;
+    const split =
+      p.splitBetween && p.splitBetween.length > 0
+        ? p.splitBetween
+        : money.memberIds.length > 0
+          ? money.memberIds
+          : [payer];
+    const share = p.amount / split.length;
+    for (const person of split) owe(person, payer, share);
+  }
+
+  // Paying someone lowers what you owe them (or makes them owe you).
+  for (const s of money.settlementPayments) owe(s.to, s.from, s.amount);
+
+  const transfers: Transfer[] = [];
+  pairs.forEach((value, key) => {
+    const [a, b] = key.split('|');
+    const amount = cents(Math.abs(value));
+    if (amount < 0.01) return;
+    transfers.push(value > 0 ? { from: a, to: b, amount } : { from: b, to: a, amount });
+  });
+  return transfers.sort((x, y) => y.amount - x.amount);
+}
+
+/**
  * The payments needed to be "all square up to this date".
  *
- * Starts from the fewest transfers that clear everything owed up to the date,
- * then caps each one so it never pushes anyone past zero on their CURRENT
- * balance. That guarantees settling up to a date can never make someone owe
- * more, or turn money they're owed into a debt (e.g. someone who already
- * paid extra keeps that credit).
+ * `upToDebts` is what each pair owes for expenses up to the date (from
+ * `pairwiseDebts`). If recording all of it leaves nobody worse off, that is
+ * exactly the plan — real routes, "Dana pays Maya because Maya paid the rent".
+ *
+ * Otherwise someone has a credit that settling would wipe out (they already
+ * paid extra), so each person's change is limited: nobody may end up owing
+ * more, or flip from being owed to owing. The limited changes are then met
+ * using the real routes first, and the fewest extra transfers for the rest.
  */
-export function planSettleUpTo(currentNet: NetBalances, upToNet: NetBalances): Transfer[] {
-  const running = new Map(currentNet);
-  const plan: Transfer[] = [];
-  for (const t of settleDebts(new Map(upToNet))) {
-    const debt = Math.max(0, -(running.get(t.from) ?? 0));
-    const credit = Math.max(0, running.get(t.to) ?? 0);
-    const amount = cents(Math.min(t.amount, debt, credit));
-    if (amount < 0.01) continue;
-    plan.push({ from: t.from, to: t.to, amount });
-    running.set(t.from, (running.get(t.from) ?? 0) + amount);
-    running.set(t.to, (running.get(t.to) ?? 0) - amount);
+export function planSettleUpTo(currentNet: NetBalances, upToDebts: Transfer[]): Transfer[] {
+  // How each person's balance would change if every pair settled.
+  const change = new Map<string, number>();
+  for (const t of upToDebts) {
+    change.set(t.from, (change.get(t.from) ?? 0) + t.amount);
+    change.set(t.to, (change.get(t.to) ?? 0) - t.amount);
   }
-  return plan;
+
+  // The best each person may end at: between their current balance and zero.
+  const target = new Map<string, number>();
+  let safe = true;
+  change.forEach((delta, person) => {
+    const now = currentNet.get(person) ?? 0;
+    const after = now + delta;
+    const limited =
+      now >= 0 ? Math.min(Math.max(after, 0), now) : Math.max(Math.min(after, 0), now);
+    if (Math.abs(limited - after) > 0.01) safe = false;
+    target.set(person, limited);
+  });
+  if (safe) return upToDebts.filter((t) => t.amount >= 0.01);
+
+  // Payers raise their balance toward 0, receivers lower theirs toward 0.
+  const pay = new Map<string, number>();
+  const receive = new Map<string, number>();
+  let payTotal = 0;
+  let receiveTotal = 0;
+  target.forEach((tgt, person) => {
+    const d = tgt - (currentNet.get(person) ?? 0);
+    if (d > 0) {
+      pay.set(person, d);
+      payTotal += d;
+    } else if (d < 0) {
+      receive.set(person, -d);
+      receiveTotal += -d;
+    }
+  });
+  // Money in must equal money out — shrink the bigger side to match.
+  const total = Math.min(payTotal, receiveTotal);
+  if (total < 0.01) return [];
+  const scale = (m: Map<string, number>, sum: number): void => {
+    m.forEach((v, k) => m.set(k, (v * total) / sum));
+  };
+  scale(pay, payTotal);
+  scale(receive, receiveTotal);
+
+  const plan = new Map<string, number>();
+  const add = (from: string, to: string, amount: number): void => {
+    const key = `${from}|${to}`;
+    plan.set(key, (plan.get(key) ?? 0) + amount);
+    pay.set(from, (pay.get(from) ?? 0) - amount);
+    receive.set(to, (receive.get(to) ?? 0) - amount);
+  };
+  // 1) Real routes first.
+  for (const t of upToDebts) {
+    const amount = Math.min(t.amount, pay.get(t.from) ?? 0, receive.get(t.to) ?? 0);
+    if (amount > 0) add(t.from, t.to, amount);
+  }
+  // 2) Whatever is left, with the fewest transfers.
+  const rest = new Map<string, number>();
+  pay.forEach((v, k) => rest.set(k, (rest.get(k) ?? 0) - v));
+  receive.forEach((v, k) => rest.set(k, (rest.get(k) ?? 0) + v));
+  for (const t of settleDebts(rest)) add(t.from, t.to, t.amount);
+
+  const out: Transfer[] = [];
+  plan.forEach((amount, key) => {
+    const [from, to] = key.split('|');
+    const rounded = cents(amount);
+    if (rounded >= 0.01) out.push({ from, to, amount: rounded });
+  });
+  return out.sort((x, y) => y.amount - x.amount);
 }
 
 /**

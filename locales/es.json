@@ -793,7 +793,11 @@
     "settle_delete_body": "¿Eliminar \"{{from}} → {{to}} {{money}}\"? El saldo volverá a como estaba antes.",
     "settle_delete_not_allowed": "Solo las dos personas del pago pueden eliminarlo.",
     "settle_delete_failed": "No se pudo eliminar el pago. Inténtalo de nuevo.",
-    "settle_load_error": "No se pudieron cargar los pagos registrados, así que los saldos pueden estar mal. Toca para reintentar."
+    "settle_load_error": "No se pudieron cargar los pagos registrados, así que los saldos pueden estar mal. Toca para reintentar.",
+    "settle_dupe_title": "¿Ya registrado?",
+    "settle_dupe_body": "{{from}} → {{to}} {{money}} ya se registró el {{date}}. Guardarlo otra vez contará este dinero dos veces.",
+    "settle_dupe_confirm": "Es un pago nuevo",
+    "settle_future_date": "Elige hoy o una fecha anterior."
   },
   "parking": {
     "title": "Estacionamiento",

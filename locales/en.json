@@ -793,7 +793,11 @@
     "settle_delete_body": "Delete \"{{from}} → {{to}} {{money}}\"? The balance will go back to how it was before.",
     "settle_delete_not_allowed": "Only the two people in this payment can delete it.",
     "settle_delete_failed": "Could not delete the payment. Please try again.",
-    "settle_load_error": "Couldn't load recorded payments, so balances may be wrong. Tap to retry."
+    "settle_load_error": "Couldn't load recorded payments, so balances may be wrong. Tap to retry.",
+    "settle_dupe_title": "Already recorded?",
+    "settle_dupe_body": "{{from}} → {{to}} {{money}} was already recorded on {{date}}. Saving again will count this money twice.",
+    "settle_dupe_confirm": "It's a new payment",
+    "settle_future_date": "Pick today or an earlier date."
   },
   "parking": {
     "title": "Parking",

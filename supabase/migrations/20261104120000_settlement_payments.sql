@@ -78,3 +78,50 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE settlement_payments;
   END IF;
 END $$;
+
+-- ── Settle up to a date: one house at a time, never on stale numbers ────────
+-- Two phones confirming at the same moment would otherwise record the same
+-- month twice. This takes a per-house lock, checks the phone saw the latest
+-- payments (count + newest timestamp), and only then inserts — all or nothing.
+-- SECURITY INVOKER: the insert still goes through the RLS policies above.
+CREATE OR REPLACE FUNCTION public.record_settle_up_to(
+  p_house_id    uuid,
+  p_up_to       date,
+  p_paid_on     date,
+  p_seen_count  integer,
+  p_seen_latest timestamptz,
+  p_transfers   jsonb
+) RETURNS SETOF settlement_payments
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_count  integer;
+  v_latest timestamptz;
+BEGIN
+  IF p_house_id NOT IN (SELECT public.get_my_house_ids()) THEN
+    RAISE EXCEPTION 'not a member of this house' USING ERRCODE = '42501';
+  END IF;
+  IF p_up_to > current_date + 1 OR p_paid_on > current_date + 1 THEN
+    RAISE EXCEPTION 'date is in the future' USING ERRCODE = '22007';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtextextended('settle-up:' || p_house_id::text, 0));
+
+  SELECT count(*), max(created_at) INTO v_count, v_latest
+  FROM settlement_payments WHERE house_id = p_house_id;
+  IF v_count <> p_seen_count OR v_latest IS DISTINCT FROM p_seen_latest THEN
+    RAISE EXCEPTION 'stale_balances' USING ERRCODE = 'P0001';
+  END IF;
+
+  RETURN QUERY
+  INSERT INTO settlement_payments (house_id, from_user, to_user, amount, paid_on, covers_until)
+  SELECT p_house_id, (t->>'from')::uuid, (t->>'to')::uuid, (t->>'amount')::numeric, p_paid_on, p_up_to
+  FROM jsonb_array_elements(p_transfers) AS t
+  RETURNING *;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.record_settle_up_to(uuid, date, date, integer, timestamptz, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.record_settle_up_to(uuid, date, date, integer, timestamptz, jsonb) TO authenticated;

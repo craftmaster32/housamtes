@@ -9,6 +9,29 @@ import { useMemberName } from '@hooks/useMemberName';
 import { formatFull } from '@constants/currencies';
 import { maxOwedBetween, type Transfer } from '@utils/settleUp';
 import { todayISO } from '@utils/recurringCoverage';
+import { formatDateDDMMYYYY } from '@utils/dates';
+
+/** Same payer, receiver and amount within this many days = probably recorded twice. */
+const DUPLICATE_WINDOW_DAYS = 7;
+
+function daysBetween(a: string, b: string): number {
+  return (Date.parse(`${a}T12:00:00Z`) - Date.parse(`${b}T12:00:00Z`)) / 86_400_000;
+}
+
+/** Ask a yes/no question; resolves true only if the confirm button is tapped. */
+function confirm(
+  title: string,
+  body: string,
+  confirmText: string,
+  cancelText: string
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(title, body, [
+      { text: cancelText, style: 'cancel', onPress: (): void => resolve(false) },
+      { text: confirmText, onPress: (): void => resolve(true) },
+    ]);
+  });
+}
 
 interface Options {
   visible: boolean;
@@ -27,6 +50,8 @@ export interface RecordPaymentForm {
   error: string;
   /** The current user isn't the payer or receiver, so it can't be saved. */
   notInvolved: boolean;
+  /** The chosen date is after today. */
+  isFuture: boolean;
   canSave: boolean;
   setFrom: (id: string) => void;
   setTo: (id: string) => void;
@@ -92,7 +117,9 @@ export function useRecordPaymentForm({
 
   const value = parseAmount(amount);
   const notInvolved = from !== '' && to !== '' && myId !== from && myId !== to;
-  const canSave = !saving && from !== '' && to !== '' && from !== to && !notInvolved && value > 0;
+  const isFuture = paidOn > todayISO();
+  const canSave =
+    !saving && from !== '' && to !== '' && from !== to && !notInvolved && value > 0 && !isFuture;
 
   const doSave = useCallback(async (): Promise<void> => {
     setSaving(true);
@@ -111,31 +138,60 @@ export function useRecordPaymentForm({
     }
   }, [recordPayment, from, to, value, paidOn, note, houseId, memberName, currencyCode, onDone, t]);
 
+  const payments = useSettlementPaymentsStore((s) => s.payments);
+
   const save = useCallback((): void => {
     if (!canSave) return;
-    const owed = maxOwedBetween(net, from, to);
-    if (value <= owed + 0.005) {
-      void doSave();
-      return;
-    }
-    // More than is owed: allowed, but say exactly what will happen first.
-    const names = { from: memberName(from), to: memberName(to) };
-    const extra = formatFull(value - owed, currencyCode);
-    Alert.alert(
-      t('bills.settle_overpay_title'),
-      owed < 0.01
-        ? t('bills.settle_overpay_none', { ...names, extra })
-        : t('bills.settle_overpay_body', {
-            ...names,
-            owed: formatFull(owed, currencyCode),
-            extra,
+    const run = async (): Promise<void> => {
+      // 1) The same payment may already be in the app — e.g. both people
+      //    recorded it. Recording it twice would count the money twice.
+      const dupe = payments.find(
+        (p) =>
+          p.from === from &&
+          p.to === to &&
+          Math.abs(p.amount - value) < 0.005 &&
+          Math.abs(daysBetween(p.paidOn, paidOn)) <= DUPLICATE_WINDOW_DAYS
+      );
+      if (
+        dupe &&
+        !(await confirm(
+          t('bills.settle_dupe_title'),
+          t('bills.settle_dupe_body', {
+            from: memberName(from),
+            to: memberName(to),
+            money: formatFull(value, currencyCode),
+            date: formatDateDDMMYYYY(dupe.paidOn),
           }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('bills.settle_overpay_confirm'), onPress: (): void => void doSave() },
-      ]
-    );
-  }, [canSave, net, from, to, value, doSave, memberName, currencyCode, t]);
+          t('bills.settle_dupe_confirm'),
+          t('common.cancel')
+        ))
+      ) {
+        return;
+      }
+
+      // 2) More than is owed: allowed, but say exactly what will happen first.
+      const owed = maxOwedBetween(net, from, to);
+      if (value > owed + 0.005) {
+        const names = { from: memberName(from), to: memberName(to) };
+        const extra = formatFull(value - owed, currencyCode);
+        const ok = await confirm(
+          t('bills.settle_overpay_title'),
+          owed < 0.01
+            ? t('bills.settle_overpay_none', { ...names, extra })
+            : t('bills.settle_overpay_body', {
+                ...names,
+                owed: formatFull(owed, currencyCode),
+                extra,
+              }),
+          t('bills.settle_overpay_confirm'),
+          t('common.cancel')
+        );
+        if (!ok) return;
+      }
+      await doSave();
+    };
+    void run();
+  }, [canSave, payments, from, to, value, paidOn, net, doSave, memberName, currencyCode, t]);
 
   return {
     from,
@@ -146,6 +202,7 @@ export function useRecordPaymentForm({
     saving,
     error,
     notInvolved,
+    isFuture,
     canSave,
     setFrom,
     setTo,

@@ -158,6 +158,9 @@ export const useSettlementPaymentsStore = create<SettlementPaymentsStore>()(
       recordPayment: async (payment, houseId, names): Promise<void> => {
         const parsed = paymentSchema.safeParse({ ...payment, coversUntil: null });
         if (!parsed.success) throw new Error('Please check the payment details and try again.');
+        if (parsed.data.paidOn > todayISO()) {
+          throw new Error('The payment date can’t be in the future.');
+        }
         const userId = useAuthStore.getState().profile?.id ?? '';
         if (userId !== parsed.data.from && userId !== parsed.data.to) {
           throw new Error('You can only record payments you paid or received.');
@@ -205,6 +208,7 @@ export const useSettlementPaymentsStore = create<SettlementPaymentsStore>()(
           note: null,
         }));
         if (rows.length === 0) return;
+        if (upTo > today) throw new Error('Pick today or an earlier date.');
         for (const r of rows) {
           if (!paymentSchema.safeParse(r).success) {
             throw new Error('Please check the payment details and try again.');
@@ -213,22 +217,29 @@ export const useSettlementPaymentsStore = create<SettlementPaymentsStore>()(
             throw new Error('You can only record payments you paid or received.');
           }
         }
-        // One insert = all or nothing, so a half-saved settle-up can't happen.
-        const { data, error } = await supabase
-          .from('settlement_payments')
-          .insert(
-            rows.map((r) => ({
-              house_id: houseId,
-              from_user: r.from,
-              to_user: r.to,
-              amount: r.amount,
-              paid_on: r.paidOn,
-              covers_until: r.coversUntil,
-              created_by: userId,
-            }))
-          )
-          .select();
+        // Goes through a database function that locks the house and refuses if
+        // this phone hasn't seen the latest payments — so two people confirming
+        // at once can't record the same month twice. All rows save, or none.
+        const seen = get().payments;
+        const seenLatest = seen.reduce<string | null>(
+          (max, p) => (max === null || p.createdAt > max ? p.createdAt : max),
+          null
+        );
+        const { data, error } = await supabase.rpc('record_settle_up_to', {
+          p_house_id: houseId,
+          p_up_to: upTo,
+          p_paid_on: today,
+          p_seen_count: seen.length,
+          p_seen_latest: seenLatest,
+          p_transfers: rows.map((r) => ({ from: r.from, to: r.to, amount: r.amount })),
+        });
         if (error) {
+          if (error.message?.includes('stale_balances')) {
+            await get().load(houseId);
+            throw new Error(
+              'Someone just recorded a payment. Check the updated numbers and confirm again.'
+            );
+          }
           captureError(error, { context: 'settle-up-to', houseId, userId });
           throw new Error('Could not save the settle-up. Please try again.');
         }
