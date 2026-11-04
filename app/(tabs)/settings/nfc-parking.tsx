@@ -4,7 +4,6 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
-import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
@@ -14,8 +13,6 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
 
 import { mf, ms } from '@utils/responsive';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -24,8 +21,6 @@ const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/parking-toggle`;
 export default function NfcParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const userId = useAuthStore((s) => s.user?.id);
-  const language = useLanguageStore((s) => s.language);
-  const isRTLMode = isRTL(language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
@@ -93,26 +88,10 @@ export default function NfcParkingScreen(): React.JSX.Element {
     ]);
   }, [userId, t]);
 
-  const handleBack = useCallback((): void => {
-    goBack();
-  }, []);
-
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backBtn}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('nfc_parking.go_back')}
-        >
-          <Ionicons
-            name={isRTLMode ? 'chevron-forward' : 'chevron-back'}
-            size={24}
-            color={C.primary}
-          />
-        </Pressable>
+        <View style={styles.backBtn} />
         <Text style={[styles.title, headingFont]}>{t('nfc_parking.title')}</Text>
         <View style={styles.backBtn} />
       </View>

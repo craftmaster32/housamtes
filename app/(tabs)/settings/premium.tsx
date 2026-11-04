@@ -5,15 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
 import { useEntitlementsStore, PREMIUM_FEATURES } from '@stores/entitlementsStore';
 import { PREMIUM_ENABLED } from '@constants/featureFlags';
 
@@ -25,8 +22,6 @@ import { mf, ms } from '@utils/responsive';
 export default function PremiumScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
@@ -46,10 +41,6 @@ export default function PremiumScreen(): React.JSX.Element {
     if (!PREMIUM_ENABLED) router.replace('/(tabs)/more/settings');
   }, []);
 
-  const handleBack = useCallback((): void => {
-    goBack();
-  }, []);
-
   const handleUpgrade = useCallback((): void => {
     Alert.alert(t('premium.coming_soon_title'), t('premium.coming_soon_body'));
   }, [t]);
@@ -67,26 +58,6 @@ export default function PremiumScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.flex}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={handleBack}
-            style={styles.backBtn}
-            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <View style={styles.backRow}>
-              <Ionicons
-                name={rtl ? 'chevron-forward' : 'chevron-back'}
-                size={18}
-                color={C.primary}
-              />
-              <Text style={styles.backText}>{t('common.back')}</Text>
-            </View>
-          </Pressable>
-        </View>
-
         {entitlementsLoading ? (
           <View style={styles.centered}>
             <LoadingSpinner size={140} />
@@ -198,10 +169,6 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { paddingHorizontal: sizes.lg, paddingTop: sizes.sm },
-    backBtn: { alignSelf: 'flex-start', minHeight: ms(44), justifyContent: 'center' },
-    backRow: { flexDirection: 'row', alignItems: 'center', gap: ms(2) },
-    backText: { fontSize: mf(15), ...font.semibold, color: C.primary },
     content: { padding: sizes.lg, gap: sizes.sm, paddingBottom: sizes.xl },
 
     hero: { alignItems: 'center', gap: sizes.xs, marginBottom: sizes.sm },
