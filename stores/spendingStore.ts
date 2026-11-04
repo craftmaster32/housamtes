@@ -312,8 +312,8 @@ export const useSpendingStore = create<SpendingStore>()(
 
           // Everyone in the house with join/leave dates — "split with everyone"
           // on a recurring payment means everyone who lived there that day.
-          // Former members are a nice-to-have: if they fail to load, carry on.
-          if (formerRes.error) captureError(formerRes.error, { store: 'spending-former', houseId });
+          // Needed to split older payments correctly — never show totals without it.
+          if (formerRes.error) throw formerRes.error;
           const memberSpans = toMemberSpans(
             (membersRes.data ?? [])
               .filter((m) => m.user_id)
@@ -321,7 +321,7 @@ export const useSpendingStore = create<SpendingStore>()(
                 id: m.user_id as string,
                 joinedAt: (m.joined_at as string | null) ?? null,
               })),
-            (formerRes.error ? [] : (formerRes.data ?? []))
+            (formerRes.data ?? [])
               .filter((f) => f.user_id)
               .map((f) => ({
                 id: f.user_id as string,

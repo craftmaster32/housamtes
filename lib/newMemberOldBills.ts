@@ -1,12 +1,14 @@
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { notifyHousemates } from '@lib/notifyHousemates';
+import { format } from 'date-fns';
 import { todayISO } from '@utils/recurringCoverage';
 
 /** A house this new counts as "just set up": people joining now are probably founders. */
 export const NEW_HOUSE_DAYS = 1;
 
-const dayOf = (ts: string): string => ts.slice(0, 10);
+/** Calendar day in the phone's local time (stored times are UTC). */
+const dayOf = (ts: string): string => (ts.length <= 10 ? ts : format(new Date(ts), 'yyyy-MM-dd'));
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T12:00:00Z`);
@@ -31,7 +33,9 @@ export async function checkOldBillsForNewMember(
   houseId: string,
   userId: string,
   name: string,
-  today: string = todayISO()
+  today: string = todayISO(),
+  /** When they joined (ISO time) — anything added before this is "older". */
+  joinedAt: string = new Date().toISOString()
 ): Promise<void> {
   try {
     const { data: house, error: houseErr } = await supabase
@@ -47,12 +51,12 @@ export async function checkOldBillsForNewMember(
         .from('bills')
         .select('id', { count: 'exact', head: true })
         .eq('house_id', houseId)
-        .lt('date', today),
+        .lt('created_at', joinedAt),
       supabase
         .from('household_payments')
         .select('id', { count: 'exact', head: true })
         .eq('house_id', houseId)
-        .lt('paid_at', today),
+        .lt('created_at', joinedAt),
     ]);
     if (billsRes.error) throw billsRes.error;
     if (paymentsRes.error) throw paymentsRes.error;

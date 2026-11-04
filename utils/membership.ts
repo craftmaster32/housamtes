@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+
 /**
  * Who was in the house on a given day.
  *
@@ -15,7 +17,12 @@ export interface MemberSpan {
   leftAt: string | null;
 }
 
-const day = (ts: string): string => ts.slice(0, 10);
+/**
+ * The calendar day of a join/leave time, in the phone's local time — the same
+ * calendar bills and payments are dated in. (Stored times are UTC: joining at
+ * 01:00 in Israel is still the previous day in UTC.) Plain dates stay as-is.
+ */
+const day = (ts: string): string => (ts.length <= 10 ? ts : format(new Date(ts), 'yyyy-MM-dd'));
 
 /** Builds spans from current members (with join dates) and former members (with leave dates). */
 export function toMemberSpans(
