@@ -17,13 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  useBillsStore,
-  calculateAllNetBalances,
-  calculateSimplifiedBalancesForUser,
-  settleDebts,
-} from '@stores/billsStore';
-import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import { useBillsStore, calculateSimplifiedBalancesForUser, settleDebts } from '@stores/billsStore';
+import { useRecurringBillsStore } from '@stores/recurringBillsStore';
+import { useHouseMoney } from '@hooks/useHouseMoney';
+import { SettleActions } from '@components/bills/settle/SettleActions';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -112,18 +109,12 @@ function BillsScreen(): React.JSX.Element {
   // An empty page already has its own Mate, so he only hides when there's a list.
   const mateSpot = useMateScene(MATE_SPOTS, billSections.length > 0);
 
-  const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
-  const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
 
   const myId = profile?.id ?? '';
-  const activeBills = bills.filter((b) => !b.settled);
 
-  const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
-  for (const { person, balance } of calculateFairness(householdBills, payments, memberIds)) {
-    combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
-  }
+  const { net: combinedNet } = useHouseMoney();
   const sharedBalances = calculateSimplifiedBalancesForUser(combinedNet, myId);
 
   const totalOwed = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
@@ -253,6 +244,7 @@ function BillsScreen(): React.JSX.Element {
         avatarById={avatarById}
         showSettle={showSettle}
         onToggleSettle={handleToggleSettle}
+        footer={<SettleActions plan={settlements} />}
       />
       {/* After the paper: hanging on to its torn bottom edge. */}
       {mateSpot === 'cling' && (

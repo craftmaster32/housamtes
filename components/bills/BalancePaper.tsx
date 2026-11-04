@@ -33,6 +33,8 @@ interface BalancePaperProps {
   avatarById: Map<string, string | undefined>;
   showSettle: boolean;
   onToggleSettle: () => void;
+  /** Settle-up actions (record a payment, settle up to a date, history) under the plan. */
+  footer?: React.ReactNode;
 }
 
 function Avatar({
@@ -73,6 +75,7 @@ export function BalancePaper({
   avatarById,
   showSettle,
   onToggleSettle,
+  footer,
 }: BalancePaperProps): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -189,6 +192,7 @@ export function BalancePaper({
             })}
         </View>
       )}
+      {footer}
     </NotebookPaper>
   );
 }
