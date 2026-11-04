@@ -75,6 +75,10 @@ export function SettleUpToDateSheet({
     [myId, memberName, t]
   );
   const date = formatDateDDMMYYYY(s.upTo);
+  // Nothing for this person to do → just the ✓ line, no list of others' debts.
+  const allSetForMe =
+    s.plan.length > 0 && s.recordable.length === 0 && !s.othersFirst && !s.isFuture;
+  const showList = s.plan.length > 0 && !allSetForMe;
 
   const renderItem = useCallback(
     ({ item }: { item: PlannedTransfer }): React.JSX.Element => (
@@ -140,7 +144,7 @@ export function SettleUpToDateSheet({
         </Pressable>
       )}
 
-      {s.plan.length === 0 || (s.recordable.length === 0 && !s.othersFirst && !s.isFuture) ? (
+      {s.plan.length === 0 || allSetForMe ? (
         // Say clearly when there's nothing for this person to do — an empty
         // or someone-else-only list could look like something went wrong.
         <View style={styles.inlineRow}>
@@ -152,11 +156,9 @@ export function SettleUpToDateSheet({
           </Text>
         </View>
       ) : null}
-      {s.plan.length > 0 && (
+      {showList && (
         <Text style={[styles.label, { color: p.muted }]}>
-          {s.recordable.length === 0 && !s.othersFirst
-            ? t('bills.settle_upto_others_open')
-            : t('bills.settle_upto_left_label', { date })}
+          {t('bills.settle_upto_left_label', { date })}
         </Text>
       )}
     </View>
@@ -181,7 +183,7 @@ export function SettleUpToDateSheet({
       >
         <FlatList
           style={styles.listShrink}
-          data={s.plan}
+          data={showList ? s.plan : []}
           keyExtractor={(x) => `${x.from}-${x.to}`}
           renderItem={renderItem}
           ListHeaderComponent={header}

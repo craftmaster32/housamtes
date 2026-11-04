@@ -819,8 +819,7 @@
     "settle_left_now": "{{money}} left to settle",
     "settle_left_after": "{{money}} left after this",
     "settle_all_settled_after": "That settles it all ✓",
-    "settle_upto_all_set_you": "You're all set up to {{date}} — nothing for you to settle",
-    "settle_upto_others_open": "Still open between the others:"
+    "settle_upto_all_set_you": "You're all set up to {{date}} — nothing for you to settle"
   },
   "parking": {
     "title": "Parking",

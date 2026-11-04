@@ -819,8 +819,7 @@
     "settle_left_now": "נשארו {{money}} לסגור",
     "settle_left_after": "נשארו {{money}} אחרי זה",
     "settle_all_settled_after": "זה סוגר הכול ✓",
-    "settle_upto_all_set_you": "הכול סגור אצלך עד {{date}} — אין לך מה לסגור",
-    "settle_upto_others_open": "עדיין פתוח בין האחרים:"
+    "settle_upto_all_set_you": "הכול סגור אצלך עד {{date}} — אין לך מה לסגור"
   },
   "parking": {
     "title": "חניה",

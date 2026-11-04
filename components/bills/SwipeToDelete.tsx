@@ -1,4 +1,6 @@
 import { View, StyleSheet, Pressable, Animated as RNAnimated } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +21,15 @@ interface SwipeToDeleteProps {
   children: React.ReactNode;
 }
 
-/** Swipe a receipt line left to reveal a red Delete, like a native list. */
+// Only one row's Delete is open at a time across the whole list: opening
+// another slides the previous one shut (animated), like iOS Mail.
+let openRow: Swipeable | null = null;
+
+/**
+ * Swipe a receipt line left to reveal a red Delete, like a native list. It
+ * stays open until another row is swiped, and closes when you leave the page,
+ * so coming back shows the list untouched.
+ */
 export function SwipeToDelete({
   onDelete,
   label,
@@ -27,8 +37,37 @@ export function SwipeToDelete({
 }: SwipeToDeleteProps): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
+  const ref = useRef<Swipeable>(null);
+
+  const willOpen = useCallback((): void => {
+    if (openRow && openRow !== ref.current) openRow.close();
+    openRow = ref.current;
+  }, []);
+  const didClose = useCallback((): void => {
+    if (openRow === ref.current) openRow = null;
+  }, []);
+
+  // Leaving the page closes it, so it's hidden when you come back.
+  useFocusEffect(
+    useCallback(
+      () => (): void => {
+        ref.current?.close();
+      },
+      []
+    )
+  );
+  useEffect(
+    () => (): void => {
+      if (openRow === ref.current) openRow = null;
+    },
+    []
+  );
+
   return (
     <Swipeable
+      ref={ref}
+      onSwipeableWillOpen={willOpen}
+      onSwipeableClose={didClose}
       renderRightActions={(_progress, dragX): React.JSX.Element => {
         // Slide the panel in 1:1 with the drag so it stays glued to the line's
         // edge instead of sitting revealed as a floating box underneath.
