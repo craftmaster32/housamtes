@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useState, useCallback, useMemo, useRef } from 'react';
+import { View, StyleSheet, Pressable, Animated as RNAnimated } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -114,24 +115,64 @@ export function RecurringBillCard({
     }
   }, [deleteBill, bill.id, t]);
 
+  const swipeRef = useRef<Swipeable>(null);
+
+  // Any housemate can delete, so ask first — it removes the whole history.
+  // Used by both the ⋯ menu and the swipe-left Delete panel.
+  const confirmDelete = useCallback((): void => {
+    Alert.alert(
+      t('bills.household_delete_bill_title', { name: bill.name }),
+      t('bills.household_delete_bill_body'),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+          onPress: (): void => swipeRef.current?.close(),
+        },
+        { text: t('common.delete'), style: 'destructive', onPress: handleDelete },
+      ],
+      { onDismiss: (): void => swipeRef.current?.close() }
+    );
+  }, [bill.name, handleDelete, t]);
+
   const handleMenu = useCallback(
     (action: BillMenuAction): void => {
       setMenuOpen(false);
       if (action === 'edit') setEditing(true);
       if (action === 'changes') setShowChanges((v) => !v);
-      if (action === 'delete') {
-        // Any housemate can delete, so ask first — it removes the whole history.
-        Alert.alert(
-          t('bills.household_delete_bill_title', { name: bill.name }),
-          t('bills.household_delete_bill_body'),
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            { text: t('common.delete'), style: 'destructive', onPress: handleDelete },
-          ]
-        );
-      }
+      if (action === 'delete') confirmDelete();
     },
-    [bill.name, handleDelete, t]
+    [confirmDelete]
+  );
+
+  // Swipe left to reveal a red Delete, same as one-off bill lines. The panel
+  // slides 1:1 with the drag so it stays glued to the card's edge.
+  const renderDeleteAction = useCallback(
+    (
+      _progress: RNAnimated.AnimatedInterpolation<number>,
+      dragX: RNAnimated.AnimatedInterpolation<number>
+    ): React.JSX.Element => {
+      const translateX = dragX.interpolate({
+        inputRange: [-SWIPE_DELETE_WIDTH, 0],
+        outputRange: [0, SWIPE_DELETE_WIDTH],
+        extrapolate: 'clamp',
+      });
+      return (
+        <RNAnimated.View style={[styles.swipeLane, { transform: [{ translateX }] }]}>
+          <Pressable
+            style={[styles.swipeDelete, { backgroundColor: c.danger }]}
+            onPress={confirmDelete}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.delete_bill_name', { name: bill.name })}
+          >
+            <Ionicons name="trash" size={22} color="#fff" />
+            <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
+          </Pressable>
+        </RNAnimated.View>
+      );
+    },
+    [c.danger, confirmDelete, t, bill.name]
   );
 
   const openMenu = useCallback((): void => setMenuOpen(true), []);
@@ -153,124 +194,146 @@ export function RecurringBillCard({
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: p.card, shadowColor: p.shadow }]}>
-      {/* Label row: icon + name, and the ⋯ menu */}
-      <View style={styles.topRow}>
-        <Ionicons name={resolveBillIcon(bill.icon)} size={16} color={p.muted} />
-        <Text style={[styles.name, { color: p.muted }]} numberOfLines={1}>
-          {bill.name}
-        </Text>
-        <Pressable
-          onPress={openMenu}
-          style={({ pressed }) => [styles.menuBtn, pressed && { backgroundColor: p.secondaryBg }]}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.recurring_menu_label', { name: bill.name })}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={p.muted} />
-        </Pressable>
-      </View>
-
-      <View style={styles.answerRow}>
-        <View style={styles.answerText}>
-          {/* The one big answer, then what it costs and who pays. */}
-          <Text
-            style={[styles.answer, headingFont, { color: words.overdue ? c.danger : p.text }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-          >
-            {words.answer ?? words.coverage}
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderDeleteAction}
+      overshootRight={false}
+      rightThreshold={40}
+      friction={2}
+    >
+      <View style={[styles.card, { backgroundColor: p.card, shadowColor: p.shadow }]}>
+        {/* Label row: icon + name, and the ⋯ menu */}
+        <View style={styles.topRow}>
+          <Ionicons name={resolveBillIcon(bill.icon)} size={16} color={p.muted} />
+          <Text style={[styles.name, { color: p.muted }]} numberOfLines={1}>
+            {bill.name}
           </Text>
-          <Text style={[styles.meta, { color: p.muted }]} numberOfLines={2}>
-            {meta}
-          </Text>
-        </View>
-        <ArtSticker style={styles.art}>
-          <BillArt icon={bill.icon} size={ms(54)} />
-        </ArtSticker>
-      </View>
-
-      <MonthTrack track={track} />
-
-      {!!words.line && (
-        <Text style={[styles.note, handFont, { color: words.overdue ? c.danger : p.muted }]}>
-          {words.line}
-        </Text>
-      )}
-      {!!words.answer && (
-        <Text style={[styles.coverage, { color: p.muted }]}>{words.coverage}</Text>
-      )}
-
-      {/* Actions: log the next payment, show past payments */}
-      <View style={styles.actionsRow}>
-        <PaperTag
-          urgent={words.overdue}
-          onPress={openLog}
-          label={
-            status
-              ? t('bills.recurring_log_period', {
-                  period: formatPeriod(status.period, i18n.language, { withYear: false }),
-                })
-              : t('bills.household_log_payment')
-          }
-        />
-        {billPayments.length > 0 && (
           <Pressable
-            onPress={toggleHistory}
-            style={styles.textBtn}
+            onPress={openMenu}
+            style={({ pressed }) => [styles.menuBtn, pressed && { backgroundColor: p.secondaryBg }]}
             accessible
             accessibilityRole="button"
-            accessibilityState={{ expanded: showHistory }}
+            accessibilityLabel={t('bills.recurring_menu_label', { name: bill.name })}
           >
-            <Text style={[styles.textBtnText, { color: p.muted }]}>
-              {showHistory ? t('bills.recurring_hide') : t('bills.recurring_history')}
-            </Text>
-            <Ionicons
-              name={showHistory ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={p.muted}
-            />
+            <Ionicons name="ellipsis-horizontal" size={20} color={p.muted} />
           </Pressable>
+        </View>
+
+        <View style={styles.answerRow}>
+          <View style={styles.answerText}>
+            {/* The one big answer, then what it costs and who pays. */}
+            <Text
+              style={[styles.answer, headingFont, { color: words.overdue ? c.danger : p.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {words.answer ?? words.coverage}
+            </Text>
+            <Text style={[styles.meta, { color: p.muted }]} numberOfLines={2}>
+              {meta}
+            </Text>
+          </View>
+          <ArtSticker style={styles.art}>
+            <BillArt icon={bill.icon} size={ms(54)} />
+          </ArtSticker>
+        </View>
+
+        <MonthTrack track={track} />
+
+        {!!words.line && (
+          <Text style={[styles.note, handFont, { color: words.overdue ? c.danger : p.muted }]}>
+            {words.line}
+          </Text>
         )}
-      </View>
+        {!!words.answer && (
+          <Text style={[styles.coverage, { color: p.muted }]}>{words.coverage}</Text>
+        )}
 
-      {!!error && <Text style={[styles.error, { color: p.overdueText }]}>{error}</Text>}
+        {/* Actions: log the next payment, show past payments */}
+        <View style={styles.actionsRow}>
+          <PaperTag
+            urgent={words.overdue}
+            onPress={openLog}
+            label={
+              status
+                ? t('bills.recurring_log_period', {
+                    period: formatPeriod(status.period, i18n.language, { withYear: false }),
+                  })
+                : t('bills.household_log_payment')
+            }
+          />
+          {billPayments.length > 0 && (
+            <Pressable
+              onPress={toggleHistory}
+              style={styles.textBtn}
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showHistory }}
+            >
+              <Text style={[styles.textBtnText, { color: p.muted }]}>
+                {showHistory ? t('bills.recurring_hide') : t('bills.recurring_history')}
+              </Text>
+              <Ionicons
+                name={showHistory ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={p.muted}
+              />
+            </Pressable>
+          )}
+        </View>
 
-      {showHistory && (
-        <PaymentHistory
-          payments={billPayments}
-          overlapping={overlapping}
-          defaultPayer={bill.assignedTo}
-          currency={currency}
-          onSelect={openEdit}
+        {!!error && <Text style={[styles.error, { color: p.overdueText }]}>{error}</Text>}
+
+        {showHistory && (
+          <PaymentHistory
+            payments={billPayments}
+            overlapping={overlapping}
+            defaultPayer={bill.assignedTo}
+            currency={currency}
+            onSelect={openEdit}
+          />
+        )}
+
+        {showChanges &&
+          (changes.length > 0 ? (
+            <BillChangeLog items={changes} currency={currency} />
+          ) : (
+            <Text style={[styles.empty, { color: p.muted }]}>
+              {t('bills.recurring_no_changes')}
+            </Text>
+          ))}
+
+        <BillCardMenu
+          visible={menuOpen}
+          billName={bill.name}
+          onSelect={handleMenu}
+          onClose={closeMenu}
         />
-      )}
-
-      {showChanges &&
-        (changes.length > 0 ? (
-          <BillChangeLog items={changes} currency={currency} />
-        ) : (
-          <Text style={[styles.empty, { color: p.muted }]}>{t('bills.recurring_no_changes')}</Text>
-        ))}
-
-      <BillCardMenu
-        visible={menuOpen}
-        billName={bill.name}
-        onSelect={handleMenu}
-        onClose={closeMenu}
-      />
-      <PaymentSheet
-        visible={sheetOpen}
-        bill={bill}
-        payment={selected}
-        people={people}
-        onClose={closeSheet}
-      />
-    </View>
+        <PaymentSheet
+          visible={sheetOpen}
+          bill={bill}
+          payment={selected}
+          people={people}
+          onClose={closeSheet}
+        />
+      </View>
+    </Swipeable>
   );
 }
 
+// Width of the swipe-to-delete panel, shared by the reveal animation and style.
+const SWIPE_DELETE_WIDTH = ms(96);
+
 const styles = StyleSheet.create({
+  swipeLane: { width: SWIPE_DELETE_WIDTH, paddingStart: ms(10) },
+  swipeDelete: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: ms(4),
+    borderRadius: ms(24),
+  },
+  swipeDeleteText: { fontSize: mf(13), ...font.bold, color: '#fff' },
   card: {
     borderRadius: ms(24),
     paddingHorizontal: ms(16),
