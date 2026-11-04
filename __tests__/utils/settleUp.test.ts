@@ -599,3 +599,38 @@ describe('fullySettledUntil — "Settled" only when a period is really fully pai
     expect(fullySettledUntil(fully, computeHouseNet(fully))).toBe('2026-10-31');
   });
 });
+
+describe('settling up to the middle of a month', () => {
+  // October: rent (Maya, ₪900, Oct 1–31), groceries on 10 Oct (₪90) and on 20 Oct (₪60).
+  const m = money({
+    householdPayments: [
+      {
+        id: 'rent-oct',
+        billId: 'rent',
+        amount: 900,
+        paidAt: '2026-10-01',
+        note: '',
+        paidBy: MAYA,
+        splitBetween: MEMBERS,
+        coverageStart: '2026-10-01',
+        coverageMonths: 1,
+      },
+    ],
+    bills: [bill('g10', 90, '2026-10-10'), bill('g20', 60, '2026-10-20')],
+  });
+
+  it('up to 15 Oct: October rent counts in full (its month has started), only the 10 Oct bill', () => {
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-15'));
+    expect(plan).toContainEqual({ from: DANA, to: MAYA, amount: 330 }); // 300 rent + 30
+    const after = computeHouseNet(record(m, plan));
+    expect(round(after.get(DANA))).toBe(-20); // only the 20 Oct bill is left
+  });
+
+  it('then up to 31 Oct adds only what came after the 15th — nothing counted twice', () => {
+    const mid = record(m, planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-15')));
+    const plan = planSettleUpTo(computeHouseNet(mid), pairwiseDebts(mid, '2026-10-31'));
+    expect(plan).toContainEqual({ from: DANA, to: MAYA, amount: 20 });
+    const after = computeHouseNet(record(mid, plan));
+    for (const id of MEMBERS) expect(round(after.get(id))).toBe(0);
+  });
+});
