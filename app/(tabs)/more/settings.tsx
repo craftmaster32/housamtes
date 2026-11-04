@@ -3,9 +3,8 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { BackLink } from '@components/shared/BackLink';
 import { DotLeader } from '@components/shared/DotLeader';
 import { SettingsLine } from '@components/settings/SettingsLine';
 import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
@@ -35,11 +34,6 @@ const LANGUAGES: AppLanguage[] = ['en', 'he', 'es'];
 
 export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  // Settings is reached either as a main section (home avatar menu / More list)
-  // or as a page of Profile (from=profile). Back follows the same split — Home
-  // in the first case, Profile in the second — and the label names whichever it
-  // actually is.
-  const { from } = useLocalSearchParams<{ from?: string }>();
   const c = useThemedColors();
   const heading = useHeadingFont('semibold');
   const hand = useHandFont();
@@ -134,10 +128,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.background }]}>
-      <View style={styles.backRow}>
-        <BackLink label={from === 'profile' ? t('nav.profile') : t('common.home')} />
-      </View>
-
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, heading, { color: c.textPrimary }]} accessibilityRole="header">
           {t('settings.title')}
@@ -315,7 +305,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  backRow: { paddingHorizontal: ms(20), paddingTop: ms(8) },
   scroll: { paddingHorizontal: ms(20), paddingBottom: ms(110) },
   title: {
     fontSize: mf(36),
