@@ -53,6 +53,7 @@ const settled = (coversUntil: string | null): SettlementPayment => ({
   note: null,
   createdBy: 'maya',
   createdAt: '2026-11-02T10:00:00Z',
+  updatedAt: '2026-11-02T10:00:00Z',
 });
 
 beforeEach(() => {

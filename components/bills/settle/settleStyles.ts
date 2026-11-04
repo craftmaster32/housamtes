@@ -30,6 +30,17 @@ export const settleStyles = StyleSheet.create({
   },
   primaryText: { fontSize: mf(17), ...font.bold, textAlign: 'center' },
   dimmed: { opacity: 0.6 },
+  bigAmount: { fontSize: mf(40), ...font.extrabold, writingDirection: 'ltr', letterSpacing: -0.5 },
+  centered: { alignItems: 'center' },
+  listShrink: { flexShrink: 1 },
+  // A button that stays visible at the bottom of a sheet, above the list.
+  stickyFooter: {
+    paddingHorizontal: ms(20),
+    paddingTop: ms(12),
+    paddingBottom: ms(28),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: ms(8),
+  },
   tooMuch: { gap: ms(6) },
   tooMuchActions: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(16) },
   linkBtn: { minHeight: 44, justifyContent: 'center' },

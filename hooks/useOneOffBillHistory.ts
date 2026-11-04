@@ -24,6 +24,9 @@ import {
 } from '@utils/recurringCoverage';
 import { membersOn, toMemberSpans } from '@utils/membership';
 
+/** The history filter that shows only settle-up payments (not a bill category). */
+export const SETTLE_UPS_CATEGORY = '__settle-ups__';
+
 export interface RecurringPaymentRow {
   id: string;
   title: string;
@@ -160,8 +163,9 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
         pushed.add(key);
       }
     }
-    return ordered;
-  }, [bills, expenseCategories]);
+    // Settle-ups get their own filter, first, whenever there are any.
+    return settlements.length > 0 ? [SETTLE_UPS_CATEGORY, ...ordered] : ordered;
+  }, [bills, expenseCategories, settlements.length]);
 
   // If the selected category disappears (last bill of that kind deleted/settled
   // away), fall back to "All" so the list can't get stuck showing nothing.
@@ -234,7 +238,9 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
     const filtered = rows.filter((row): boolean => {
       // Category chips filter the categorised one-off bills; logged recurring
       // payments and settle-up payments have no category, so a chip hides them.
-      if (category !== 'all') {
+      if (category === SETTLE_UPS_CATEGORY) {
+        if (row.kind !== 'settlement') return false;
+      } else if (category !== 'all') {
         if (row.kind !== 'bill') return false;
         if ((row.bill.category ?? '').toLowerCase() !== category) return false;
       }

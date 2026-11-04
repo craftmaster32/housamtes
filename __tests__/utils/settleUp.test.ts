@@ -84,6 +84,7 @@ const paid = (
   note: null,
   createdBy: from,
   createdAt: `${paidOn}T10:00:00Z`,
+  updatedAt: `${paidOn}T10:00:00Z`,
 });
 
 const money = (overrides: Partial<HouseMoney> = {}): HouseMoney => ({

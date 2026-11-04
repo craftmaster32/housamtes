@@ -247,6 +247,7 @@ describe('deletePayment', () => {
           note: null,
           createdBy: 'dana',
           createdAt: '2026-11-04T10:00:00Z',
+          updatedAt: '2026-11-04T10:00:00Z',
         },
       ],
     });
@@ -272,5 +273,61 @@ describe('endOfLastMonth', () => {
     expect(endOfLastMonth('2026-11-04')).toBe('2026-10-31');
     expect(endOfLastMonth('2026-03-15')).toBe('2026-02-28');
     expect(endOfLastMonth('2026-01-01')).toBe('2025-12-31');
+  });
+});
+
+describe('updatePayment', () => {
+  const existing = {
+    id: 's1',
+    from: 'dana',
+    to: 'maya',
+    amount: 100,
+    paidOn: '2026-11-04',
+    coversUntil: null,
+    note: null,
+    createdBy: 'dana',
+    createdAt: '2026-11-04T10:00:00Z',
+    updatedAt: '2026-11-04T10:00:00Z',
+  };
+  const names = { fromName: 'Dana', toName: 'Maya', money: '₪60.00' };
+
+  beforeEach(() => {
+    useSettlementPaymentsStore.setState({ payments: [existing] });
+  });
+
+  it('saves the new amount and tells only the other person', async () => {
+    mockFrom.mockReturnValue(
+      ok([{ ...row('s1', 'dana', 'maya', 60), updated_at: '2026-11-05T09:00:00Z' }])
+    );
+    await useSettlementPaymentsStore
+      .getState()
+      .updatePayment('s1', { amount: 60, paidOn: '2026-11-04', note: null }, names);
+    const p = useSettlementPaymentsStore.getState().payments[0];
+    expect(p.amount).toBe(60);
+    expect(p.updatedAt).toBe('2026-11-05T09:00:00Z');
+    expect(mockNotify).toHaveBeenCalledWith(
+      expect.objectContaining({ includeUserIds: ['dana'], copyKey: 'settlement_edited' })
+    );
+  });
+
+  it('reports a refusal (0 rows changed) and keeps the old amount', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await expect(
+      useSettlementPaymentsStore
+        .getState()
+        .updatePayment('s1', { amount: 60, paidOn: '2026-11-04', note: null }, names)
+    ).rejects.toThrow(/Only the two people/);
+    expect(useSettlementPaymentsStore.getState().payments[0].amount).toBe(100);
+  });
+
+  it('refuses zero and future dates before reaching the database', async () => {
+    const store = useSettlementPaymentsStore.getState();
+    await expect(
+      store.updatePayment('s1', { amount: 0, paidOn: '2026-11-04', note: null }, names)
+    ).rejects.toThrow();
+    await expect(
+      store.updatePayment('s1', { amount: 10, paidOn: '2999-01-01', note: null }, names)
+    ).rejects.toThrow(/future/);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });

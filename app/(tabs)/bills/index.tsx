@@ -22,6 +22,7 @@ import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useHouseMoney } from '@hooks/useHouseMoney';
 import { SettleActions } from '@components/bills/settle/SettleActions';
 import { SettlementLine } from '@components/bills/settle/SettlementLine';
+import { useSettleUpSheets } from '@hooks/useSettleUpSheets';
 import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -39,7 +40,11 @@ import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useOneOffBillHistory, type BillRow } from '@hooks/useOneOffBillHistory';
+import {
+  useOneOffBillHistory,
+  SETTLE_UPS_CATEGORY,
+  type BillRow,
+} from '@hooks/useOneOffBillHistory';
 import { BillTabs } from '@components/bills/BillTabs';
 import { sentenceCase } from '@components/dashboard/cards/cardStyles';
 import { BalancePaper } from '@components/bills/BalancePaper';
@@ -135,6 +140,8 @@ function BillsScreen(): React.JSX.Element {
   // Fewest-transfer settlement plan for the whole house — powers the "Settle up"
   // strip merged into the balance card.
   const settlements = settleDebts(new Map(combinedNet));
+  // Settle a line, edit/delete a recorded settle-up, or settle up to a date.
+  const settleUp = useSettleUpSheets();
   const avatarById = useMemo(
     (): Map<string, string | undefined> => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
     [housemates]
@@ -169,12 +176,12 @@ function BillsScreen(): React.JSX.Element {
           ) : row.kind === 'payment' ? (
             <RecurringPaymentLine key={row.key} row={row.payment} />
           ) : (
-            <SettlementLine key={row.key} settlement={row.settlement} />
+            <SettlementLine key={row.key} settlement={row.settlement} onPress={settleUp.openEdit} />
           )
         )}
       </ReceiptRoll>
     ),
-    [sectionCount]
+    [sectionCount, settleUp.openEdit]
   );
 
   if (isLoading) {
@@ -251,7 +258,9 @@ function BillsScreen(): React.JSX.Element {
         avatarById={avatarById}
         showSettle={showSettle}
         onToggleSettle={handleToggleSettle}
-        footer={<SettleActions plan={settlements} />}
+        footer={<SettleActions plan={settlements} onUpTo={settleUp.openUpTo} />}
+        onSettle={settleUp.openSettle}
+        paidSoFar={settleUp.paidSoFar}
       />
       {/* After the paper: hanging on to its torn bottom edge. */}
       {mateSpot === 'cling' && (
@@ -307,7 +316,12 @@ function BillsScreen(): React.JSX.Element {
               <CategoryWords
                 items={['all', ...presentCategories].map((key) => ({
                   key,
-                  label: key === 'all' ? t('bills.filter_all') : localizeCategoryName(key, t),
+                  label:
+                    key === 'all'
+                      ? t('bills.filter_all')
+                      : key === SETTLE_UPS_CATEGORY
+                        ? t('bills.settle_ups_filter')
+                        : localizeCategoryName(key, t),
                 }))}
                 selected={category}
                 onSelect={setCategory}
@@ -339,6 +353,7 @@ function BillsScreen(): React.JSX.Element {
         >
           {ListHeader}
         </ScrollView>
+        {settleUp.sheets}
       </SafeAreaView>
     );
   }
@@ -377,6 +392,7 @@ function BillsScreen(): React.JSX.Element {
           )
         }
       />
+      {settleUp.sheets}
     </SafeAreaView>
   );
 }

@@ -293,6 +293,32 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       return { title: '🤝 Payment recorded', body: `${from} paid ${to} ${money}.` };
     }
 
+    case 'settlement_edited': {
+      const from = str(p, 'fromName');
+      const to = str(p, 'toName');
+      const money = str(p, 'money');
+      if (es) return { title: '✏️ Pago corregido', body: `${from} → ${to}: ahora ${money}.` };
+      if (he) return { title: '✏️ התשלום עודכן', body: `${from} ← ${to}: עכשיו ${money}.` };
+      return { title: '✏️ Payment updated', body: `${from} → ${to} is now ${money}.` };
+    }
+
+    case 'settlement_deleted': {
+      const from = str(p, 'fromName');
+      const to = str(p, 'toName');
+      const money = str(p, 'money');
+      if (es)
+        return {
+          title: '↩️ Pago eliminado',
+          body: `${from} → ${to} ${money} se eliminó. El saldo volvió atrás.`,
+        };
+      if (he)
+        return { title: '↩️ התשלום נמחק', body: `${from} ← ${to} ${money} נמחק. היתרה חזרה.` };
+      return {
+        title: '↩️ Payment removed',
+        body: `${from} → ${to} ${money} was removed. The balance is back.`,
+      };
+    }
+
     case 'settled_up_to': {
       const who = str(p, 'name');
       const d = shortDate(lang, str(p, 'date'));

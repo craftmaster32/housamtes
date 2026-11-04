@@ -64,7 +64,44 @@ CREATE POLICY "payer or receiver can record settlement payments" ON settlement_p
     )
   );
 
--- No UPDATE policy on purpose: recorded payments can't be quietly changed.
+-- Only the payer or the receiver can fix a recorded payment (amount, date,
+-- note). Who paid whom and the house can't change — that's a new payment.
+-- Every edit keeps the old values in the house's change history (below).
+DROP POLICY IF EXISTS "payer or receiver can edit settlement payments" ON settlement_payments;
+CREATE POLICY "payer or receiver can edit settlement payments" ON settlement_payments FOR UPDATE
+  USING (
+    house_id IN (SELECT public.get_my_house_ids())
+    AND auth.uid() IN (from_user, to_user)
+  )
+  WITH CHECK (
+    house_id IN (SELECT public.get_my_house_ids())
+    AND auth.uid() IN (from_user, to_user)
+  );
+
+CREATE OR REPLACE FUNCTION fn_guard_settlement_payment_update() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.house_id   IS DISTINCT FROM OLD.house_id   OR
+     NEW.from_user  IS DISTINCT FROM OLD.from_user  OR
+     NEW.to_user    IS DISTINCT FROM OLD.to_user    OR
+     NEW.created_by IS DISTINCT FROM OLD.created_by OR
+     NEW.created_at IS DISTINCT FROM OLD.created_at
+  THEN
+    RAISE EXCEPTION 'Only the amount, date and note of a payment can be changed.';
+  END IF;
+  NEW.updated_at := now();
+  INSERT INTO audit_log(house_id, actor_id, table_name, record_id, old_data)
+  VALUES (OLD.house_id, auth.uid(), 'settlement_payments_update', OLD.id, to_jsonb(OLD));
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_settlement_payments_update ON settlement_payments;
+CREATE TRIGGER guard_settlement_payments_update
+  BEFORE UPDATE ON settlement_payments
+  FOR EACH ROW EXECUTE FUNCTION fn_guard_settlement_payment_update();
 
 -- Only the payer or the receiver can delete (undo) it.
 DROP POLICY IF EXISTS "payer or receiver can delete settlement payments" ON settlement_payments;
@@ -95,7 +132,7 @@ END $$;
 -- ── Settle up to a date: one house at a time, never on stale numbers ────────
 -- Two phones confirming at the same moment would otherwise record the same
 -- month twice. This takes a per-house lock, checks the phone saw the latest
--- payments (count + newest timestamp), and only then inserts — all or nothing.
+-- payments (count + newest change), and only then inserts — all or nothing.
 -- SECURITY INVOKER: the insert still goes through the RLS policies above.
 CREATE OR REPLACE FUNCTION public.record_settle_up_to(
   p_house_id    uuid,
@@ -122,7 +159,8 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtextextended('settle-up:' || p_house_id::text, 0));
 
-  SELECT count(*), max(created_at) INTO v_count, v_latest
+  -- Newest change (a new payment or an edit) — so an edit counts as "changed" too.
+  SELECT count(*), max(greatest(created_at, updated_at)) INTO v_count, v_latest
   FROM settlement_payments WHERE house_id = p_house_id;
   IF v_count <> p_seen_count OR v_latest IS DISTINCT FROM p_seen_latest THEN
     RAISE EXCEPTION 'stale_balances' USING ERRCODE = 'P0001';

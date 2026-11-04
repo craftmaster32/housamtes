@@ -47,6 +47,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: ms(26),
     borderTopRightRadius: ms(26),
     maxHeight: '92%',
+    // Lets a list inside shrink so a footer button below it stays on screen.
+    flexShrink: 1,
     width: '100%',
     maxWidth: 560,
     alignSelf: 'center',

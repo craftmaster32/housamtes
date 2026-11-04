@@ -33,6 +33,8 @@ export interface SettlementPayment {
   note: string | null;
   createdBy: string;
   createdAt: string;
+  /** Last change (an edit), or the same as createdAt. */
+  updatedAt: string;
 }
 
 /** One suggested transfer: `from` pays `to` this much. */
@@ -306,6 +308,7 @@ export function isSafeToRecord(currentNet: NetBalances, transfers: Transfer[]): 
       note: null,
       createdBy: '',
       createdAt: '',
+      updatedAt: '',
     }))
   );
   for (const [person, a] of after) {

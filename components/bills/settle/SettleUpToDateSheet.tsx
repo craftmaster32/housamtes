@@ -98,7 +98,6 @@ export function SettleUpToDateSheet({
 
   const header = (
     <View style={styles.body}>
-      <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_help')}</Text>
       <View>
         <Text style={[styles.label, { color: p.muted }]}>{t('bills.settle_upto_date')}</Text>
         <Pressable
@@ -155,8 +154,10 @@ export function SettleUpToDateSheet({
     </View>
   );
 
+  // Always visible at the bottom of the sheet, so Confirm is never hidden
+  // below a long list.
   const footer = (
-    <View style={styles.body}>
+    <View style={[styles.stickyFooter, { borderTopColor: p.border, backgroundColor: p.sheet }]}>
       {!!s.error && (
         <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
           {s.error}
@@ -207,12 +208,13 @@ export function SettleUpToDateSheet({
         onClose={close}
       >
         <FlatList
+          style={styles.listShrink}
           data={s.plan}
           keyExtractor={(x) => `${x.from}-${x.to}`}
           renderItem={renderItem}
           ListHeaderComponent={header}
-          ListFooterComponent={footer}
         />
+        {footer}
       </SettleSheet>
       <DatePickerModal visible={showDate} value={s.upTo} onSelect={pickDate} onClose={closeDate} />
     </>

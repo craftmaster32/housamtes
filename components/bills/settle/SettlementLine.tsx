@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useMemberName } from '@hooks/useMemberName';
@@ -13,8 +13,11 @@ import type { SettlementPayment } from '@utils/settleUp';
 /** A settle-up payment in the Bills history: "Dana → Maya ₪300 · Paid". */
 export function SettlementLine({
   settlement,
+  onPress,
 }: {
   settlement: SettlementPayment;
+  /** Tap to change or delete it. */
+  onPress?: (settlement: SettlementPayment) => void;
 }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -35,10 +38,13 @@ export function SettlementLine({
     .join(' · ');
   const amount = formatFull(settlement.amount, currencyCode);
   return (
-    <View
-      style={{ backgroundColor: c.receipt }}
-      accessible
+    <Pressable
+      style={({ pressed }) => [{ backgroundColor: c.receipt }, pressed && styles.pressed]}
+      onPress={() => onPress?.(settlement)}
+      disabled={!onPress}
+      accessibilityRole="button"
       accessibilityLabel={`${title}, ${amount}. ${meta}`}
+      accessibilityHint={t('bills.settle_tap_to_edit')}
     >
       <ReceiptLine
         kind="receipt"
@@ -48,6 +54,10 @@ export function SettlementLine({
         amount={amount}
         stamp={<Stamp color={c.success}>{t('bills.settle_paid_tag')}</Stamp>}
       />
-    </View>
+    </Pressable>
   );
 }
+
+const styles = StyleSheet.create({
+  pressed: { opacity: 0.75 },
+});

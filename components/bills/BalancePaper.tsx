@@ -33,8 +33,12 @@ interface BalancePaperProps {
   avatarById: Map<string, string | undefined>;
   showSettle: boolean;
   onToggleSettle: () => void;
-  /** Settle-up actions (record a payment, settle up to a date, history) under the plan. */
+  /** Settle-up actions (e.g. "Settle up to a date") under the plan. */
   footer?: React.ReactNode;
+  /** Tap "Settle" on a line you're part of (like Splitwise). */
+  onSettle?: (s: Settlement) => void;
+  /** Already paid between this pair in the open period ("₪50 paid"). */
+  paidSoFar?: (s: Settlement) => number;
 }
 
 function Avatar({
@@ -76,6 +80,8 @@ export function BalancePaper({
   showSettle,
   onToggleSettle,
   footer,
+  onSettle,
+  paidSoFar,
 }: BalancePaperProps): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -184,9 +190,35 @@ export function BalancePaper({
                   >
                     {toName}
                   </Text>
-                  <Text style={[styles.xferAmt, headingFont, { color: amtColor }]}>
-                    {formatFull(s.amount, currencyCode)}
-                  </Text>
+                  <View style={styles.xferRight}>
+                    <Text style={[styles.xferAmt, headingFont, { color: amtColor }]}>
+                      {formatFull(s.amount, currencyCode)}
+                    </Text>
+                    {(paidSoFar?.(s) ?? 0) >= 0.01 && (
+                      <Text style={[styles.xferPaid, { color: c.paperMuted }]}>
+                        {t('bills.settle_paid_so_far', {
+                          money: formatFull(paidSoFar?.(s) ?? 0, currencyCode),
+                        })}
+                      </Text>
+                    )}
+                  </View>
+                  {onSettle && (fromIsMe || toIsMe) && (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.settleBtn,
+                        { backgroundColor: c.primary },
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={() => onSettle(s)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('bills.settle_with', {
+                        name: fromIsMe ? toName : fromName,
+                        money: formatFull(s.amount, currencyCode),
+                      })}
+                    >
+                      <Text style={styles.settleBtnText}>{t('bills.settle_btn')}</Text>
+                    </Pressable>
+                  )}
                 </View>
               );
             })}
@@ -220,7 +252,18 @@ const styles = StyleSheet.create({
   settleSub: { flex: 1, fontSize: mf(13.5), ...font.semibold },
   xfer: { flexDirection: 'row', alignItems: 'center', gap: ms(8), minHeight: ms(36) },
   xferName: { fontSize: mf(23), maxWidth: ms(90) },
-  xferAmt: { marginStart: 'auto', fontSize: mf(17), writingDirection: 'ltr' },
+  xferRight: { marginStart: 'auto', alignItems: 'flex-end' },
+  xferAmt: { fontSize: mf(17), writingDirection: 'ltr' },
+  xferPaid: { fontSize: mf(12), ...font.semibold, writingDirection: 'ltr' },
+  settleBtn: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: ms(12),
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settleBtnText: { color: '#FFFFFF', fontSize: mf(14), ...font.bold },
   av: {
     width: ms(22),
     height: ms(22),

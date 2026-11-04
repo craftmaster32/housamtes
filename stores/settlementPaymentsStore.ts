@@ -49,7 +49,17 @@ interface SettlementPaymentsStore {
     houseId: string,
     actorName: string
   ) => Promise<void>;
-  deletePayment: (id: string) => Promise<void>;
+  /** Fix a recorded payment's amount, date or note (payer or receiver only). */
+  updatePayment: (
+    id: string,
+    changes: { amount: number; paidOn: string; note: string | null },
+    names: { fromName: string; toName: string; money: string }
+  ) => Promise<void>;
+  /** Undo a payment (payer or receiver only). Balances go back to how they were. */
+  deletePayment: (
+    id: string,
+    names?: { fromName: string; toName: string; money: string }
+  ) => Promise<void>;
 }
 
 interface SettlementRow {
@@ -62,6 +72,7 @@ interface SettlementRow {
   note: string | null;
   created_by: string;
   created_at: string;
+  updated_at?: string | null;
 }
 
 function rowToPayment(r: SettlementRow): SettlementPayment {
@@ -75,6 +86,7 @@ function rowToPayment(r: SettlementRow): SettlementPayment {
     note: r.note ?? null,
     createdBy: r.created_by,
     createdAt: r.created_at,
+    updatedAt: r.updated_at ?? r.created_at,
   };
 }
 
@@ -221,10 +233,11 @@ export const useSettlementPaymentsStore = create<SettlementPaymentsStore>()(
         // this phone hasn't seen the latest payments — so two people confirming
         // at once can't record the same month twice. All rows save, or none.
         const seen = get().payments;
-        const seenLatest = seen.reduce<string | null>(
-          (max, p) => (max === null || p.createdAt > max ? p.createdAt : max),
-          null
-        );
+        // Newest change the phone has seen: a new payment or an edit.
+        const seenLatest = seen.reduce<string | null>((max, p) => {
+          const changed = p.updatedAt > p.createdAt ? p.updatedAt : p.createdAt;
+          return max === null || changed > max ? changed : max;
+        }, null);
         const { data, error } = await supabase.rpc('record_settle_up_to', {
           p_house_id: houseId,
           p_up_to: upTo,
@@ -258,7 +271,63 @@ export const useSettlementPaymentsStore = create<SettlementPaymentsStore>()(
         });
       },
 
-      deletePayment: async (id): Promise<void> => {
+      updatePayment: async (id, changes, names): Promise<void> => {
+        const before = get().payments.find((p) => p.id === id);
+        if (!before) throw new Error('Could not find that payment.');
+        const parsed = paymentSchema.safeParse({
+          from: before.from,
+          to: before.to,
+          amount: changes.amount,
+          paidOn: changes.paidOn,
+          coversUntil: before.coversUntil,
+          note: changes.note,
+        });
+        if (!parsed.success) throw new Error('Please check the payment details and try again.');
+        if (parsed.data.paidOn > todayISO()) {
+          throw new Error('The payment date can’t be in the future.');
+        }
+        const userId = useAuthStore.getState().profile?.id ?? '';
+        if (userId !== before.from && userId !== before.to) {
+          throw new Error('Only the two people in this payment can change it.');
+        }
+        const { data, error } = await supabase
+          .from('settlement_payments')
+          .update({
+            amount: parsed.data.amount,
+            paid_on: parsed.data.paidOn,
+            note: parsed.data.note || null,
+          })
+          .eq('id', id)
+          .select();
+        if (error) {
+          captureError(error, { context: 'edit-settlement', settlementId: id });
+          throw new Error('Could not save the change. Please try again.');
+        }
+        const row = (data as SettlementRow[] | null)?.[0];
+        // RLS refusals come back as "0 rows updated", not as an error.
+        if (!row) throw new Error('Only the two people in this payment can change it.');
+        set({
+          payments: get()
+            .payments.map((p) => (p.id === id ? rowToPayment(row) : p))
+            .sort(byNewest),
+        });
+        const houseId = useAuthStore.getState().houseId ?? '';
+        const other = userId === before.from ? before.to : before.from;
+        if (houseId) {
+          notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            includeUserIds: [other],
+            copyKey: 'settlement_edited',
+            copyParams: names,
+            data: { screen: 'bills' },
+            notificationType: 'bill_settled',
+          });
+        }
+      },
+
+      deletePayment: async (id, names): Promise<void> => {
+        const before = get().payments.find((p) => p.id === id);
         let removed = false;
         try {
           const { data, error } = await supabase
@@ -275,6 +344,21 @@ export const useSettlementPaymentsStore = create<SettlementPaymentsStore>()(
         }
         if (!removed) throw new SettlementDeleteNotAllowedError();
         set({ payments: get().payments.filter((p) => p.id !== id) });
+        // Tell the other person once — their balance just went back up.
+        const userId = useAuthStore.getState().profile?.id ?? '';
+        const houseId = useAuthStore.getState().houseId ?? '';
+        if (before && names && houseId) {
+          const other = userId === before.from ? before.to : before.from;
+          notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            includeUserIds: [other],
+            copyKey: 'settlement_deleted',
+            copyParams: names,
+            data: { screen: 'bills' },
+            notificationType: 'bill_settled',
+          });
+        }
       },
     }),
     { name: 'settlement-payments-store' }
