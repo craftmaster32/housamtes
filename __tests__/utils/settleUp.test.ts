@@ -487,3 +487,61 @@ describe('settle up to a date counts recurring bills by the months they pay for'
     expect(round(after.get(DANA))).toBe(-150); // November half still open
   });
 });
+
+describe("Maya's real case: two months in the app, September paid outside it", () => {
+  // Maya pays rent for September and October (₪900, split by 3), and a
+  // ₪90 internet bill each month that Tom pays. Dana & Tom paid Maya for
+  // September by bank transfer, never recorded. Today is 4 November.
+  const internet: RecurringBill = { ...rent, id: 'net', name: 'Internet', assignedTo: TOM };
+  const monthOf = (
+    id: string,
+    billId: string,
+    start: string,
+    payer: string,
+    amount: number
+  ): HouseholdPayment => ({
+    id,
+    billId,
+    amount,
+    paidAt: start,
+    note: '',
+    paidBy: payer,
+    splitBetween: MEMBERS,
+    coverageStart: start,
+    coverageMonths: 1,
+  });
+  const m = money({
+    householdBills: [rent, internet],
+    householdPayments: [
+      monthOf('rent-sep', 'rent', '2026-09-01', MAYA, 900),
+      monthOf('rent-oct', 'rent', '2026-10-01', MAYA, 900),
+      // October rent's partner: internet paid a few days into each month.
+      { ...monthOf('net-sep', 'net', '2026-09-01', TOM, 90), paidAt: '2026-09-05' },
+      { ...monthOf('net-oct', 'net', '2026-10-01', TOM, 90), paidAt: '2026-10-05' },
+    ],
+    bills: [
+      bill('groceries-sep', 120, '2026-09-20'), // Maya paid, split 3
+      bill('groceries-oct', 60, '2026-10-12'),
+    ],
+  });
+
+  it('before: both months are counted', () => {
+    // Dana owes Maya 300+300 rent + 40+20 groceries, and Tom 30+30 internet = 720
+    expect(round(computeHouseNet(m).get(DANA))).toBe(-720);
+  });
+
+  it('"settled up to 30 Sept" leaves exactly October open', () => {
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-09-30'));
+    const after = computeHouseNet(record(m, plan));
+    // October only: rent 300 + groceries 20 to Maya, internet 30 to Tom.
+    expect(round(after.get(DANA))).toBe(-350);
+    expect(round(after.get(TOM))).toBe(-260); // 300 + 20 to Maya − 60 from Maya & Dana
+    expect(round(after.get(MAYA))).toBe(610);
+  });
+
+  it('picking 1 October by mistake would also settle October rent — the screen must say so', () => {
+    const plan = planSettleUpTo(computeHouseNet(m), pairwiseDebts(m, '2026-10-01'));
+    const after = computeHouseNet(record(m, plan));
+    expect(round(after.get(DANA))).not.toBe(-350);
+  });
+});

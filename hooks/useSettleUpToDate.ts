@@ -32,6 +32,31 @@ export function endOfLastMonth(today: string = todayISO()): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** The day after a YYYY-MM-DD date. */
+export function nextDay(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The day before a YYYY-MM-DD date. */
+export function previousDay(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** The last day of each of the `count` months before this one, newest first. */
+export function recentMonthEnds(count: number, today: string = todayISO()): string[] {
+  const ends: string[] = [];
+  let end = endOfLastMonth(today);
+  for (let i = 0; i < count; i++) {
+    ends.push(end);
+    end = endOfLastMonth(end);
+  }
+  return ends;
+}
+
 /** State + logic for "Settle up to a date". */
 export function useSettleUpToDate(visible: boolean, onDone: () => void): SettleUpToDate {
   const { t } = useTranslation();

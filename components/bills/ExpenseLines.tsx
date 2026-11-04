@@ -126,6 +126,8 @@ export function BillLine({
   // remove a bill, and settled bills stay locked as permanent history. A valid
   // house context is required too, so deletion never fires without one.
   const canDelete = (role === 'owner' || role === 'admin') && !bill.settled && !!houseId;
+  // Marked settled on its own, or covered by "settle up to a date".
+  const isSettled = bill.settled || settledGuard.isSettled(bill.date);
   const payer = memberName(bill.paidBy).split(' ')[0];
   const catLabel = bill.category ? localizeCategoryName(bill.category, t) : '';
   const look = useCategoryLook()(bill.category);
@@ -178,10 +180,8 @@ export function BillLine({
         title={bill.title}
         meta={catLabel ? `${catLabel} · ${payer}` : t('bills.paid_by_name', { name: payer })}
         amount={formatFull(bill.amount, currencyCode)}
-        struck={bill.settled}
-        stamp={
-          bill.settled ? <Stamp color={c.success}>{t('bills.settled_badge')}</Stamp> : undefined
-        }
+        struck={isSettled}
+        stamp={isSettled ? <Stamp color={c.success}>{t('bills.settled_badge')}</Stamp> : undefined}
       />
     </Pressable>
   );
@@ -231,6 +231,8 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
   const paidBy = t('bills.paid_by_name', { name: memberName(row.paidBy).split(' ')[0] });
+  // Every month it pays for is inside a settled period ("settle up to a date").
+  const isSettled = useSettledPeriodGuard().isSettled(row.lastCoveredMonth);
   return (
     <Pressable
       style={({ pressed }) => [{ backgroundColor: c.receipt }, pressed && styles.pressed]}
@@ -248,7 +250,14 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
             : paidBy
         }
         amount={formatFull(row.amount, currencyCode)}
-        stamp={<Stamp color={c.primary}>{t('bills.recurring_tag')}</Stamp>}
+        struck={isSettled}
+        stamp={
+          isSettled ? (
+            <Stamp color={c.success}>{t('bills.settled_badge')}</Stamp>
+          ) : (
+            <Stamp color={c.primary}>{t('bills.recurring_tag')}</Stamp>
+          )
+        }
       />
     </Pressable>
   );

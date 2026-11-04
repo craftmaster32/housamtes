@@ -804,7 +804,12 @@
     "settle_too_much": "The most {{from}} can settle with {{to}} right now is {{max}} — that brings it to zero. Anything extra isn't paying back a debt, so add it as a bill.",
     "settle_nothing_owed": "{{from}} doesn't owe {{to}} anything right now, so there's nothing to settle. If this is new spending, add it as a bill.",
     "settle_use_max": "Use {{max}}",
-    "settle_add_as_bill": "Add as a bill instead"
+    "settle_add_as_bill": "Add as a bill instead",
+    "settle_upto_quick": "Quick pick",
+    "settle_upto_end_of": "End of {{month}}",
+    "settle_upto_explain": "Everything up to and including {{date}} counts as paid. Expenses from {{next}} on stay open.",
+    "settle_upto_first_of_month": "Careful: {{date}} is included, so that month's rent and bills count as paid too. If you mean \"everything before {{date}}\", pick {{before}}.",
+    "settle_upto_use_day_before": "Use {{before}} instead"
   },
   "parking": {
     "title": "Parking",

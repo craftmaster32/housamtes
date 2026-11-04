@@ -13,7 +13,14 @@ import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import type { SettlementPayment } from '@utils/settleUp';
 import { toAppLocale } from '@utils/dates';
-import { formatPeriod, paymentPeriod } from '@utils/recurringCoverage';
+import {
+  FREQUENCY_MONTHS,
+  formatPeriod,
+  monthStart,
+  paymentPeriod,
+  periodEnd,
+  shiftMonth,
+} from '@utils/recurringCoverage';
 import { membersOn, toMemberSpans } from '@utils/membership';
 
 export interface RecurringPaymentRow {
@@ -24,6 +31,17 @@ export interface RecurringPaymentRow {
   paidBy: string;
   splitBetween: string[];
   coverage: string; // localized covered month(s), e.g. "Sep 2026"
+  /** First day of the LAST month it pays for (YYYY-MM-01) — fully settled once this is. */
+  lastCoveredMonth: string;
+}
+
+/** The last month a payment pays for — same months rule as settling up. */
+function lastCoveredMonth(payment: HouseholdPayment, frequency: BillFrequency): string {
+  const period = paymentPeriod(payment) ?? {
+    start: shiftMonth(monthStart(payment.paidAt), -(FREQUENCY_MONTHS[frequency] - 1)),
+    months: FREQUENCY_MONTHS[frequency],
+  };
+  return periodEnd(period);
 }
 
 /** "Jul–Aug 2026", or '' for legacy payments whose coverage wasn't recorded. */
@@ -179,6 +197,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
                 ? p.splitBetween
                 : membersOn(memberSpans, p.paidAt),
             coverage: coverageLabel(p, i18n.language),
+            lastCoveredMonth: lastCoveredMonth(p, meta?.frequency ?? 'monthly'),
           },
         };
       }),
