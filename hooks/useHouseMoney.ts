@@ -3,6 +3,7 @@ import { useBillsStore } from '@stores/billsStore';
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
+import { toMemberSpans } from '@utils/membership';
 import { computeHouseNet, type HouseMoney, type NetBalances } from '@utils/settleUp';
 
 interface HouseMoneyResult {
@@ -21,6 +22,7 @@ export function useHouseMoney(): HouseMoneyResult {
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const householdPayments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
   const settlementPayments = useSettlementPaymentsStore((s) => s.payments);
 
   return useMemo((): HouseMoneyResult => {
@@ -28,9 +30,9 @@ export function useHouseMoney(): HouseMoneyResult {
       bills,
       householdBills,
       householdPayments,
-      memberIds: housemates.map((h) => h.id),
+      members: toMemberSpans(housemates, formerMembers),
       settlementPayments,
     };
     return { money, net: computeHouseNet(money) };
-  }, [bills, householdBills, householdPayments, housemates, settlementPayments]);
+  }, [bills, householdBills, householdPayments, housemates, formerMembers, settlementPayments]);
 }

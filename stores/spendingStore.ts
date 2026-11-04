@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+import { membersOn, toMemberSpans } from '@utils/membership';
 import type { IoniconName } from '@/types/icons';
 
 // ── Category metadata ──────────────────────────────────────────────────────────
@@ -289,7 +290,7 @@ export const useSpendingStore = create<SpendingStore>()(
             return d.toISOString().split('T')[0];
           })();
 
-          const [billsRes, paymentsRes, membersRes] = await Promise.all([
+          const [billsRes, paymentsRes, membersRes, formerRes] = await Promise.all([
             supabase
               .from('bills')
               .select('id, title, amount, paid_by, split_between, date, category')
@@ -302,17 +303,31 @@ export const useSpendingStore = create<SpendingStore>()(
               )
               .eq('house_id', houseId)
               .gte('paid_at', sixMonthsAgo),
-            supabase.from('house_members').select('user_id').eq('house_id', houseId),
+            supabase.from('house_members').select('user_id, joined_at').eq('house_id', houseId),
+            supabase.from('former_members').select('user_id, left_at').eq('house_id', houseId),
           ]);
           if (billsRes.error) throw billsRes.error;
           if (paymentsRes.error) throw paymentsRes.error;
           if (membersRes.error) throw membersRes.error;
 
-          // Everyone currently in the house — the default split for a recurring
-          // payment that doesn't name specific people (empty split_between).
-          const memberIds: string[] = (membersRes.data ?? [])
-            .map((m): string => m.user_id as string)
-            .filter(Boolean);
+          // Everyone in the house with join/leave dates — "split with everyone"
+          // on a recurring payment means everyone who lived there that day.
+          // Former members are a nice-to-have: if they fail to load, carry on.
+          if (formerRes.error) captureError(formerRes.error, { store: 'spending-former', houseId });
+          const memberSpans = toMemberSpans(
+            (membersRes.data ?? [])
+              .filter((m) => m.user_id)
+              .map((m) => ({
+                id: m.user_id as string,
+                joinedAt: (m.joined_at as string | null) ?? null,
+              })),
+            (formerRes.error ? [] : (formerRes.data ?? []))
+              .filter((f) => f.user_id)
+              .map((f) => ({
+                id: f.user_id as string,
+                leftAt: (f.left_at as string | null) ?? null,
+              }))
+          );
 
           const tally = new Map<string, Map<string, number>>();
           const houseTally = new Map<string, Map<string, number>>();
@@ -372,12 +387,16 @@ export const useSpendingStore = create<SpendingStore>()(
 
             // Who shares this payment's cost — mirrors calculateFairness in the
             // recurring-bills store. An explicit split wins; an empty split means
-            // "everyone in the house"; with no members known, the payer alone.
+            // "everyone in the house that day"; with no members known, the payer alone.
+            const presentThen =
+              Array.isArray(p.split_between) && p.split_between.length > 0
+                ? []
+                : membersOn(memberSpans, p.paid_at as string);
             const paymentSplit: string[] =
               Array.isArray(p.split_between) && p.split_between.length > 0
                 ? (p.split_between as string[])
-                : memberIds.length > 0
-                  ? memberIds
+                : presentThen.length > 0
+                  ? presentThen
                   : [rb.assigned_to];
             const isUserSharing = !!currentUserId && paymentSplit.includes(currentUserId);
             const userFraction = isUserSharing ? 1 / paymentSplit.length : 0;

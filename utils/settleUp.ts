@@ -9,6 +9,7 @@ import {
   type HouseholdPayment,
   type RecurringBill,
 } from '@stores/recurringBillsStore';
+import { membersOn, type MemberSpan } from '@utils/membership';
 
 /**
  * Money paid directly from one housemate to another to settle up.
@@ -40,7 +41,8 @@ export interface HouseMoney {
   bills: Bill[];
   householdBills: RecurringBill[];
   householdPayments: HouseholdPayment[];
-  memberIds: string[];
+  /** Housemates with join/leave dates — "split with everyone" means everyone there that day. */
+  members: MemberSpan[];
   settlementPayments: SettlementPayment[];
 }
 
@@ -81,7 +83,7 @@ export function computeHouseNet(money: HouseMoney, upTo?: string): NetBalances {
   for (const { person, balance } of calculateFairness(
     money.householdBills,
     payments,
-    money.memberIds
+    money.members
   )) {
     net.set(person, (net.get(person) ?? 0) + balance);
   }
@@ -117,11 +119,13 @@ export function pairwiseDebts(money: HouseMoney, upTo?: string): Transfer[] {
     const bill = money.householdBills.find((b) => b.id === p.billId);
     if (!bill) continue; // same rule as calculateFairness: orphaned payments don't count
     const payer = p.paidBy ?? bill.assignedTo;
+    const presentThen =
+      p.splitBetween && p.splitBetween.length > 0 ? [] : membersOn(money.members, p.paidAt);
     const split =
       p.splitBetween && p.splitBetween.length > 0
         ? p.splitBetween
-        : money.memberIds.length > 0
-          ? money.memberIds
+        : presentThen.length > 0
+          ? presentThen
           : [payer];
     const share = p.amount / split.length;
     for (const person of split) owe(person, payer, share);

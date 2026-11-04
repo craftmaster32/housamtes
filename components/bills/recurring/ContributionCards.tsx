@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { toMemberSpans } from '@utils/membership';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -24,13 +25,10 @@ export function ContributionCards(): React.JSX.Element | null {
   const bills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
   const memberName = useMemberName();
   const currency = useSettingsStore((s) => s.currency);
-  const fairness = calculateFairness(
-    bills,
-    payments,
-    housemates.map((h) => h.id)
-  );
+  const fairness = calculateFairness(bills, payments, toMemberSpans(housemates, formerMembers));
 
   if (fairness.length === 0) return null;
 

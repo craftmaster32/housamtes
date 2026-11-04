@@ -14,6 +14,7 @@ import { useMemberName } from '@hooks/useMemberName';
 import type { SettlementPayment } from '@utils/settleUp';
 import { toAppLocale } from '@utils/dates';
 import { formatPeriod, paymentPeriod } from '@utils/recurringCoverage';
+import { membersOn, toMemberSpans } from '@utils/membership';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -86,7 +87,11 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
-  const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
+  const memberSpans = useMemo(
+    () => toMemberSpans(housemates, formerMembers),
+    [housemates, formerMembers]
+  );
   const expenseCategories = useExpenseCategoriesStore((s) => s.categories);
   const loadExpenseCategories = useExpenseCategoriesStore((s) => s.load);
   const houseId = useAuthStore((s) => s.houseId);
@@ -169,7 +174,10 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
             icon: meta?.icon ?? 'receipt-outline',
             amount: p.amount,
             paidBy: p.paidBy ?? meta?.assignedTo ?? '',
-            splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
+            splitBetween:
+              p.splitBetween && p.splitBetween.length > 0
+                ? p.splitBetween
+                : membersOn(memberSpans, p.paidAt),
             coverage: coverageLabel(p, i18n.language),
           },
         };
@@ -224,7 +232,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
     payments,
     settlements,
     householdBills,
-    memberIds,
+    memberSpans,
     memberName,
     i18n.language,
     t,

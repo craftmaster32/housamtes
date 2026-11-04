@@ -9,6 +9,7 @@ jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 import type { Bill } from '@stores/billsStore';
 import type { HouseholdPayment, RecurringBill } from '@stores/recurringBillsStore';
 import { settleDebts } from '@stores/billsStore';
+import { asMemberSpans, membersOn, toMemberSpans } from '@utils/membership';
 import {
   applySettlementPayments,
   computeHouseNet,
@@ -86,7 +87,7 @@ const money = (overrides: Partial<HouseMoney> = {}): HouseMoney => ({
   bills: [],
   householdBills: [rent],
   householdPayments: [],
-  memberIds: MEMBERS,
+  members: asMemberSpans(MEMBERS),
   settlementPayments: [],
   ...overrides,
 });
@@ -306,7 +307,7 @@ describe('3+ person houses', () => {
   it('after one person pays, the whole plan is recalculated for everyone else', () => {
     const SAM = 'sam';
     const four = money({
-      memberIds: [...MEMBERS, SAM],
+      members: asMemberSpans([...MEMBERS, SAM]),
       bills: [
         bill('trip', 400, '2026-10-10', { splitBetween: [...MEMBERS, SAM] }), // Maya paid
         bill('food', 200, '2026-10-12', { paidBy: SAM, splitBetween: [...MEMBERS, SAM] }),
@@ -341,5 +342,67 @@ describe('maxOwedBetween', () => {
 
   it('is 0 when the receiver is not owed anything', () => {
     expect(maxOwedBetween(net, DANA, TOM)).toBe(0);
+  });
+});
+
+describe('"split with everyone" means everyone there on the day', () => {
+  // Maya & Dana from the start; Tom joined on 1 Nov; Sam lived there and left on 20 Oct.
+  const spans = toMemberSpans(
+    [
+      { id: MAYA, joinedAt: '2026-09-01T09:00:00Z' },
+      { id: DANA, joinedAt: '2026-09-01T09:05:00Z' },
+      { id: TOM, joinedAt: '2026-11-01T18:00:00Z' },
+    ],
+    [{ id: 'sam', leftAt: '2026-10-20T10:00:00Z' }]
+  );
+  const legacy = (id: string, paidAt: string): HouseholdPayment => ({
+    id,
+    billId: 'rent',
+    amount: 900,
+    paidAt,
+    note: '',
+    paidBy: MAYA,
+    // no splitBetween = "everyone"
+  });
+
+  it('knows who lived there on each day', () => {
+    expect(membersOn(spans, '2026-10-05').sort()).toEqual([DANA, MAYA, 'sam'].sort());
+    expect(membersOn(spans, '2026-10-25').sort()).toEqual([DANA, MAYA].sort());
+    expect(membersOn(spans, '2026-11-01').sort()).toEqual([DANA, MAYA, TOM].sort());
+  });
+
+  it('treats an expense dated before the house started in the app as day one', () => {
+    // Day one = 1 Sep: Maya, Dana and Sam (who left later) — not Tom.
+    expect(membersOn(spans, '2026-08-01').sort()).toEqual([DANA, MAYA, 'sam'].sort());
+  });
+
+  it('never charges someone who joined later for older rent', () => {
+    const m = money({ members: spans, householdPayments: [legacy('oct', '2026-10-25')] });
+    const net = computeHouseNet(m);
+    expect(net.get(TOM) ?? 0).toBe(0);
+    expect(round(net.get(DANA))).toBe(-450); // split between the 2 who were there
+  });
+
+  it('still charges someone who has since left for their time there', () => {
+    const m = money({ members: spans, householdPayments: [legacy('early-oct', '2026-10-05')] });
+    expect(round(computeHouseNet(m).get('sam'))).toBe(-300);
+  });
+
+  it('includes a new housemate from the day they joined, like everyone else', () => {
+    const m = money({ members: spans, householdPayments: [legacy('nov', '2026-11-01')] });
+    expect(round(computeHouseNet(m).get(TOM))).toBe(-300);
+  });
+
+  it('an explicit split always wins over join dates', () => {
+    const m = money({
+      members: spans,
+      householdPayments: [{ ...legacy('x', '2026-10-25'), splitBetween: [MAYA, TOM] }],
+    });
+    expect(round(computeHouseNet(m).get(TOM))).toBe(-450);
+  });
+
+  it('pair-by-pair debts use the same rule', () => {
+    const m = money({ members: spans, householdPayments: [legacy('oct', '2026-10-25')] });
+    expect(pairwiseDebts(m)).toEqual([{ from: DANA, to: MAYA, amount: 450 }]);
   });
 });
