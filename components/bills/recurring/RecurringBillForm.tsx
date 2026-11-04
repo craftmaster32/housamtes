@@ -18,6 +18,7 @@ import { formatDateDDMMYYYY } from '@utils/dates';
 import { getErrorMessage } from '@utils/errors';
 import { FREQUENCY_MONTHS, monthStart } from '@utils/recurringCoverage';
 import { mf, ms } from '@utils/responsive';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { BillIconPicker } from './BillIconPicker';
 import { ChoiceChips, type ChoiceOption } from './ChoiceChips';
 import { useRecurringPalette } from './palette';
@@ -41,6 +42,7 @@ export function RecurringBillForm({
   const addBill = useRecurringBillsStore((s) => s.addBill);
   const updateBill = useRecurringBillsStore((s) => s.updateBill);
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
+  const settledGuard = useSettledPeriodGuard();
   const houseId = useAuthStore((s) => s.houseId);
   const [name, setName] = useState(bill?.name ?? '');
   const [assignedTo, setAssignedTo] = useState(bill?.assignedTo ?? people[0]?.id ?? '');
@@ -65,6 +67,9 @@ export function RecurringBillForm({
     if (!assignedTo) return setError(t('bills.household_assignee_required'));
     if (!houseId) return setError(t('bills.household_missing'));
     const fields = { name: name.trim(), assignedTo, frequency, typicalAmount: amount, icon };
+    // A first payment dated in a month that was already settled up reopens it.
+    const inSettledPeriod = !bill && settledGuard.isSettled(lastPaidDate);
+    if (inSettledPeriod && !(await settledGuard.confirmChange(lastPaidDate))) return;
     try {
       setSaving(true);
       if (bill) {
@@ -92,6 +97,7 @@ export function RecurringBillForm({
             },
             houseId
           );
+          if (inSettledPeriod) settledGuard.notifyChange(fields.name);
         }
       }
       onClose();
@@ -114,6 +120,7 @@ export function RecurringBillForm({
     lastPaidDate,
     createdId,
     logPayment,
+    settledGuard,
     onClose,
     t,
   ]);

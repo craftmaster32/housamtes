@@ -31,6 +31,7 @@ import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { defaultExpenseCategory, guessExpenseCategory } from '@utils/expenseCategory';
 import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
@@ -63,6 +64,7 @@ function AddBillScreen(): React.JSX.Element {
   const housemates = useHousematesStore((state) => state.housemates);
   const housematesLoading = useHousematesStore((state) => state.isLoading);
   const addBill = useBillsStore((state) => state.addBill);
+  const settledGuard = useSettledPeriodGuard();
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
@@ -243,9 +245,14 @@ function AddBillScreen(): React.JSX.Element {
       setError(t('bills.failed_save'));
       return;
     }
+    // A new expense dated in a month that was already settled up reopens it:
+    // ask first, and send the house one "settled period changed" message.
+    const inSettledPeriod = settledGuard.isSettled(payload.date);
+    if (inSettledPeriod && !(await settledGuard.confirmChange(payload.date))) return;
     try {
       setIsLoading(true);
-      await addBill(payload, houseId);
+      await addBill(payload, houseId, { skipNotify: inSettledPeriod });
+      if (inSettledPeriod) settledGuard.notifyChange(payload.title);
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
@@ -266,6 +273,7 @@ function AddBillScreen(): React.JSX.Element {
     category,
     date,
     addBill,
+    settledGuard,
     houseId,
     markSeen,
     resetForm,

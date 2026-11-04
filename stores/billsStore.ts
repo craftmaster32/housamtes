@@ -48,7 +48,9 @@ interface BillsStore {
       notes?: string;
       receiptUrl?: string | null;
     },
-    houseId: string
+    houseId: string,
+    /** skipNotify: the caller sends its own single message (e.g. settled-period change). */
+    opts?: { skipNotify?: boolean }
   ) => Promise<void>;
   editBill: (
     id: string,
@@ -161,7 +163,7 @@ export const useBillsStore = create<BillsStore>()(
           _channelHouseId = null;
         }
       },
-      addBill: async (data, houseId): Promise<void> => {
+      addBill: async (data, houseId, opts): Promise<void> => {
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user.id ?? '';
         const { data: inserted, error } = await supabase
@@ -203,7 +205,7 @@ export const useBillsStore = create<BillsStore>()(
           receiptUrl: inserted.receipt_url ?? null,
         };
         set({ bills: [bill, ...get().bills] });
-        if (userId) {
+        if (userId && !opts?.skipNotify) {
           notifyHousemates({
             houseId,
             excludeUserId: userId,
