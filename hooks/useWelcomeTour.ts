@@ -57,6 +57,12 @@ export function useWelcomeTour(): WelcomeTour {
       if (account && account.metadata?.[WHATS_NEW_META_KEY] !== WHATS_NEW_VERSION) {
         const { data } = await supabase.auth.getUser();
         if (data.user) {
+          if (data.user.id !== account.id) {
+            // Session changed to a different account while the check was
+            // pending — stop here and let the next userId effect re-run.
+            if (active) setBusy(false);
+            return;
+          }
           account = {
             id: data.user.id,
             createdAt: data.user.created_at,
