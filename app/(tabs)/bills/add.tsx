@@ -20,7 +20,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { membersOn, toMemberSpans } from '@utils/membership';
+import { defaultSplitOn, toMemberSpans } from '@utils/membership';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
@@ -213,8 +213,7 @@ function AddBillScreen(): React.JSX.Element {
     (value: string): void => {
       setDate(value);
       if (peopleTouched.current) return;
-      const then = membersOn(toMemberSpans(housemates), value).filter((id) => allIds.includes(id));
-      setSelectedPeople(then.length > 0 ? then : allIds);
+      setSelectedPeople(defaultSplitOn(toMemberSpans(housemates), allIds, value));
     },
     [housemates, allIds]
   );

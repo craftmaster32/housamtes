@@ -59,3 +59,13 @@ export function membersOn(members: MemberSpan[], date: string): string[] {
 export function asMemberSpans(members: (string | MemberSpan)[]): MemberSpan[] {
   return members.map((m) => (typeof m === 'string' ? { id: m, joinedAt: null, leftAt: null } : m));
 }
+
+/**
+ * Who to tick by default for an expense on `date`: the people from `eligible`
+ * (those shown in the form) who lived in the house that day. Falls back to
+ * all of `eligible` so a form is never left with nobody ticked.
+ */
+export function defaultSplitOn(members: MemberSpan[], eligible: string[], date: string): string[] {
+  const then = membersOn(members, date).filter((id) => eligible.includes(id));
+  return then.length > 0 ? then : eligible;
+}

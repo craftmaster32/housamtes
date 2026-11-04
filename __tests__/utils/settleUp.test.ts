@@ -9,7 +9,7 @@ jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 import type { Bill } from '@stores/billsStore';
 import type { HouseholdPayment, RecurringBill } from '@stores/recurringBillsStore';
 import { settleDebts } from '@stores/billsStore';
-import { asMemberSpans, membersOn, toMemberSpans } from '@utils/membership';
+import { asMemberSpans, defaultSplitOn, membersOn, toMemberSpans } from '@utils/membership';
 import {
   applySettlementPayments,
   computeHouseNet,
@@ -399,6 +399,14 @@ describe('"split with everyone" means everyone there on the day', () => {
       householdPayments: [{ ...legacy('x', '2026-10-25'), splitBetween: [MAYA, TOM] }],
     });
     expect(round(computeHouseNet(m).get(TOM))).toBe(-450);
+  });
+
+  it('forms pre-tick only the people who lived there on the chosen date', () => {
+    const shown = [MAYA, DANA, TOM];
+    expect(defaultSplitOn(spans, shown, '2026-10-25').sort()).toEqual([DANA, MAYA].sort());
+    expect(defaultSplitOn(spans, shown, '2026-11-02').sort()).toEqual([DANA, MAYA, TOM].sort());
+    // Never leaves a form with nobody ticked.
+    expect(defaultSplitOn(spans, [TOM], '2026-10-25')).toEqual([TOM]);
   });
 
   it('pair-by-pair debts use the same rule', () => {

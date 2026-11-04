@@ -19,6 +19,8 @@ import { getErrorMessage } from '@utils/errors';
 import { FREQUENCY_MONTHS, monthStart } from '@utils/recurringCoverage';
 import { mf, ms } from '@utils/responsive';
 import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { useHousematesStore } from '@stores/housematesStore';
+import { defaultSplitOn, toMemberSpans } from '@utils/membership';
 import { BillIconPicker } from './BillIconPicker';
 import { ChoiceChips, type ChoiceOption } from './ChoiceChips';
 import { useRecurringPalette } from './palette';
@@ -45,6 +47,17 @@ export function RecurringBillForm({
   const settledGuard = useSettledPeriodGuard();
   const payments = useRecurringBillsStore((s) => s.payments);
   const confirmingRef = useRef(false);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const firstPaymentSplit = useCallback(
+    (date: string): string[] => {
+      return defaultSplitOn(
+        toMemberSpans(housemates),
+        people.map((x) => x.id),
+        date
+      );
+    },
+    [housemates, people]
+  );
   const houseId = useAuthStore((s) => s.houseId);
   const [name, setName] = useState(bill?.name ?? '');
   const [assignedTo, setAssignedTo] = useState(bill?.assignedTo ?? people[0]?.id ?? '');
@@ -109,6 +122,9 @@ export function RecurringBillForm({
               coverageStart: monthStart(lastPaidDate),
               coverageMonths: FREQUENCY_MONTHS[frequency],
               paidBy: assignedTo,
+              // Always save who shares it — the people living here on that
+              // date — so it can never be re-divided when someone joins or leaves.
+              splitBetween: firstPaymentSplit(lastPaidDate),
             },
             houseId
           );
@@ -136,6 +152,7 @@ export function RecurringBillForm({
     createdId,
     logPayment,
     payments,
+    firstPaymentSplit,
     settledGuard,
     onClose,
     t,

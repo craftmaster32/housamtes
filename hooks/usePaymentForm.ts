@@ -9,7 +9,7 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { useHousematesStore } from '@stores/housematesStore';
-import { membersOn, toMemberSpans } from '@utils/membership';
+import { defaultSplitOn, toMemberSpans } from '@utils/membership';
 import {
   FREQUENCY_MONTHS,
   monthStart,
@@ -121,10 +121,7 @@ export function usePaymentForm({
     (value: string): void => {
       setPaidAtState(value);
       if (payment || splitTouched.current) return;
-      const then = membersOn(toMemberSpans(housemates), value).filter((id) =>
-        memberIds.includes(id)
-      );
-      setSplitWith(then.length > 0 ? then : memberIds);
+      setSplitWith(defaultSplitOn(toMemberSpans(housemates), memberIds, value));
     },
     [payment, housemates, memberIds]
   );
