@@ -33,9 +33,7 @@ export async function checkOldBillsForNewMember(
   houseId: string,
   userId: string,
   name: string,
-  today: string = todayISO(),
-  /** When they joined (ISO time) — anything added before this is "older". */
-  joinedAt: string = new Date().toISOString()
+  today: string = todayISO()
 ): Promise<void> {
   try {
     const { data: house, error: houseErr } = await supabase
@@ -45,6 +43,17 @@ export async function checkOldBillsForNewMember(
       .single();
     if (houseErr || !house?.created_at) return;
     if (!isNewHouseJoin(house.created_at as string, today)) return;
+
+    // When they joined, as the database recorded it (not the phone's clock,
+    // which can be off) — anything added before this is "older".
+    const { data: member, error: memberErr } = await supabase
+      .from('house_members')
+      .select('joined_at')
+      .eq('house_id', houseId)
+      .eq('user_id', userId)
+      .single();
+    if (memberErr || !member?.joined_at) return;
+    const joinedAt = member.joined_at as string;
 
     const [billsRes, paymentsRes] = await Promise.all([
       supabase

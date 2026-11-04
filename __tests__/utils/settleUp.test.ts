@@ -634,3 +634,45 @@ describe('settling up to the middle of a month', () => {
     for (const id of MEMBERS) expect(round(after.get(id))).toBe(0);
   });
 });
+
+describe('amounts that don’t split evenly (₪200 between 3)', () => {
+  // Maya and Tom each pay a ₪200 bill split three ways: shares of ₪66.666…
+  const m = money({
+    householdBills: [rent, { ...rent, id: 'net', assignedTo: TOM }],
+    householdPayments: [
+      {
+        id: 'a',
+        billId: 'rent',
+        amount: 200,
+        paidAt: '2026-10-01',
+        note: '',
+        paidBy: MAYA,
+        splitBetween: MEMBERS,
+        coverageStart: '2026-10-01',
+        coverageMonths: 1,
+      },
+      {
+        id: 'b',
+        billId: 'net',
+        amount: 200,
+        paidAt: '2026-10-02',
+        note: '',
+        paidBy: TOM,
+        splitBetween: MEMBERS,
+        coverageStart: '2026-10-01',
+        coverageMonths: 1,
+      },
+    ],
+  });
+
+  it('each person’s own part can still be recorded (rounding isn’t "unsafe")', () => {
+    const net = computeHouseNet(m);
+    const plan = planSettleUpTo(net, pairwiseDebts(m, '2026-10-31'));
+    for (const me of MEMBERS) {
+      const mine = plan.filter((t) => t.from === me || t.to === me);
+      expect(isSafeToRecord(net, mine)).toBe(true);
+    }
+    const after = computeHouseNet(record(m, plan));
+    for (const id of MEMBERS) expect(Math.abs(after.get(id) ?? 0)).toBeLessThan(0.02);
+  });
+});

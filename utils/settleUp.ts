@@ -311,10 +311,15 @@ export function isSafeToRecord(currentNet: NetBalances, transfers: Transfer[]): 
       updatedAt: '',
     }))
   );
+  // Each transfer is rounded to whole agorot, so allow up to a cent of drift
+  // per transfer — ₪200 split three ways can't land exactly on zero.
+  const tolerance = 0.005 + 0.01 * transfers.length;
   for (const [person, a] of after) {
     const b = currentNet.get(person) ?? 0;
-    if (Math.abs(a) > Math.abs(b) + 0.005) return false;
-    if (Math.abs(a) > 0.005 && Math.abs(b) > 0.005 && Math.sign(a) !== Math.sign(b)) return false;
+    if (Math.abs(a) > Math.abs(b) + tolerance) return false;
+    if (Math.abs(a) > tolerance && Math.abs(b) > tolerance && Math.sign(a) !== Math.sign(b)) {
+      return false;
+    }
   }
   return true;
 }

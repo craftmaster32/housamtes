@@ -32,8 +32,14 @@ function mockHouse(createdAt: string, bills: number, payments: number): void {
   house.eq = (): unknown => house;
   house.single = (): Promise<unknown> =>
     Promise.resolve({ data: { created_at: createdAt }, error: null });
+  const member: Record<string, unknown> = {};
+  member.select = (): unknown => member;
+  member.eq = (): unknown => member;
+  member.single = (): Promise<unknown> =>
+    Promise.resolve({ data: { joined_at: '2026-11-05T10:00:00Z' }, error: null });
   mockFrom
     .mockReturnValueOnce(house)
+    .mockReturnValueOnce(member)
     .mockReturnValueOnce(counted(bills))
     .mockReturnValueOnce(counted(payments));
 }
@@ -45,9 +51,9 @@ beforeEach(() => {
 
 describe('isNewHouseJoin', () => {
   it('counts the day it was created and the day after as a new house', () => {
-    expect(isNewHouseJoin('2026-11-04T20:00:00Z', '2026-11-04')).toBe(true);
-    expect(isNewHouseJoin('2026-11-04T20:00:00Z', '2026-11-05')).toBe(true);
-    expect(isNewHouseJoin('2026-11-04T20:00:00Z', '2026-11-06')).toBe(false);
+    expect(isNewHouseJoin('2026-11-04', '2026-11-04')).toBe(true);
+    expect(isNewHouseJoin('2026-11-04', '2026-11-05')).toBe(true);
+    expect(isNewHouseJoin('2026-11-04', '2026-11-06')).toBe(false);
   });
 });
 
