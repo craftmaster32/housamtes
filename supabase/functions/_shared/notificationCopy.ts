@@ -302,6 +302,25 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       return { title: '🤝 Settled up', body: `${who} settled up everything until ${d}.` };
     }
 
+    case 'new_member_old_bills': {
+      const who = str(p, 'name');
+      const n = str(p, 'count');
+      if (es)
+        return {
+          title: '👋 Nuevo compañero',
+          body: `${who} se unió. Hay ${n} gastos de antes: revisad si ${who} debería participar en alguno.`,
+        };
+      if (he)
+        return {
+          title: '👋 שותף/ה חדש/ה',
+          body: `${who} הצטרף/ה. יש ${n} הוצאות מלפני כן — בדקו אם ${who} צריך/ה להשתתף באחת מהן.`,
+        };
+      return {
+        title: '👋 New housemate',
+        body: `${who} just joined. There are ${n} expenses from before — check if ${who} should be part of any of them.`,
+      };
+    }
+
     case 'settled_period_changed': {
       const who = str(p, 'name');
       const t = str(p, 'billTitle');
