@@ -16,8 +16,10 @@ jest.mock('@lib/supabase', () => ({
 
 const TOUR_KEY = 'housemates_new_user_tour';
 const mockUpdateUser = supabase.auth.updateUser as jest.Mock;
-const OLD_ACCOUNT = { createdAt: '2025-03-01T10:00:00Z', metadata: {} };
-const NEW_ACCOUNT = { createdAt: '2026-11-01T10:00:00Z', metadata: {} };
+const OLD_ACCOUNT = { id: 'user-1', createdAt: '2025-03-01T10:00:00Z', metadata: {} };
+const NEW_ACCOUNT = { id: 'user-2', createdAt: '2026-11-01T10:00:00Z', metadata: {} };
+// Per-account device key for user-1
+const USER1_DEVICE_KEY = 'housemates_whats_new_seen_user-1';
 
 describe('new-user welcome tour flag', () => {
   beforeEach(async () => {
@@ -59,12 +61,12 @@ describe('"new look" note for the 3.0 redesign', () => {
 
   it('shows once to people who used the app before', async () => {
     expect(await shouldShowWhatsNew(OLD_ACCOUNT)).toBe(true);
-    await markWhatsNewSeen();
+    await markWhatsNewSeen('user-1');
     expect(await shouldShowWhatsNew(OLD_ACCOUNT)).toBe(false);
   });
 
   it('saves "seen" on the account, not only the device', async () => {
-    await markWhatsNewSeen();
+    await markWhatsNewSeen('user-1');
     expect(mockUpdateUser).toHaveBeenCalledWith({
       data: { [WHATS_NEW_META_KEY]: WHATS_NEW_VERSION },
     });
@@ -80,17 +82,24 @@ describe('"new look" note for the 3.0 redesign', () => {
   });
 
   it('is skipped for brand-new accounts, who get the tour instead', async () => {
-    await markTourPending();
-    expect(await shouldShowWhatsNew(OLD_ACCOUNT)).toBe(false);
+    // Brand-new accounts are created after WHATS_NEW_RELEASED_AT so the date
+    // check suppresses the note regardless of any device flag.
+    expect(await shouldShowWhatsNew(NEW_ACCOUNT)).toBe(false);
   });
 
   it('copies a device-only "seen" onto the account', async () => {
-    await AsyncStorage.setItem('housemates_whats_new_seen', WHATS_NEW_VERSION);
+    await AsyncStorage.setItem(USER1_DEVICE_KEY, WHATS_NEW_VERSION);
     expect(await shouldShowWhatsNew(OLD_ACCOUNT)).toBe(false);
     expect(mockUpdateUser).toHaveBeenCalled();
   });
 
   it('stays hidden while nobody is signed in', async () => {
     expect(await shouldShowWhatsNew(null)).toBe(false);
+  });
+
+  it('does not mark another account as seen by the first account flag', async () => {
+    await markWhatsNewSeen('user-1');
+    const otherAccount = { id: 'user-2', createdAt: '2025-03-01T10:00:00Z', metadata: {} };
+    expect(await shouldShowWhatsNew(otherAccount)).toBe(true);
   });
 });

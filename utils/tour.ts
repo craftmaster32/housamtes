@@ -24,8 +24,14 @@ export const WHATS_NEW_RELEASED_AT = '2026-10-27T00:00:00Z';
 
 /** What we know about the signed-in account when deciding on the note. */
 export interface WhatsNewAccount {
+  id?: string;
   createdAt?: string;
   metadata?: Record<string, unknown>;
+}
+
+/** Per-account device key so one account's flag cannot affect another. */
+function deviceKey(userId: string): string {
+  return `${WHATS_NEW_KEY}_${userId}`;
 }
 
 export async function markTourPending(): Promise<void> {
@@ -45,7 +51,10 @@ export async function shouldShowWhatsNew(account: WhatsNewAccount | null): Promi
   // Already dismissed on any device signed in to this account.
   if (account.metadata?.[WHATS_NEW_META_KEY] === WHATS_NEW_VERSION) return false;
   try {
-    if ((await AsyncStorage.getItem(WHATS_NEW_KEY)) === WHATS_NEW_VERSION) {
+    // Use an account-scoped key when we have an id so a different account's
+    // flag on the same device cannot suppress this account's note.
+    const key = account.id ? deviceKey(account.id) : WHATS_NEW_KEY;
+    if ((await AsyncStorage.getItem(key)) === WHATS_NEW_VERSION) {
       // Seen on this device before the account remembered it — copy it over.
       await saveSeenOnAccount();
       return false;
@@ -58,15 +67,25 @@ export async function shouldShowWhatsNew(account: WhatsNewAccount | null): Promi
 
 async function saveSeenOnAccount(): Promise<void> {
   try {
-    await supabase.auth.updateUser({ data: { [WHATS_NEW_META_KEY]: WHATS_NEW_VERSION } });
+    const { error } = await supabase.auth.updateUser({
+      data: { [WHATS_NEW_META_KEY]: WHATS_NEW_VERSION },
+    });
+    if (error) {
+      // updateUser may return an error without throwing. The device flag
+      // preserves the pending state; shouldShowWhatsNew retries on next visit.
+      console.warn('Could not save seen flag to account:', error.message);
+    }
   } catch {
-    // Non-fatal — the device flag still stops it here; we retry next visit.
+    // Network error — same retry path.
   }
 }
 
-export async function markWhatsNewSeen(): Promise<void> {
+export async function markWhatsNewSeen(userId?: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(WHATS_NEW_KEY, WHATS_NEW_VERSION);
+    // Write to the per-account key when we have a userId so other accounts on
+    // this device are not marked seen. Fall back to the legacy shared key only
+    // when no id is available (e.g. older call-sites without the id).
+    await AsyncStorage.setItem(userId ? deviceKey(userId) : WHATS_NEW_KEY, WHATS_NEW_VERSION);
   } catch {
     // Non-fatal — the account flag below still remembers it.
   }
