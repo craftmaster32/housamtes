@@ -34,8 +34,6 @@ import {
   type AddBillPayload,
 } from '@utils/validation';
 import { useBadgeStore } from '@stores/badgeStore';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
@@ -58,7 +56,6 @@ function formatDisplayDate(iso: string, locale: string): string {
 
 function BillDetailScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('semibold');
@@ -293,16 +290,6 @@ function BillDetailScreen(): React.JSX.Element {
     }
   }, [bill, houseId, isDeleting, isSaving, deleteBill, t]);
 
-  const handleBack = useCallback((): void => {
-    // Editing is a step of its own: back closes the form and returns to the
-    // bill's details, and only a second back leaves for the Bills list.
-    if (isEditing) {
-      setIsEditing(false);
-      setError('');
-      return;
-    }
-    goBack();
-  }, [isEditing]);
   const handleStartEditing = useCallback((): void => {
     setIsEditing(true);
     setError('');
@@ -351,19 +338,6 @@ function BillDetailScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Pressable
-            onPress={handleBack}
-            style={styles.backBtn}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons
-              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
-              size={20}
-              color={C.primary}
-            />
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
           {!bill.settled && !isEditing && !isDeleting && (
             <Pressable
               onPress={handleStartEditing}
@@ -556,17 +530,9 @@ const makeStyles = (C: ColorTokens) =>
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: sizes.md },
     header: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
       alignItems: 'center',
       marginBottom: sizes.xs,
-    },
-    backBtn: {
-      minWidth: ms(44),
-      minHeight: ms(44),
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(2),
     },
     editBtn: {
       minWidth: ms(44),
@@ -574,7 +540,6 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    backText: { color: C.primary, fontSize: mf(15), ...font.medium },
     editText: { color: C.primary, fontSize: mf(15), ...font.medium },
     card: { gap: ms(22) },
     sectionTitle: { color: C.textPrimary, fontSize: mf(30), letterSpacing: -0.6 },

@@ -17,8 +17,6 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useBadgeStore } from '@stores/badgeStore';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
@@ -56,7 +54,6 @@ function formatDisplayDate(iso: string, locale: string): string {
 
 function AddBillScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('semibold');
@@ -300,14 +297,6 @@ function AddBillScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={goBack} style={styles.backBtn}>
-            <Ionicons
-              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
-              size={20}
-              color={C.primary}
-            />
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
           <Text style={[styles.heading, headingFont]}>{t('bills.add_title')}</Text>
           <Text style={styles.headingSub}>{t('bills.add_subtitle')}</Text>
         </View>
@@ -473,16 +462,6 @@ const makeStyles = (C: ColorTokens) =>
     content: { padding: sizes.lg, gap: ms(22), paddingBottom: ms(60) },
 
     header: { gap: ms(4), marginBottom: sizes.xs },
-    backBtn: {
-      alignSelf: 'flex-start',
-      minWidth: ms(44),
-      minHeight: ms(44),
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: ms(2),
-    },
-    backText: { color: C.primary, fontSize: mf(15), ...font.semibold },
     heading: { fontSize: mf(36), color: C.textPrimary, letterSpacing: -0.8, lineHeight: mf(42) },
     headingSub: { fontSize: mf(14), ...font.medium, color: C.textSecondary, marginTop: ms(2) },
 
