@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@lib/alert';
+import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
-import { shouldShowTour, markTourSeen, shouldShowWhatsNew, markWhatsNewSeen } from '@utils/tour';
+import {
+  shouldShowTour,
+  markTourSeen,
+  shouldShowWhatsNew,
+  markWhatsNewSeen,
+  WHATS_NEW_META_KEY,
+  WHATS_NEW_VERSION,
+  type WhatsNewAccount,
+} from '@utils/tour';
 
 interface WelcomeTour {
   showTour: boolean;
@@ -24,6 +33,8 @@ export function useWelcomeTour(): WelcomeTour {
 
   useEffect(() => {
     let active = true;
+    // Block other pop-ups for every new check, including after userId changes.
+    setBusy(true);
     (async (): Promise<void> => {
       if (await shouldShowTour()) {
         if (active) {
@@ -34,12 +45,25 @@ export function useWelcomeTour(): WelcomeTour {
       }
       // Read the account at check time so a "seen" saved moments ago counts.
       const user = useAuthStore.getState().user;
-      const account = user
+      let account: WhatsNewAccount | null = user
         ? {
+            id: user.id,
             createdAt: user.created_at,
             metadata: user.user_metadata as Record<string, unknown> | undefined,
           }
         : null;
+      // If cached metadata does not already have the seen flag, fetch the live
+      // user record so a dismissal on another device is respected.
+      if (account && account.metadata?.[WHATS_NEW_META_KEY] !== WHATS_NEW_VERSION) {
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          account = {
+            id: data.user.id,
+            createdAt: data.user.created_at,
+            metadata: data.user.user_metadata as Record<string, unknown> | undefined,
+          };
+        }
+      }
       if (!(await shouldShowWhatsNew(account))) {
         if (active) setBusy(false);
         return;
@@ -59,7 +83,7 @@ export function useWelcomeTour(): WelcomeTour {
         ],
         { onDismiss: (): void => setBusy(false) }
       );
-      markWhatsNewSeen();
+      markWhatsNewSeen(account?.id);
     })();
     return (): void => {
       active = false;

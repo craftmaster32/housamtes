@@ -11,6 +11,15 @@ jest.mock('react-i18next', () => ({
   useTranslation: (): { t: (key: string) => string } => ({ t: (key: string): string => key }),
 }));
 jest.mock('@lib/alert', () => ({ Alert: { alert: jest.fn() } }));
+jest.mock('@lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: { id: 'u1', created_at: '2025-01-01T00:00:00Z', user_metadata: {} } },
+      }),
+    },
+  },
+}));
 jest.mock('@stores/authStore', () => {
   const state = { user: { id: 'u1', created_at: '2025-01-01T00:00:00Z', user_metadata: {} } };
   const useAuthStore = (sel: (s: typeof state) => unknown): unknown => sel(state);
@@ -22,6 +31,8 @@ jest.mock('@utils/tour', () => ({
   markTourSeen: jest.fn(),
   shouldShowWhatsNew: jest.fn(),
   markWhatsNewSeen: jest.fn(),
+  WHATS_NEW_META_KEY: 'whats_new_seen',
+  WHATS_NEW_VERSION: '3.0.0',
 }));
 
 const mockShouldShowTour = shouldShowTour as jest.Mock;
@@ -41,6 +52,7 @@ describe('useWelcomeTour', () => {
     expect(markWhatsNewSeen).toHaveBeenCalledTimes(1);
     // Decided from the signed-in account, so "seen" follows the person, not the phone.
     expect(shouldShowWhatsNew).toHaveBeenCalledWith({
+      id: 'u1',
       createdAt: '2025-01-01T00:00:00Z',
       metadata: {},
     });
