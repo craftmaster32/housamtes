@@ -802,7 +802,9 @@
     "settle_paid_tag": "Pagado",
     "settled_change_title": "Esto es de un periodo ya saldado",
     "settled_change_body": "Todo hasta el {{date}} ya se saldó. Los pagos ya registrados se quedan como están, así que este cambio aparecerá como una nueva cantidad a pagar (o a devolver). Tus compañeros recibirán un mensaje sobre ello.",
-    "settled_change_confirm": "Cambiar igualmente"
+    "settled_change_confirm": "Cambiar igualmente",
+    "settled_unknown_title": "No se pudieron comprobar los meses saldados",
+    "settled_unknown_body": "No pudimos cargar los pagos para saldar cuentas, así que no sabemos si este cambio afecta a un mes ya saldado. Revisa tu conexión o continúa igualmente."
   },
   "parking": {
     "title": "Estacionamiento",

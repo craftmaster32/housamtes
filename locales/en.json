@@ -802,7 +802,9 @@
     "settle_paid_tag": "Paid",
     "settled_change_title": "This is from a settled period",
     "settled_change_body": "Everything up to {{date}} was already settled up. The payments already recorded stay as they are, so changing this will show up as a new amount owed (or owed back). Your housemates will get one message about it.",
-    "settled_change_confirm": "Change anyway"
+    "settled_change_confirm": "Change anyway",
+    "settled_unknown_title": "Couldn't check settled months",
+    "settled_unknown_body": "We couldn't load the house's settle-up payments, so we can't tell if this change affects a month that was already settled. Check your connection, or go ahead anyway."
   },
   "parking": {
     "title": "Parking",

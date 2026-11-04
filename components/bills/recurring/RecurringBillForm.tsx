@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +43,8 @@ export function RecurringBillForm({
   const updateBill = useRecurringBillsStore((s) => s.updateBill);
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
   const settledGuard = useSettledPeriodGuard();
+  const payments = useRecurringBillsStore((s) => s.payments);
+  const confirmingRef = useRef(false);
   const houseId = useAuthStore((s) => s.houseId);
   const [name, setName] = useState(bill?.name ?? '');
   const [assignedTo, setAssignedTo] = useState(bill?.assignedTo ?? people[0]?.id ?? '');
@@ -61,19 +63,32 @@ export function RecurringBillForm({
   const canSave = !saving && !!houseId && !!name.trim() && !!assignedTo && amount > 0;
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (saving) return;
+    if (saving || confirmingRef.current) return;
     if (!name.trim()) return setError(t('bills.household_name_required'));
     if (!(amount > 0)) return setError(t('bills.household_invalid_amount'));
     if (!assignedTo) return setError(t('bills.household_assignee_required'));
     if (!houseId) return setError(t('bills.household_missing'));
     const fields = { name: name.trim(), assignedTo, frequency, typicalAmount: amount, icon };
-    // A first payment dated in a month that was already settled up reopens it.
-    const inSettledPeriod = !bill && settledGuard.isSettled(lastPaidDate);
-    if (inSettledPeriod && !(await settledGuard.confirmChange(lastPaidDate))) return;
+    // Changes that reach back into months already settled up:
+    // - a new bill's first payment dated in a settled month, or
+    // - a new payer on an existing bill, which moves the credit for every old
+    //   payment that doesn't name who paid it (those count as the payer's).
+    const reassigned = !!bill && assignedTo !== bill.assignedTo;
+    const affectedDates = bill
+      ? reassigned
+        ? payments.filter((pay) => pay.billId === bill.id && !pay.paidBy).map((pay) => pay.paidAt)
+        : []
+      : [lastPaidDate];
+    confirmingRef.current = true;
+    const check = await settledGuard.confirmChange(...affectedDates);
+    confirmingRef.current = false;
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setSaving(true);
       if (bill) {
         await updateBill(bill.id, fields);
+        if (inSettledPeriod) settledGuard.notifyChange(fields.name);
       } else {
         let billId = createdId;
         if (billId) {
@@ -120,6 +135,7 @@ export function RecurringBillForm({
     lastPaidDate,
     createdId,
     logPayment,
+    payments,
     settledGuard,
     onClose,
     t,

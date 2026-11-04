@@ -240,8 +240,9 @@ function BillDetailScreen(): React.JSX.Element {
     }
     // An expense from a period that was already settled up: ask first, and
     // send the house one "settled period changed" message instead of the usual one.
-    const inSettledPeriod = settledGuard.isSettled(bill.date, payload.date);
-    if (inSettledPeriod && !(await settledGuard.confirmChange(bill.date, payload.date))) return;
+    const check = await settledGuard.confirmChange(bill.date, payload.date);
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setIsSaving(true);
       await editBill(
@@ -291,8 +292,9 @@ function BillDetailScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill || !houseId || isDeleting || isSaving) return;
-    const inSettledPeriod = settledGuard.isSettled(bill.date);
-    if (inSettledPeriod && !(await settledGuard.confirmChange(bill.date))) return;
+    const check = await settledGuard.confirmChange(bill.date);
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setIsDeleting(true);
       await deleteBill(bill.id, houseId, { skipNotify: inSettledPeriod });

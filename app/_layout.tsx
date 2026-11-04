@@ -483,7 +483,6 @@ export default function RootLayout(): React.JSX.Element | null {
         loadBills(houseId);
         loadRecurringBills(houseId);
         loadSettlementPayments(houseId);
-        loadSettlementPayments(houseId);
         foregroundDeferred.current?.cancel();
         foregroundDeferred.current = InteractionManager.runAfterInteractions(() => {
           loadParking(houseId);

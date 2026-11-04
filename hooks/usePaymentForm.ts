@@ -94,6 +94,7 @@ export function usePaymentForm({
   const [amount, setAmount] = useState(initial.amount);
   const [paidAt, setPaidAtState] = useState(initial.paidAt);
   const splitTouched = useRef(false);
+  const confirmingRef = useRef(false);
   const housemates = useHousematesStore((s) => s.housemates);
   const [paidBy, setPaidBy] = useState(initial.paidBy);
   const [note, setNote] = useState(initial.note);
@@ -142,7 +143,8 @@ export function usePaymentForm({
   const canSave = !saving && !!houseId && parsed > 0 && splitWith.length > 0;
 
   const save = useCallback(async (): Promise<void> => {
-    if (saving) return;
+    // A second tap while the settled-month question is open mustn't save twice.
+    if (saving || confirmingRef.current) return;
     const value = parseAmount(amount);
     if (!(value > 0)) {
       setError(t('bills.enter_valid_amount'));
@@ -168,8 +170,11 @@ export function usePaymentForm({
     };
     // A payment dated in a period that was already settled up changes old
     // balances: ask first, and tell the house once it's saved.
-    const inSettledPeriod = settledGuard.isSettled(payment?.paidAt, paidAt);
-    if (inSettledPeriod && !(await settledGuard.confirmChange(payment?.paidAt, paidAt))) return;
+    confirmingRef.current = true;
+    const check = await settledGuard.confirmChange(payment?.paidAt, paidAt);
+    confirmingRef.current = false;
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setSaving(true);
       setError('');

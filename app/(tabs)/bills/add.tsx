@@ -106,6 +106,7 @@ function AddBillScreen(): React.JSX.Element {
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   // Once someone picks who's in the split by hand, the date stops changing it.
   const peopleTouched = useRef(false);
+  const confirmingRef = useRef(false);
 
   // If housemates finish loading after this screen is already focused,
   // useFocusEffect won't re-fire — so seed defaults here once they arrive.
@@ -230,7 +231,9 @@ function AddBillScreen(): React.JSX.Element {
   const payerName = payer ? payer.name.split(' ')[0] : '';
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (isLoading) return; // guard against a fast double-tap creating a duplicate bill
+    // Guard against a fast double-tap creating a duplicate bill — including a
+    // second tap while the settled-period question is still open.
+    if (isLoading || confirmingRef.current) return;
     let payload: AddBillPayload;
     try {
       payload = parseAndValidateAddBill({
@@ -263,8 +266,11 @@ function AddBillScreen(): React.JSX.Element {
     }
     // A new expense dated in a month that was already settled up reopens it:
     // ask first, and send the house one "settled period changed" message.
-    const inSettledPeriod = settledGuard.isSettled(payload.date);
-    if (inSettledPeriod && !(await settledGuard.confirmChange(payload.date))) return;
+    confirmingRef.current = true;
+    const check = await settledGuard.confirmChange(payload.date);
+    confirmingRef.current = false;
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setIsLoading(true);
       await addBill(payload, houseId, { skipNotify: inSettledPeriod });

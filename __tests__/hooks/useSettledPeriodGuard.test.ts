@@ -4,7 +4,7 @@
  * Changing an expense from a period that was already settled up must never be
  * silent: the user is warned first, and the house gets exactly one message.
  */
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, waitFor } from '@testing-library/react-native';
 
 jest.mock('@lib/supabase', () => ({ supabase: {} }));
 jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
@@ -12,6 +12,8 @@ jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 const mockAlert = jest.fn();
 const mockNotify = jest.fn();
 let mockPayments: unknown[] = [];
+let mockStoreError: string | null = null;
+const mockLoad = jest.fn(async (): Promise<void> => {});
 
 jest.mock('react-i18next', () => ({
   useTranslation: (): { t: (k: string) => string } => ({ t: (k: string): string => k }),
@@ -26,10 +28,17 @@ jest.mock('@stores/authStore', () => ({
   useAuthStore: (sel: (s: unknown) => unknown): unknown =>
     sel({ houseId: 'house-1', profile: { id: 'maya', name: 'Maya' } }),
 }));
-jest.mock('@stores/settlementPaymentsStore', () => ({
-  useSettlementPaymentsStore: (sel: (s: { payments: unknown[] }) => unknown): unknown =>
-    sel({ payments: mockPayments }),
-}));
+jest.mock('@stores/settlementPaymentsStore', () => {
+  const state = (): Record<string, unknown> => ({
+    payments: mockPayments,
+    isLoading: false,
+    error: mockStoreError,
+    load: mockLoad,
+  });
+  const hook = (sel: (s: Record<string, unknown>) => unknown): unknown => sel(state());
+  hook.getState = state;
+  return { useSettlementPaymentsStore: hook };
+});
 
 import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { latestSettledUntil, type SettlementPayment } from '@utils/settleUp';
@@ -49,6 +58,7 @@ const settled = (coversUntil: string | null): SettlementPayment => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockPayments = [];
+  mockStoreError = null;
 });
 
 describe('latestSettledUntil', () => {
@@ -66,7 +76,10 @@ describe('useSettledPeriodGuard', () => {
     mockPayments = [settled(null)];
     const { result } = renderHook(() => useSettledPeriodGuard());
     expect(result.current.isSettled('2026-01-01')).toBe(false);
-    await expect(result.current.confirmChange('2026-01-01')).resolves.toBe(true);
+    await expect(result.current.confirmChange('2026-01-01')).resolves.toEqual({
+      proceed: true,
+      settled: false,
+    });
     expect(mockAlert).not.toHaveBeenCalled();
   });
 
@@ -84,19 +97,27 @@ describe('useSettledPeriodGuard', () => {
     mockPayments = [settled('2026-10-31')];
     const { result } = renderHook(() => useSettledPeriodGuard());
 
-    let answer: Promise<boolean> = Promise.resolve(false);
-    act(() => {
-      answer = result.current.confirmChange('2026-10-10');
-    });
-    const buttons = mockAlert.mock.calls[0][2] as { onPress: () => void }[];
-    buttons[1].onPress(); // "Change anyway"
-    await expect(answer).resolves.toBe(true);
+    const first = result.current.confirmChange('2026-10-10');
+    await waitFor(() => expect(mockAlert).toHaveBeenCalledTimes(1));
+    (mockAlert.mock.calls[0][2] as { onPress: () => void }[])[1].onPress(); // "Change anyway"
+    await expect(first).resolves.toEqual({ proceed: true, settled: true });
 
-    act(() => {
-      answer = result.current.confirmChange('2026-10-10');
-    });
+    const second = result.current.confirmChange('2026-10-10');
+    await waitFor(() => expect(mockAlert).toHaveBeenCalledTimes(2));
     (mockAlert.mock.calls[1][2] as { onPress: () => void }[])[0].onPress(); // Cancel
-    await expect(answer).resolves.toBe(false);
+    await expect(second).resolves.toEqual({ proceed: false, settled: true });
+  });
+
+  it('never silently says "not settled" when the payments could not be loaded', async () => {
+    mockStoreError = 'offline';
+    const { result } = renderHook(() => useSettledPeriodGuard());
+
+    const check = result.current.confirmChange('2026-10-10');
+    await waitFor(() => expect(mockAlert).toHaveBeenCalledTimes(1));
+    expect(mockLoad).toHaveBeenCalledWith('house-1'); // tried again first
+    expect(mockAlert.mock.calls[0][0]).toBe('bills.settled_unknown_title');
+    (mockAlert.mock.calls[0][2] as { onPress: () => void }[])[1].onPress();
+    await expect(check).resolves.toEqual({ proceed: true, settled: false });
   });
 
   it('sends the house exactly one message, not to the person who made the change', () => {
