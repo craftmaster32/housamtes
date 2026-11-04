@@ -284,6 +284,24 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       return { title: '🎉 Money drama resolved!', body: `${t} sorted. ${who} saves the day 🙌` };
     }
 
+    case 'settlement_payment': {
+      const from = str(p, 'fromName');
+      const to = str(p, 'toName');
+      const money = str(p, 'money');
+      if (es) return { title: '🤝 Pago registrado', body: `${from} le pagó ${money} a ${to}.` };
+      if (he) return { title: '🤝 נרשם תשלום', body: `${from} שילם/ה ${money} ל${to}.` };
+      return { title: '🤝 Payment recorded', body: `${from} paid ${to} ${money}.` };
+    }
+
+    case 'settled_up_to': {
+      const who = str(p, 'name');
+      const d = shortDate(lang, str(p, 'date'));
+      if (es)
+        return { title: '🤝 Cuentas saldadas', body: `${who} saldó las cuentas hasta el ${d}.` };
+      if (he) return { title: '🤝 החשבון נסגר', body: `${who} סגר/ה חשבון עד ${d}.` };
+      return { title: '🤝 Settled up', body: `${who} settled up everything until ${d}.` };
+    }
+
     case 'bill_deleted': {
       const t = str(p, 'billTitle');
       if (es)

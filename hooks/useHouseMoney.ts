@@ -1,0 +1,36 @@
+import { useMemo } from 'react';
+import { useBillsStore } from '@stores/billsStore';
+import { useRecurringBillsStore } from '@stores/recurringBillsStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
+import { computeHouseNet, type HouseMoney, type NetBalances } from '@utils/settleUp';
+
+interface HouseMoneyResult {
+  money: HouseMoney;
+  /** Everyone's current balance. Positive = is owed, negative = owes. */
+  net: NetBalances;
+}
+
+/**
+ * The house's money in one place: one-off bills, recurring bill payments and
+ * settle-up payments. Every screen that shows "who owes whom" reads from here,
+ * so they can never disagree.
+ */
+export function useHouseMoney(): HouseMoneyResult {
+  const bills = useBillsStore((s) => s.bills);
+  const householdBills = useRecurringBillsStore((s) => s.bills);
+  const householdPayments = useRecurringBillsStore((s) => s.payments);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const settlementPayments = useSettlementPaymentsStore((s) => s.payments);
+
+  return useMemo((): HouseMoneyResult => {
+    const money: HouseMoney = {
+      bills,
+      householdBills,
+      householdPayments,
+      memberIds: housemates.map((h) => h.id),
+      settlementPayments,
+    };
+    return { money, net: computeHouseNet(money) };
+  }, [bills, householdBills, householdPayments, housemates, settlementPayments]);
+}

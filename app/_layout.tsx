@@ -21,6 +21,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useAppliancesStore } from '@stores/appliancesStore';
 import { useGroceryStore } from '@stores/groceryStore';
@@ -285,6 +286,7 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);
   const loadRecurringBills = useRecurringBillsStore((s) => s.load);
+  const loadSettlementPayments = useSettlementPaymentsStore((s) => s.load);
   const loadParking = useParkingStore((s) => s.load);
   const loadAppliances = useAppliancesStore((s) => s.load);
   const loadGrocery = useGroceryStore((s) => s.load);
@@ -405,6 +407,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadHousemates(houseId);
     loadBills(houseId);
     loadRecurringBills(houseId);
+    loadSettlementPayments(houseId);
 
     const deferred = InteractionManager.runAfterInteractions(() => {
       loadParking(houseId);
@@ -426,6 +429,7 @@ export default function RootLayout(): React.JSX.Element | null {
       useHousematesStore.getState().unsubscribe();
       useBillsStore.getState().unsubscribe();
       useRecurringBillsStore.getState().unsubscribe();
+      useSettlementPaymentsStore.getState().unsubscribe();
       useParkingStore.getState().unsubscribe();
       useAppliancesStore.getState().unsubscribe();
       useGroceryStore.getState().unsubscribe();
@@ -442,6 +446,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadHousemates,
     loadBills,
     loadRecurringBills,
+    loadSettlementPayments,
     loadParking,
     loadAppliances,
     loadGrocery,
@@ -477,6 +482,8 @@ export default function RootLayout(): React.JSX.Element | null {
         loadHousemates(houseId);
         loadBills(houseId);
         loadRecurringBills(houseId);
+        loadSettlementPayments(houseId);
+        loadSettlementPayments(houseId);
         foregroundDeferred.current?.cancel();
         foregroundDeferred.current = InteractionManager.runAfterInteractions(() => {
           loadParking(houseId);
@@ -503,6 +510,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadHousemates,
     loadBills,
     loadRecurringBills,
+    loadSettlementPayments,
     loadParking,
     loadAppliances,
     loadGrocery,
