@@ -8,8 +8,8 @@ export const settleStyles = StyleSheet.create({
   label: { fontSize: mf(13.5), ...font.bold, marginBottom: ms(2) },
   error: { fontSize: mf(14), ...font.medium },
   dimmed: { opacity: 0.6 },
+  flex1: { flex: 1 },
   inlineRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
-  nothing: { paddingVertical: ms(8) },
   listEnd: { height: ms(12) },
   listShrink: { flexShrink: 1 },
   // A button that stays visible at the bottom of a sheet, above the list.

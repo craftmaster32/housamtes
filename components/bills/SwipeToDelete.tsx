@@ -9,7 +9,7 @@ import { mf, ms } from '@utils/responsive';
 
 // Width of the swipe-to-delete panel, kept in sync between the reveal animation
 // and its style so the red panel slides in flush with the line's edge.
-const SWIPE_DELETE_WIDTH = ms(84);
+const SWIPE_DELETE_WIDTH = ms(96);
 
 interface SwipeToDeleteProps {
   /** Called when the red Delete is tapped (confirm inside it). */
@@ -40,14 +40,18 @@ export function SwipeToDelete({
         return (
           <RNAnimated.View style={[styles.lane, { transform: [{ translateX }] }]}>
             <Pressable
-              style={[styles.delete, { backgroundColor: c.danger }]}
+              style={({ pressed }) => [
+                styles.delete,
+                { backgroundColor: c.dangerTint, borderColor: c.danger },
+                pressed && styles.pressed,
+              ]}
               onPress={onDelete}
               accessible
               accessibilityRole="button"
               accessibilityLabel={label}
             >
-              <Ionicons name="trash" size={20} color="#fff" />
-              <Text style={styles.text}>{t('common.delete')}</Text>
+              <Ionicons name="trash-outline" size={20} color={c.danger} />
+              <Text style={[styles.text, { color: c.danger }]}>{t('common.delete')}</Text>
             </Pressable>
           </RNAnimated.View>
         );
@@ -62,7 +66,16 @@ export function SwipeToDelete({
 }
 
 const styles = StyleSheet.create({
-  lane: { width: SWIPE_DELETE_WIDTH },
-  delete: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: ms(3) },
-  text: { fontSize: mf(12), ...font.bold, color: '#fff' },
+  // Space all round so the soft red "stamp" never touches the amount.
+  lane: { width: SWIPE_DELETE_WIDTH, paddingStart: ms(12), paddingVertical: ms(10) },
+  delete: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: ms(3),
+    borderRadius: ms(16),
+    borderWidth: 1.5,
+  },
+  text: { fontSize: mf(12.5), ...font.bold },
+  pressed: { opacity: 0.7 },
 });

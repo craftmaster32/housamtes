@@ -140,16 +140,23 @@ export function SettleUpToDateSheet({
         </Pressable>
       )}
 
-      {s.plan.length === 0 ? (
-        <View style={[styles.inlineRow, styles.nothing]}>
+      {s.plan.length === 0 || (s.recordable.length === 0 && !s.othersFirst && !s.isFuture) ? (
+        // Say clearly when there's nothing for this person to do — an empty
+        // or someone-else-only list could look like something went wrong.
+        <View style={styles.inlineRow}>
           <Ionicons name="checkmark-circle" size={22} color={p.primary} />
-          <Text style={[styles.rowTitle, { color: p.text }]}>
-            {t('bills.settle_upto_nothing_simple', { date })}
+          <Text style={[styles.rowTitle, styles.flex1, { color: p.text }]}>
+            {s.plan.length === 0
+              ? t('bills.settle_upto_nothing_simple', { date })
+              : t('bills.settle_upto_all_set_you', { date })}
           </Text>
         </View>
-      ) : (
+      ) : null}
+      {s.plan.length > 0 && (
         <Text style={[styles.label, { color: p.muted }]}>
-          {t('bills.settle_upto_left_label', { date })}
+          {s.recordable.length === 0 && !s.othersFirst
+            ? t('bills.settle_upto_others_open')
+            : t('bills.settle_upto_left_label', { date })}
         </Text>
       )}
     </View>

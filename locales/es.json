@@ -818,7 +818,9 @@
     "settle_already_paid": "{{money}} ya pagado",
     "settle_left_now": "{{money}} pendiente",
     "settle_left_after": "{{money}} pendiente después de esto",
-    "settle_all_settled_after": "Con esto queda todo saldado ✓"
+    "settle_all_settled_after": "Con esto queda todo saldado ✓",
+    "settle_upto_all_set_you": "Todo en orden hasta el {{date}}: no tienes nada que saldar",
+    "settle_upto_others_open": "Aún pendiente entre los demás:"
   },
   "parking": {
     "title": "Estacionamiento",
