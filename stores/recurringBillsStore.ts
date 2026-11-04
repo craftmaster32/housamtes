@@ -387,10 +387,12 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         if (!paymentChangesSchema.safeParse(data).success) {
           throw new Error('Please check the payment details and try again.');
         }
-        // Empty array (not null) is the "split among everyone" sentinel — the column is
-        // NOT NULL, and the load path treats an empty array the same as "all housemates".
-        const splitBetween =
-          data.splitBetween && data.splitBetween.length > 0 ? data.splitBetween : [];
+        // Every payment must say who shares it (the database refuses one that
+        // doesn't), so it can never be re-divided when someone joins or leaves.
+        if (!data.splitBetween || data.splitBetween.length === 0) {
+          throw new Error('Please choose who shares this payment.');
+        }
+        const splitBetween = data.splitBetween;
         const { data: inserted, error } = await supabase
           .from('household_payments')
           .insert({
@@ -417,12 +419,11 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         if (!parsed.success) {
           throw new Error('Please check the payment details and try again.');
         }
-        // Empty array (not null) is the "split among everyone" sentinel — matches the
-        // NOT NULL column and how logPayment / load treat it.
-        const splitBetween =
-          parsed.data.splitBetween && parsed.data.splitBetween.length > 0
-            ? parsed.data.splitBetween
-            : [];
+        // Same rule as logPayment: always say who shares it.
+        if (!parsed.data.splitBetween || parsed.data.splitBetween.length === 0) {
+          throw new Error('Please choose who shares this payment.');
+        }
+        const splitBetween = parsed.data.splitBetween;
         let updated;
         try {
           const res = await supabase

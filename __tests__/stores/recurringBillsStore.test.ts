@@ -510,6 +510,7 @@ describe('logPayment', () => {
         coverageStart: '2026-09-01',
         coverageMonths: 2,
         paidBy: 'bob',
+        splitBetween: ['alice', 'bob'],
       },
       'house-1'
     );
@@ -535,7 +536,10 @@ describe('logPayment', () => {
     await expect(
       useRecurringBillsStore
         .getState()
-        .logPayment({ billId: 'b1', amount: 250, paidAt: '2026-07-10', note: '' }, 'house-1')
+        .logPayment(
+          { billId: 'b1', amount: 250, paidAt: '2026-07-10', note: '', splitBetween: ['alice'] },
+          'house-1'
+        )
     ).rejects.toThrow('Could not log the payment. Please try again.');
     expect(useRecurringBillsStore.getState().payments).toHaveLength(0);
   });
@@ -577,24 +581,20 @@ describe('updatePayment', () => {
     expect(s.payments.find((p) => p.id === 'p2')?.amount).toBe(200);
   });
 
-  it('treats an empty split as the everyone sentinel (undefined in the app model)', async () => {
+  it('refuses a payment without names, before reaching the database', async () => {
     useRecurringBillsStore.setState({ payments: [{ ...payment('b1', 100), id: 'p1' }] });
-    mockFrom.mockReturnValueOnce(
-      ok({
-        id: 'p1',
-        bill_id: 'b1',
-        amount: '100',
-        paid_at: '2026-07-01',
-        note: '',
-        split_between: [],
-      })
-    );
 
-    await useRecurringBillsStore
-      .getState()
-      .updatePayment('p1', { amount: 100, paidAt: '2026-07-01', note: '', splitBetween: [] });
-
-    expect(useRecurringBillsStore.getState().payments[0].splitBetween).toBeUndefined();
+    await expect(
+      useRecurringBillsStore
+        .getState()
+        .updatePayment('p1', { amount: 100, paidAt: '2026-07-01', note: '', splitBetween: [] })
+    ).rejects.toThrow('Please choose who shares this payment.');
+    await expect(
+      useRecurringBillsStore
+        .getState()
+        .logPayment({ billId: 'b1', amount: 100, paidAt: '2026-07-01', note: '' }, 'house-1')
+    ).rejects.toThrow('Please choose who shares this payment.');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('throws a plain-English error and changes nothing when the update fails', async () => {
@@ -602,9 +602,12 @@ describe('updatePayment', () => {
     mockFrom.mockReturnValueOnce(fail('update failed'));
 
     await expect(
-      useRecurringBillsStore
-        .getState()
-        .updatePayment('p1', { amount: 999, paidAt: '2026-09-01', note: 'nope' })
+      useRecurringBillsStore.getState().updatePayment('p1', {
+        amount: 999,
+        paidAt: '2026-09-01',
+        note: 'nope',
+        splitBetween: ['alice'],
+      })
     ).rejects.toThrow('Could not update the payment. Please try again.');
     expect(useRecurringBillsStore.getState().payments[0].amount).toBe(100);
   });
