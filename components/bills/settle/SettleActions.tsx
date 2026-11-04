@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useThemedColors } from '@constants/colors';
+import { useHandFont } from '@hooks/useHandFont';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
 import type { Transfer } from '@utils/settleUp';
@@ -25,6 +26,7 @@ interface SettleActionsProps {
 export function SettleActions({ plan, onUpTo }: SettleActionsProps): React.JSX.Element | null {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const handFont = useHandFont();
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const loadError = useSettlementPaymentsStore((s) => s.error);
   const reload = useSettlementPaymentsStore((s) => s.load);
@@ -52,18 +54,15 @@ export function SettleActions({ plan, onUpTo }: SettleActionsProps): React.JSX.E
         </Pressable>
       ) : null}
       {plan.length > 0 && (
+        // A handwritten note on the page, like "+ Add recurring bill" (DESIGN.md).
         <Pressable
-          style={({ pressed }) => [
-            styles.action,
-            { borderColor: c.paperMuted },
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
           onPress={onUpTo}
           accessibilityRole="button"
           accessibilityLabel={t('bills.settle_upto_btn')}
         >
-          <Ionicons name="calendar-outline" size={16} color={c.paperInk} />
-          <Text style={[styles.actionText, { color: c.paperInk }]} numberOfLines={1}>
+          <Ionicons name="calendar-outline" size={18} color={c.primary} />
+          <Text style={[styles.actionText, handFont, { color: c.primary }]} numberOfLines={1}>
             {t('bills.settle_upto_btn')}
           </Text>
         </Pressable>
@@ -74,16 +73,8 @@ export function SettleActions({ plan, onUpTo }: SettleActionsProps): React.JSX.E
 
 const styles = StyleSheet.create({
   wrap: { marginTop: ms(12), gap: ms(8), alignItems: 'flex-start' },
-  action: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(6),
-    minHeight: 44,
-    paddingHorizontal: ms(12),
-    borderRadius: 22,
-    borderWidth: 1,
-  },
-  actionText: { fontSize: mf(14), ...font.bold },
+  action: { flexDirection: 'row', alignItems: 'center', gap: ms(6), minHeight: 44 },
+  actionText: { fontSize: mf(22) },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), minHeight: 44 },
   errorText: { fontSize: mf(14), ...font.semibold, flex: 1 },
   pressed: { opacity: 0.7 },

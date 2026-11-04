@@ -15,6 +15,7 @@ import { formatFull } from '@constants/currencies';
 import { font, heading } from '@constants/typography';
 import { Money } from '@components/shared/Money';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
 import { mf, ms } from '@utils/responsive';
 
 export interface Settlement {
@@ -207,29 +208,17 @@ export function BalancePaper({
                           : ''}
                       </Text>
                       {canSettle && (
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.settleBtn,
-                            { borderColor: c.primary },
-                            pressed && styles.pressed,
-                          ]}
+                        // The tile action as a paper tag (DESIGN.md) — pink
+                        // when you owe, cream when you're being paid back.
+                        <PaperTag
+                          label={t('bills.settle_btn')}
+                          urgent={fromIsMe}
                           onPress={() => onSettle?.(s)}
-                          hitSlop={6}
-                          accessibilityRole="button"
                           accessibilityLabel={t('bills.settle_with', {
                             name: fromIsMe ? toName : fromName,
                             money: formatFull(s.amount, currencyCode),
                           })}
-                        >
-                          <Text style={[styles.settleBtnText, { color: c.primary }]}>
-                            {t('bills.settle_btn')}
-                          </Text>
-                          <Ionicons
-                            name={rtl ? 'chevron-back' : 'chevron-forward'}
-                            size={14}
-                            color={c.primary}
-                          />
-                        </Pressable>
+                        />
                       )}
                     </View>
                   )}
@@ -277,16 +266,6 @@ const styles = StyleSheet.create({
     marginTop: -ms(2),
     marginBottom: ms(4),
   },
-  settleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(2),
-    minHeight: 32,
-    paddingHorizontal: ms(12),
-    borderRadius: 16,
-    borderWidth: 1.5,
-  },
-  settleBtnText: { fontSize: mf(14), ...font.bold },
   av: {
     width: ms(22),
     height: ms(22),

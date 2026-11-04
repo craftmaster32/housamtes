@@ -8,11 +8,18 @@ interface PaperTagProps {
   label: string;
   urgent?: boolean;
   onPress: () => void;
+  /** Read out instead of the label (e.g. "Settle with Maya, ₪70"). */
+  accessibilityLabel?: string;
 }
 
 // The "Log" action as a little tilted paper tag with a punched hole — pink when
 // the bill is late, cream otherwise. The tag's hole replaces the "+" sign.
-export function PaperTag({ label, urgent = false, onPress }: PaperTagProps): React.JSX.Element {
+export function PaperTag({
+  label,
+  urgent = false,
+  onPress,
+  accessibilityLabel,
+}: PaperTagProps): React.JSX.Element {
   const c = useThemedColors();
   const text = label.replace(/^\+\s*/, '');
   return (
@@ -26,7 +33,7 @@ export function PaperTag({ label, urgent = false, onPress }: PaperTagProps): Rea
       ]}
       accessible
       accessibilityRole="button"
-      accessibilityLabel={text}
+      accessibilityLabel={accessibilityLabel ?? text}
     >
       <View style={[styles.hole, { backgroundColor: c.surface }]} />
       <Text style={[styles.text, { color: urgent ? '#8E2F28' : c.paperInk }]} numberOfLines={1}>

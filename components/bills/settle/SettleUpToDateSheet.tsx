@@ -11,7 +11,7 @@ import {
   recentMonthEnds,
   type PlannedTransfer,
 } from '@hooks/useSettleUpToDate';
-import { ChoiceChips } from '@components/bills/recurring/ChoiceChips';
+import { CategoryWords } from '@components/bills/CategoryWords';
 import { useMemberName } from '@hooks/useMemberName';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -102,13 +102,15 @@ export function SettleUpToDateSheet({
 
   const header = (
     <View style={styles.body}>
-      <ChoiceChips
-        label={t('bills.settle_upto_paid_label')}
-        options={monthEnds}
-        selected={[s.upTo]}
-        mode="single"
-        onToggle={setUpTo}
-      />
+      {/* Hand-circled words, like the category filters (DESIGN.md). */}
+      <View>
+        <Text style={[styles.label, { color: p.muted }]}>{t('bills.settle_upto_paid_label')}</Text>
+        <CategoryWords
+          items={monthEnds.map((m) => ({ key: m.id, label: m.name }))}
+          selected={s.upTo}
+          onSelect={setUpTo}
+        />
+      </View>
       <Pressable
         style={({ pressed }) => [styles.linkBtn, styles.inlineRow, pressed && styles.dimmed]}
         onPress={openDate}
