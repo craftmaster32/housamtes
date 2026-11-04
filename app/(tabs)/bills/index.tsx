@@ -103,7 +103,8 @@ function BillsScreen(): React.JSX.Element {
   useEffect((): void => {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
-  const [showSettle, setShowSettle] = useState(false);
+  // Open by default: each line has its own Settle button, the main action here.
+  const [showSettle, setShowSettle] = useState(true);
   // The balance card slides in once on first load. Toggling the one-off/recurring
   // filter swaps the whole list tree, which would otherwise remount the card and
   // replay that animation — read as a "jump". Gate it so it only plays once.

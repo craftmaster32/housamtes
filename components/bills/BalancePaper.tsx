@@ -170,54 +170,68 @@ export function BalancePaper({
               const fromName = fromIsMe ? t('bills.you_label') : memberName(s.from).split(' ')[0];
               const toName = toIsMe ? t('bills.you_label') : memberName(s.to).split(' ')[0];
               const amtColor = toIsMe ? c.success : fromIsMe ? c.danger : c.paperInk;
+              const paid = paidSoFar?.(s) ?? 0;
+              const canSettle = !!onSettle && (fromIsMe || toIsMe);
               return (
-                <View key={idx} style={styles.xfer}>
-                  <Avatar name={fromName} uri={avatarById.get(s.from)} color={c.primary} />
-                  <Text
-                    style={[styles.xferName, handFont, { color: c.paperInk }]}
-                    numberOfLines={1}
-                  >
-                    {fromName}
-                  </Text>
-                  <Ionicons
-                    name={rtl ? 'arrow-back' : 'arrow-forward'}
-                    size={16}
-                    color={c.paperMuted}
-                  />
-                  <Text
-                    style={[styles.xferName, handFont, { color: c.paperInk }]}
-                    numberOfLines={1}
-                  >
-                    {toName}
-                  </Text>
-                  <View style={styles.xferRight}>
+                <View key={idx} style={styles.xferBlock}>
+                  {/* "You → Maya ........ ₪70.12" */}
+                  <View style={styles.xfer}>
+                    <Avatar name={fromName} uri={avatarById.get(s.from)} color={c.primary} />
+                    <Text
+                      style={[styles.xferName, handFont, { color: c.paperInk }]}
+                      numberOfLines={1}
+                    >
+                      {fromName}
+                    </Text>
+                    <Ionicons
+                      name={rtl ? 'arrow-back' : 'arrow-forward'}
+                      size={16}
+                      color={c.paperMuted}
+                    />
+                    <Text
+                      style={[styles.xferName, handFont, { color: c.paperInk }]}
+                      numberOfLines={1}
+                    >
+                      {toName}
+                    </Text>
                     <Text style={[styles.xferAmt, headingFont, { color: amtColor }]}>
                       {formatFull(s.amount, currencyCode)}
                     </Text>
-                    {(paidSoFar?.(s) ?? 0) >= 0.01 && (
-                      <Text style={[styles.xferPaid, { color: c.paperMuted }]}>
-                        {t('bills.settle_paid_so_far', {
-                          money: formatFull(paidSoFar?.(s) ?? 0, currencyCode),
-                        })}
-                      </Text>
-                    )}
                   </View>
-                  {onSettle && (fromIsMe || toIsMe) && (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.settleBtn,
-                        { backgroundColor: c.primary },
-                        pressed && styles.pressed,
-                      ]}
-                      onPress={() => onSettle(s)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('bills.settle_with', {
-                        name: fromIsMe ? toName : fromName,
-                        money: formatFull(s.amount, currencyCode),
-                      })}
-                    >
-                      <Text style={styles.settleBtnText}>{t('bills.settle_btn')}</Text>
-                    </Pressable>
+                  {/* Underneath, small: what's already paid, and a Settle button. */}
+                  {(paid >= 0.01 || canSettle) && (
+                    <View style={styles.xferSub}>
+                      <Text style={[styles.xferPaid, { color: c.paperMuted }]} numberOfLines={1}>
+                        {paid >= 0.01
+                          ? t('bills.settle_paid_so_far', { money: formatFull(paid, currencyCode) })
+                          : ''}
+                      </Text>
+                      {canSettle && (
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.settleBtn,
+                            { borderColor: c.primary },
+                            pressed && styles.pressed,
+                          ]}
+                          onPress={() => onSettle?.(s)}
+                          hitSlop={6}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('bills.settle_with', {
+                            name: fromIsMe ? toName : fromName,
+                            money: formatFull(s.amount, currencyCode),
+                          })}
+                        >
+                          <Text style={[styles.settleBtnText, { color: c.primary }]}>
+                            {t('bills.settle_btn')}
+                          </Text>
+                          <Ionicons
+                            name={rtl ? 'chevron-back' : 'chevron-forward'}
+                            size={14}
+                            color={c.primary}
+                          />
+                        </Pressable>
+                      )}
+                    </View>
                   )}
                 </View>
               );
@@ -252,18 +266,27 @@ const styles = StyleSheet.create({
   settleSub: { flex: 1, fontSize: mf(13.5), ...font.semibold },
   xfer: { flexDirection: 'row', alignItems: 'center', gap: ms(8), minHeight: ms(36) },
   xferName: { fontSize: mf(23), maxWidth: ms(90) },
-  xferRight: { marginStart: 'auto', alignItems: 'flex-end' },
-  xferAmt: { fontSize: mf(17), writingDirection: 'ltr' },
+  xferAmt: { marginStart: 'auto', fontSize: mf(17), writingDirection: 'ltr' },
   xferPaid: { fontSize: mf(12), ...font.semibold, writingDirection: 'ltr' },
-  settleBtn: {
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: ms(12),
-    borderRadius: 18,
+  xferBlock: { paddingVertical: ms(2) },
+  xferSub: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingStart: ms(30),
+    marginTop: -ms(2),
+    marginBottom: ms(4),
   },
-  settleBtnText: { color: '#FFFFFF', fontSize: mf(14), ...font.bold },
+  settleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(2),
+    minHeight: 32,
+    paddingHorizontal: ms(12),
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  settleBtnText: { fontSize: mf(14), ...font.bold },
   av: {
     width: ms(22),
     height: ms(22),

@@ -7,7 +7,6 @@ import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useRecurringPalette } from '@components/bills/recurring/palette';
 import {
   useSettleUpToDate,
-  nextDay,
   previousDay,
   recentMonthEnds,
   type PlannedTransfer,
@@ -27,8 +26,8 @@ interface SettleUpToDateSheetProps {
 }
 
 /**
- * "Settle up to a date": everything owed for expenses up to the chosen day was
- * paid outside the app. Shows exactly which payments will be recorded first.
+ * "Settle up to a date": everything up to a day was paid outside the app.
+ * Kept short: pick the date, see what's left to settle, confirm.
  */
 export function SettleUpToDateSheet({
   visible,
@@ -55,8 +54,8 @@ export function SettleUpToDateSheet({
     },
     [setUpTo]
   );
-
   const pickDayBefore = useCallback((): void => setUpTo(previousDay(s.upTo)), [setUpTo, s.upTo]);
+
   const monthEnds = useMemo(
     () =>
       recentMonthEnds(3).map((end) => ({
@@ -70,134 +69,97 @@ export function SettleUpToDateSheet({
     [t, i18n.language]
   );
 
-  const name = useCallback(
-    (id: string): string => (id === myId ? t('bills.you_label') : memberName(id)),
+  const first = useCallback(
+    (id: string): string => (id === myId ? t('bills.you_label') : memberName(id).split(' ')[0]),
     [myId, memberName, t]
   );
+  const date = formatDateDDMMYYYY(s.upTo);
 
   const renderItem = useCallback(
     ({ item }: { item: PlannedTransfer }): React.JSX.Element => (
       <View style={[styles.row, styles.listItem, { borderBottomColor: p.border }]}>
         <View style={styles.rowText}>
-          <Text style={[styles.rowTitle, { color: p.text }]} numberOfLines={1}>
-            {t('bills.settle_pays', { from: name(item.from), to: name(item.to) })}
+          <Text
+            style={[styles.rowTitle, { color: item.canRecord ? p.text : p.muted }]}
+            numberOfLines={1}
+          >
+            {t('bills.settle_pays', { from: first(item.from), to: first(item.to) })}
           </Text>
           {!item.canRecord && (
-            <Text style={[styles.rowSub, { color: p.muted }]}>
-              {t('bills.settle_they_record', { from: name(item.from), to: name(item.to) })}
+            <Text style={[styles.rowSub, { color: p.muted }]} numberOfLines={1}>
+              {t('bills.settle_upto_theirs')}
             </Text>
           )}
         </View>
-        <Text style={[styles.rowAmount, { color: p.text }]}>
+        <Text style={[styles.rowAmount, { color: item.canRecord ? p.text : p.muted }]}>
           {formatFull(item.amount, currencyCode)}
         </Text>
       </View>
     ),
-    [p, t, name, currencyCode]
+    [p, t, first, currencyCode]
   );
 
   const header = (
     <View style={styles.body}>
-      <View>
-        <Text style={[styles.label, { color: p.muted }]}>{t('bills.settle_upto_date')}</Text>
-        <Pressable
-          style={[styles.input, styles.dateBtn, { borderColor: p.border }]}
-          onPress={openDate}
-          accessibilityRole="button"
-          accessibilityLabel={`${t('bills.settle_upto_date')}: ${formatDateDDMMYYYY(s.upTo)}`}
-          accessibilityHint={t('bills.settle_upto_date_hint')}
-        >
-          <Text style={[styles.dateText, { color: p.text }]}>{formatDateDDMMYYYY(s.upTo)}</Text>
-          <Ionicons name="calendar-outline" size={18} color={p.muted} />
-        </Pressable>
-      </View>
-      {/* One tap for the usual case: "everything up to the end of a month". */}
       <ChoiceChips
-        label={t('bills.settle_upto_quick')}
+        label={t('bills.settle_upto_paid_label')}
         options={monthEnds}
         selected={[s.upTo]}
         mode="single"
         onToggle={setUpTo}
       />
-      {/* Say in words exactly what this date means: paid vs still open. */}
-      <Text style={[styles.help, { color: p.text }]}>
-        {t('bills.settle_upto_explain', {
-          date: formatDateDDMMYYYY(s.upTo),
-          next: formatDateDDMMYYYY(nextDay(s.upTo)),
-        })}
-      </Text>
+      <Pressable
+        style={({ pressed }) => [styles.linkBtn, styles.inlineRow, pressed && styles.dimmed]}
+        onPress={openDate}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('bills.settle_upto_other_date')}: ${date}`}
+        accessibilityHint={t('bills.settle_upto_date_hint')}
+      >
+        <Ionicons name="calendar-outline" size={18} color={p.primary} />
+        <Text style={[styles.linkText, { color: p.primary }]}>
+          {t('bills.settle_upto_other_date')} · {date}
+        </Text>
+      </Pressable>
+
       {/* "Until 1 October" usually means "before October": catch the 1st. */}
       {s.upTo.endsWith('-01') && (
-        <View style={styles.tooMuch}>
+        <Pressable
+          style={({ pressed }) => [styles.linkBtn, pressed && styles.dimmed]}
+          onPress={pickDayBefore}
+          accessibilityRole="button"
+        >
           <Text style={[styles.error, { color: p.overdueText }]}>
-            {t('bills.settle_upto_first_of_month', {
-              date: formatDateDDMMYYYY(s.upTo),
+            {t('bills.settle_upto_first_short', {
+              date,
               before: formatDateDDMMYYYY(previousDay(s.upTo)),
             })}
           </Text>
-          <Pressable
-            style={({ pressed }) => [styles.linkBtn, pressed && styles.dimmed]}
-            onPress={pickDayBefore}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.linkText, { color: p.primary }]}>
-              {t('bills.settle_upto_use_day_before', {
-                before: formatDateDDMMYYYY(previousDay(s.upTo)),
-              })}
-            </Text>
-          </Pressable>
-        </View>
+        </Pressable>
       )}
-      <Text style={[styles.label, { color: p.muted }]}>
-        {s.plan.length > 0 ? t('bills.settle_upto_will_record') : t('bills.settle_upto_nothing')}
-      </Text>
+
+      {s.plan.length === 0 ? (
+        <View style={[styles.inlineRow, styles.nothing]}>
+          <Ionicons name="checkmark-circle" size={22} color={p.primary} />
+          <Text style={[styles.rowTitle, { color: p.text }]}>
+            {t('bills.settle_upto_nothing_simple', { date })}
+          </Text>
+        </View>
+      ) : (
+        <Text style={[styles.label, { color: p.muted }]}>
+          {t('bills.settle_upto_left_label', { date })}
+        </Text>
+      )}
     </View>
   );
 
-  // Always visible at the bottom of the sheet, so Confirm is never hidden
-  // below a long list.
-  const footer = (
-    <View style={[styles.stickyFooter, { borderTopColor: p.border, backgroundColor: p.sheet }]}>
-      {!!s.error && (
-        <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
-          {s.error}
-        </Text>
-      )}
-      {s.isFuture && (
-        <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
-          {t('bills.settle_future_date')}
-        </Text>
-      )}
-      {!s.isFuture && s.recordable.length > 0 && s.recordable.length < s.plan.length && (
-        <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_only_yours')}</Text>
-      )}
-      {!s.isFuture && s.othersFirst && (
-        <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_others_first')}</Text>
-      )}
-      {!s.isFuture && !s.othersFirst && s.plan.length > 0 && s.recordable.length === 0 && (
-        <Text style={[styles.help, { color: p.muted }]}>{t('bills.settle_upto_none_mine')}</Text>
-      )}
-      {s.recordable.length > 0 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: p.primary },
-            (s.saving || pressed) && styles.dimmed,
-          ]}
-          onPress={s.confirm}
-          disabled={s.saving}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: s.saving, busy: s.saving }}
-        >
-          <Text style={[styles.primaryText, { color: p.onPrimary }]}>
-            {s.saving
-              ? t('bills.household_saving')
-              : t('bills.settle_upto_confirm', { date: formatDateDDMMYYYY(s.upTo) })}
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
+  const message = s.error
+    ? s.error
+    : s.isFuture
+      ? t('bills.settle_future_date')
+      : s.othersFirst
+        ? t('bills.settle_upto_others_first')
+        : '';
+  const hasFooter = !!message || s.recordable.length > 0;
 
   return (
     <>
@@ -213,8 +175,39 @@ export function SettleUpToDateSheet({
           keyExtractor={(x) => `${x.from}-${x.to}`}
           renderItem={renderItem}
           ListHeaderComponent={header}
+          ListFooterComponent={<View style={styles.listEnd} />}
         />
-        {footer}
+        {/* Always on screen, so Confirm is never hidden below the list. */}
+        {hasFooter && (
+          <View
+            style={[styles.stickyFooter, { borderTopColor: p.border, backgroundColor: p.sheet }]}
+          >
+            {!!message && (
+              <Text style={[styles.error, { color: p.overdueText }]} accessibilityRole="alert">
+                {message}
+              </Text>
+            )}
+            {s.recordable.length > 0 && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  { backgroundColor: p.primary },
+                  (s.saving || pressed) && styles.dimmed,
+                ]}
+                onPress={s.confirm}
+                disabled={s.saving}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: s.saving, busy: s.saving }}
+              >
+                <Text style={[styles.primaryText, { color: p.onPrimary }]}>
+                  {s.saving
+                    ? t('bills.household_saving')
+                    : t('bills.settle_upto_confirm', { date })}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </SettleSheet>
       <DatePickerModal visible={showDate} value={s.upTo} onSelect={pickDate} onClose={closeDate} />
     </>

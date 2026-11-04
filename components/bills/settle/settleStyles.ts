@@ -32,6 +32,9 @@ export const settleStyles = StyleSheet.create({
   dimmed: { opacity: 0.6 },
   bigAmount: { fontSize: mf(40), ...font.extrabold, writingDirection: 'ltr', letterSpacing: -0.5 },
   centered: { alignItems: 'center' },
+  inlineRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
+  nothing: { paddingVertical: ms(8) },
+  listEnd: { height: ms(12) },
   listShrink: { flexShrink: 1 },
   // A button that stays visible at the bottom of a sheet, above the list.
   stickyFooter: {

@@ -1,11 +1,9 @@
 import { useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, Animated as RNAnimated } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { View, StyleSheet, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { Alert } from '@lib/alert';
 import { navigateToBase } from '@stores/navigationStore';
 import { useBillsStore } from '@stores/billsStore';
@@ -25,12 +23,10 @@ import { formatFull } from '@constants/currencies';
 import { font } from '@constants/typography';
 import { DotLeader } from '@components/shared/DotLeader';
 import { Stamp } from '@components/shared/Stamp';
+import { SwipeToDelete } from '@components/bills/SwipeToDelete';
 import type { BillRow, RecurringPaymentRow } from '@hooks/useOneOffBillHistory';
 import { mf, ms } from '@utils/responsive';
 
-// Width of the swipe-to-delete panel, kept in sync between the reveal animation
-// and its style so the red panel slides in flush with the line's edge.
-const SWIPE_DELETE_WIDTH = ms(84);
 const DASHES = Array.from({ length: 30 });
 
 /** A day heading on the receipt: "– – – Today – – –". */
@@ -201,37 +197,12 @@ export function BillLine({
   // non-owner/admins can't delete, so they just render the plain line.
   if (!canDelete) return line;
   return (
-    <Swipeable
-      renderRightActions={(_progress, dragX): React.JSX.Element => {
-        // Slide the panel in 1:1 with the drag so it stays glued to the line's
-        // edge instead of sitting revealed as a floating box underneath.
-        const translateX = dragX.interpolate({
-          inputRange: [-SWIPE_DELETE_WIDTH, 0],
-          outputRange: [0, SWIPE_DELETE_WIDTH],
-          extrapolate: 'clamp',
-        });
-        return (
-          <RNAnimated.View style={[styles.swipeLane, { transform: [{ translateX }] }]}>
-            <Pressable
-              style={[styles.swipeDelete, { backgroundColor: c.danger }]}
-              onPress={handleDelete}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('bills.delete_bill_name', { name: bill.title })}
-              accessibilityState={{ disabled: false }}
-            >
-              <Ionicons name="trash" size={20} color="#fff" />
-              <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
-            </Pressable>
-          </RNAnimated.View>
-        );
-      }}
-      overshootRight={false}
-      rightThreshold={40}
-      friction={2}
+    <SwipeToDelete
+      onDelete={handleDelete}
+      label={t('bills.delete_bill_name', { name: bill.title })}
     >
       {line}
-    </Swipeable>
+    </SwipeToDelete>
   );
 }
 
@@ -295,7 +266,4 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), marginTop: ms(2) },
   meta: { flexShrink: 1, fontSize: mf(13.5), ...font.medium },
   pressed: { opacity: 0.75 },
-  swipeLane: { width: SWIPE_DELETE_WIDTH },
-  swipeDelete: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: ms(3) },
-  swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#fff' },
 });
