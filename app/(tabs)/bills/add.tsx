@@ -20,6 +20,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { membersOn, toMemberSpans } from '@utils/membership';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
@@ -103,6 +104,8 @@ function AddBillScreen(): React.JSX.Element {
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+  // Once someone picks who's in the split by hand, the date stops changing it.
+  const peopleTouched = useRef(false);
 
   // If housemates finish loading after this screen is already focused,
   // useFocusEffect won't re-fire — so seed defaults here once they arrive.
@@ -131,6 +134,7 @@ function AddBillScreen(): React.JSX.Element {
     setAmount('');
     setPaidBy(userId || ids[0] || '');
     setSelectedPeople(ids.length > 0 ? ids : []);
+    peopleTouched.current = false;
     setCategory(defaultExpenseCategory(categoriesRef.current.map((c) => c.name)));
     categoryPicked.current = false;
     setDate(todayString());
@@ -198,9 +202,21 @@ function AddBillScreen(): React.JSX.Element {
     setError('');
   }, []);
   const handleSelectedPeopleChange = useCallback((ids: string[]): void => {
+    peopleTouched.current = true;
     setSelectedPeople(ids);
     setError('');
   }, []);
+  // An expense from before someone joined isn't theirs: picking an older date
+  // pre-selects only the people who lived here then (unless edited by hand).
+  const handleDateSelect = useCallback(
+    (value: string): void => {
+      setDate(value);
+      if (peopleTouched.current) return;
+      const then = membersOn(toMemberSpans(housemates), value).filter((id) => allIds.includes(id));
+      setSelectedPeople(then.length > 0 ? then : allIds);
+    },
+    [housemates, allIds]
+  );
   const handleSplitTypeChange = useCallback((type: SplitType): void => {
     setSplitType(type);
     setError('');
@@ -461,7 +477,7 @@ function AddBillScreen(): React.JSX.Element {
       <DatePickerModal
         visible={showDatePicker}
         value={date}
-        onSelect={setDate}
+        onSelect={handleDateSelect}
         onClose={closeDatePicker}
       />
 

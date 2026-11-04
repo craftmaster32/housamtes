@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useRecurringBillsStore,
@@ -8,6 +8,8 @@ import {
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { useHousematesStore } from '@stores/housematesStore';
+import { membersOn, toMemberSpans } from '@utils/membership';
 import {
   FREQUENCY_MONTHS,
   monthStart,
@@ -90,7 +92,9 @@ export function usePaymentForm({
   const [period, setPeriodState] = useState(initial.period);
   const [periodKnown, setPeriodKnown] = useState(initial.periodKnown);
   const [amount, setAmount] = useState(initial.amount);
-  const [paidAt, setPaidAt] = useState(initial.paidAt);
+  const [paidAt, setPaidAtState] = useState(initial.paidAt);
+  const splitTouched = useRef(false);
+  const housemates = useHousematesStore((s) => s.housemates);
   const [paidBy, setPaidBy] = useState(initial.paidBy);
   const [note, setNote] = useState(initial.note);
   const [splitWith, setSplitWith] = useState(initial.splitWith);
@@ -102,12 +106,27 @@ export function usePaymentForm({
     setPeriodState(initial.period);
     setPeriodKnown(initial.periodKnown);
     setAmount(initial.amount);
-    setPaidAt(initial.paidAt);
+    setPaidAtState(initial.paidAt);
     setPaidBy(initial.paidBy);
     setNote(initial.note);
     setSplitWith(initial.splitWith);
+    splitTouched.current = false;
     setError('');
   }, [visible, initial]);
+
+  // A new payment dated before someone joined isn't theirs: changing the date
+  // pre-selects only the people who lived here then (unless edited by hand).
+  const setPaidAt = useCallback(
+    (value: string): void => {
+      setPaidAtState(value);
+      if (payment || splitTouched.current) return;
+      const then = membersOn(toMemberSpans(housemates), value).filter((id) =>
+        memberIds.includes(id)
+      );
+      setSplitWith(then.length > 0 ? then : memberIds);
+    },
+    [payment, housemates, memberIds]
+  );
 
   const setPeriod = useCallback((p: CoveragePeriod): void => {
     setPeriodState(p);
@@ -115,6 +134,7 @@ export function usePaymentForm({
   }, []);
 
   const toggleSplit = useCallback((id: string): void => {
+    splitTouched.current = true;
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
 
