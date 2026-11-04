@@ -11,11 +11,12 @@ import {
 } from '@utils/tour';
 
 jest.mock('@lib/supabase', () => ({
-  supabase: { auth: { updateUser: jest.fn() } },
+  supabase: { auth: { updateUser: jest.fn(), getUser: jest.fn() } },
 }));
 
 const TOUR_KEY = 'housemates_new_user_tour';
 const mockUpdateUser = supabase.auth.updateUser as jest.Mock;
+const mockGetUser = supabase.auth.getUser as jest.Mock;
 const OLD_ACCOUNT = { id: 'user-1', createdAt: '2025-03-01T10:00:00Z', metadata: {} };
 const NEW_ACCOUNT = { id: 'user-2', createdAt: '2026-11-01T10:00:00Z', metadata: {} };
 // Per-account device key for user-1
@@ -57,6 +58,7 @@ describe('"new look" note for the 3.0 redesign', () => {
     await AsyncStorage.clear();
     jest.clearAllMocks();
     mockUpdateUser.mockResolvedValue({ data: {}, error: null });
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
   });
 
   it('shows once to people who used the app before', async () => {

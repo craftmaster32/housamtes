@@ -10,6 +10,7 @@ import {
   markWhatsNewSeen,
   WHATS_NEW_META_KEY,
   WHATS_NEW_VERSION,
+  WHATS_NEW_RELEASED_AT,
   type WhatsNewAccount,
 } from '@utils/tour';
 
@@ -53,8 +54,15 @@ export function useWelcomeTour(): WelcomeTour {
           }
         : null;
       // If cached metadata does not already have the seen flag, fetch the live
-      // user record so a dismissal on another device is respected.
-      if (account && account.metadata?.[WHATS_NEW_META_KEY] !== WHATS_NEW_VERSION) {
+      // user record so a dismissal on another device is respected. Post-release
+      // accounts always return false from shouldShowWhatsNew, so skip the
+      // network call for them.
+      if (
+        account &&
+        account.metadata?.[WHATS_NEW_META_KEY] !== WHATS_NEW_VERSION &&
+        account.createdAt &&
+        account.createdAt < WHATS_NEW_RELEASED_AT
+      ) {
         const { data } = await supabase.auth.getUser();
         if (data.user) {
           if (data.user.id !== account.id) {
