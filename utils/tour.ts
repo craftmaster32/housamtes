@@ -56,7 +56,13 @@ export async function shouldShowWhatsNew(account: WhatsNewAccount | null): Promi
     // Use an account-scoped key when we have an id so a different account's
     // flag on the same device cannot suppress this account's note.
     const key = account.id ? deviceKey(account.id) : WHATS_NEW_KEY;
-    if ((await AsyncStorage.getItem(key)) === WHATS_NEW_VERSION) {
+    // Also honour the older shared key: people who dismissed the note before
+    // this update must not see it again. Phones here are personal devices.
+    const [scoped, legacy] = await Promise.all([
+      AsyncStorage.getItem(key),
+      AsyncStorage.getItem(WHATS_NEW_KEY),
+    ]);
+    if (scoped === WHATS_NEW_VERSION || legacy === WHATS_NEW_VERSION) {
       // Seen on this device before the account remembered it — copy it over.
       // Only migrate when we have an id; otherwise we can't bind the save to
       // this account and risk marking a different account as seen.

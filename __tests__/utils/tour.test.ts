@@ -104,4 +104,9 @@ describe('"new look" note for the 3.0 redesign', () => {
     const otherAccount = { id: 'user-2', createdAt: '2025-03-01T10:00:00Z', metadata: {} };
     expect(await shouldShowWhatsNew(otherAccount)).toBe(true);
   });
+
+  it('stays hidden for someone who dismissed it before this update', async () => {
+    await AsyncStorage.setItem('housemates_whats_new_seen', WHATS_NEW_VERSION);
+    expect(await shouldShowWhatsNew({ ...OLD_ACCOUNT, id: 'u1' })).toBe(false);
+  });
 });
