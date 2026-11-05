@@ -35,13 +35,15 @@ export function useSettleUpSheets(): SettleUpSheetsState {
 
   // Partial payments since the last "settle up to a date": shown as "₪50 paid".
   const paidSoFar = useMemo(() => {
+    // Payments recorded before the latest settle-up-to were already absorbed
+    // by it, whatever date the money moved — so go by when each was recorded.
     const since = payments.reduce<string>(
-      (max, p) => (p.coversUntil && p.coversUntil > max ? p.coversUntil : max),
+      (max, p) => (p.coversUntil && p.createdAt > max ? p.createdAt : max),
       ''
     );
     const sums = new Map<string, number>();
     for (const p of payments) {
-      if (p.coversUntil || p.paidOn <= since) continue;
+      if (p.coversUntil || p.createdAt <= since) continue;
       const key = `${p.from}|${p.to}`;
       sums.set(key, (sums.get(key) ?? 0) + p.amount);
     }

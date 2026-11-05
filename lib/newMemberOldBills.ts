@@ -2,7 +2,6 @@ import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { format } from 'date-fns';
-import { todayISO } from '@utils/recurringCoverage';
 
 /** A house this new counts as "just set up": people joining now are probably founders. */
 export const NEW_HOUSE_DAYS = 1;
@@ -32,20 +31,11 @@ export function isNewHouseJoin(houseCreatedAt: string, joinedDay: string): boole
 export async function checkOldBillsForNewMember(
   houseId: string,
   userId: string,
-  name: string,
-  today: string = todayISO()
+  name: string
 ): Promise<void> {
   try {
-    const { data: house, error: houseErr } = await supabase
-      .from('houses')
-      .select('created_at')
-      .eq('id', houseId)
-      .single();
-    if (houseErr || !house?.created_at) return;
-    if (!isNewHouseJoin(house.created_at as string, today)) return;
-
     // When they joined, as the database recorded it (not the phone's clock,
-    // which can be off) — anything added before this is "older".
+    // which can be off, or "now", which may already be past midnight).
     const { data: member, error: memberErr } = await supabase
       .from('house_members')
       .select('joined_at')
@@ -54,6 +44,15 @@ export async function checkOldBillsForNewMember(
       .single();
     if (memberErr || !member?.joined_at) return;
     const joinedAt = member.joined_at as string;
+
+    const { data: house, error: houseErr } = await supabase
+      .from('houses')
+      .select('created_at')
+      .eq('id', houseId)
+      .single();
+    if (houseErr || !house?.created_at) return;
+    // The day they joined (in local time) decides whether the house was new.
+    if (!isNewHouseJoin(house.created_at as string, dayOf(joinedAt))) return;
 
     const [billsRes, paymentsRes] = await Promise.all([
       supabase

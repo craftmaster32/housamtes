@@ -83,11 +83,13 @@ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NEW.house_id   IS DISTINCT FROM OLD.house_id   OR
-     NEW.from_user  IS DISTINCT FROM OLD.from_user  OR
-     NEW.to_user    IS DISTINCT FROM OLD.to_user    OR
-     NEW.created_by IS DISTINCT FROM OLD.created_by OR
-     NEW.created_at IS DISTINCT FROM OLD.created_at
+  IF NEW.id           IS DISTINCT FROM OLD.id           OR
+     NEW.house_id     IS DISTINCT FROM OLD.house_id     OR
+     NEW.from_user    IS DISTINCT FROM OLD.from_user    OR
+     NEW.to_user      IS DISTINCT FROM OLD.to_user      OR
+     NEW.covers_until IS DISTINCT FROM OLD.covers_until OR
+     NEW.created_by   IS DISTINCT FROM OLD.created_by   OR
+     NEW.created_at   IS DISTINCT FROM OLD.created_at
   THEN
     RAISE EXCEPTION 'Only the amount, date and note of a payment can be changed.';
   END IF;
