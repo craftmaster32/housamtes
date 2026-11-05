@@ -39,6 +39,8 @@ import { formatMoney } from './money';
 import { MonthTrack } from './MonthTrack';
 import { PaperTag } from './PaperTag';
 import { useBillStatusText } from './useBillStatusText';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { firstCoveredDay } from '@utils/settleUp';
 import { useRecurringPalette } from './palette';
 
 interface RecurringBillCardProps {
@@ -101,10 +103,17 @@ export function RecurringBillCard({
     memberName(bill.assignedTo),
   ].join(' · ');
 
+  const settledGuard = useSettledPeriodGuard();
+  // By the months each payment pays for, the same way settling up counts them.
+  const hasSettledPayments = billPayments.some((p) =>
+    settledGuard.isSettled(firstCoveredDay(p, bill))
+  );
+
   const handleDelete = useCallback(async (): Promise<void> => {
     try {
       setError('');
       await deleteBill(bill.id);
+      if (hasSettledPayments) settledGuard.notifyChange(bill.name);
     } catch (err) {
       setError(
         err instanceof DeleteNotAllowedError
@@ -112,7 +121,7 @@ export function RecurringBillCard({
           : t('bills.failed_delete')
       );
     }
-  }, [deleteBill, bill.id, t]);
+  }, [deleteBill, bill.id, bill.name, hasSettledPayments, settledGuard, t]);
 
   const handleMenu = useCallback(
     (action: BillMenuAction): void => {
@@ -123,7 +132,10 @@ export function RecurringBillCard({
         // Any housemate can delete, so ask first — it removes the whole history.
         Alert.alert(
           t('bills.household_delete_bill_title', { name: bill.name }),
-          t('bills.household_delete_bill_body'),
+          // Its payment history goes too — say so if some of it was already settled up.
+          hasSettledPayments
+            ? `${t('bills.household_delete_bill_body')}\n\n${settledGuard.warning()}`
+            : t('bills.household_delete_bill_body'),
           [
             { text: t('common.cancel'), style: 'cancel' },
             { text: t('common.delete'), style: 'destructive', onPress: handleDelete },
@@ -131,7 +143,7 @@ export function RecurringBillCard({
         );
       }
     },
-    [bill.name, handleDelete, t]
+    [bill.name, handleDelete, hasSettledPayments, settledGuard, t]
   );
 
   const openMenu = useCallback((): void => setMenuOpen(true), []);

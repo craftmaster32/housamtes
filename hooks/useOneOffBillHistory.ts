@@ -9,8 +9,23 @@ import {
 } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
+import { useMemberName } from '@hooks/useMemberName';
+import { fullySettledUntil, type SettlementPayment } from '@utils/settleUp';
+import { useHouseMoney } from '@hooks/useHouseMoney';
 import { toAppLocale } from '@utils/dates';
-import { formatPeriod, paymentPeriod } from '@utils/recurringCoverage';
+import {
+  FREQUENCY_MONTHS,
+  formatPeriod,
+  monthStart,
+  paymentPeriod,
+  periodEnd,
+  shiftMonth,
+} from '@utils/recurringCoverage';
+import { membersOn, toMemberSpans } from '@utils/membership';
+
+/** The history filter that shows only settle-up payments (not a bill category). */
+export const SETTLE_UPS_CATEGORY = '__settle-ups__';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -20,6 +35,19 @@ export interface RecurringPaymentRow {
   paidBy: string;
   splitBetween: string[];
   coverage: string; // localized covered month(s), e.g. "Sep 2026"
+  /** First day of the LAST month it pays for (YYYY-MM-01) — fully settled once this is. */
+  lastCoveredMonth: string;
+  /** Every month it pays for is inside a fully settled period. */
+  inSettledPeriod: boolean;
+}
+
+/** The last month a payment pays for — same months rule as settling up. */
+function lastCoveredMonth(payment: HouseholdPayment, frequency: BillFrequency): string {
+  const period = paymentPeriod(payment) ?? {
+    start: shiftMonth(monthStart(payment.paidAt), -(FREQUENCY_MONTHS[frequency] - 1)),
+    months: FREQUENCY_MONTHS[frequency],
+  };
+  return periodEnd(period);
 }
 
 /** "Jul–Aug 2026", or '' for legacy payments whose coverage wasn't recorded. */
@@ -29,8 +57,16 @@ function coverageLabel(payment: HouseholdPayment, language: string): string {
 }
 
 export type BillRow =
-  | { kind: 'bill'; key: string; date: string; bill: Bill }
-  | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow };
+  | {
+      kind: 'bill';
+      key: string;
+      date: string;
+      bill: Bill;
+      /** Inside a period that's fully settled up ("settle up to a date"). */
+      inSettledPeriod: boolean;
+    }
+  | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow }
+  | { kind: 'settlement'; key: string; date: string; settlement: SettlementPayment };
 
 export interface BillSection {
   // Stable unique key (the raw YYYY-MM-DD date, or 'Unknown'). `title` is a
@@ -82,10 +118,19 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
-  const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
+  const memberSpans = useMemo(
+    () => toMemberSpans(housemates, formerMembers),
+    [housemates, formerMembers]
+  );
   const expenseCategories = useExpenseCategoriesStore((s) => s.categories);
   const loadExpenseCategories = useExpenseCategoriesStore((s) => s.load);
   const houseId = useAuthStore((s) => s.houseId);
+  const settlements = useSettlementPaymentsStore((s) => s.payments);
+  // Only a period that's really fully paid is shown as settled.
+  const { money, net } = useHouseMoney();
+  const settledUntil = useMemo(() => fullySettledUntil(money, net), [money, net]);
+  const memberName = useMemberName();
 
   // Ensure managed categories are loaded so presentCategories uses the
   // configured order on first visit, even if the parent screen loads them too.
@@ -118,8 +163,9 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
         pushed.add(key);
       }
     }
-    return ordered;
-  }, [bills, expenseCategories]);
+    // Settle-ups get their own filter, first, whenever there are any.
+    return settlements.length > 0 ? [SETTLE_UPS_CATEGORY, ...ordered] : ordered;
+  }, [bills, expenseCategories, settlements.length]);
 
   // If the selected category disappears (last bill of that kind deleted/settled
   // away), fall back to "All" so the list can't get stuck showing nothing.
@@ -149,6 +195,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
           key: bill.id,
           date: bill.date,
           bill,
+          inSettledPeriod: settledUntil !== null && bill.date <= settledUntil,
         })
       ),
       ...payments.map((p): Extract<BillRow, { kind: 'payment' }> => {
@@ -163,23 +210,47 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
             icon: meta?.icon ?? 'receipt-outline',
             amount: p.amount,
             paidBy: p.paidBy ?? meta?.assignedTo ?? '',
-            splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
+            splitBetween:
+              p.splitBetween && p.splitBetween.length > 0
+                ? p.splitBetween
+                : membersOn(memberSpans, p.paidAt),
             coverage: coverageLabel(p, i18n.language),
+            lastCoveredMonth: lastCoveredMonth(p, meta?.frequency ?? 'monthly'),
+            inSettledPeriod:
+              settledUntil !== null &&
+              lastCoveredMonth(p, meta?.frequency ?? 'monthly') <= settledUntil,
           },
         };
       }),
+      // Money paid back between housemates — kept in the history so every
+      // settle-up stays on record next to the expenses it paid for.
+      ...settlements.map(
+        (st): Extract<BillRow, { kind: 'settlement' }> => ({
+          kind: 'settlement' as const,
+          key: `settlement:${st.id}`,
+          date: st.paidOn,
+          settlement: st,
+        })
+      ),
     ].sort((a, b): number => (b.date ?? '').localeCompare(a.date ?? ''));
 
     const q = search.trim().toLowerCase();
     const filtered = rows.filter((row): boolean => {
       // Category chips filter the categorised one-off bills; logged recurring
-      // payments have no category, so a specific chip hides them.
-      if (category !== 'all') {
+      // payments and settle-up payments have no category, so a chip hides them.
+      if (category === SETTLE_UPS_CATEGORY) {
+        if (row.kind !== 'settlement') return false;
+      } else if (category !== 'all') {
         if (row.kind !== 'bill') return false;
         if ((row.bill.category ?? '').toLowerCase() !== category) return false;
       }
       if (q) {
-        const title = row.kind === 'bill' ? row.bill.title : row.payment.title;
+        const title =
+          row.kind === 'bill'
+            ? row.bill.title
+            : row.kind === 'payment'
+              ? row.payment.title
+              : `${memberName(row.settlement.from)} ${memberName(row.settlement.to)} ${t('bills.settle_up')}`;
         if (!title.toLowerCase().includes(q)) return false;
       }
       return true;
@@ -198,7 +269,19 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
         data,
       })
     );
-  }, [bills, payments, householdBills, memberIds, i18n.language, t, search, category]);
+  }, [
+    bills,
+    payments,
+    settlements,
+    settledUntil,
+    householdBills,
+    memberSpans,
+    memberName,
+    i18n.language,
+    t,
+    search,
+    category,
+  ]);
 
   return { category, setCategory, presentCategories, billSections };
 }

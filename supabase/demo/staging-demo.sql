@@ -89,7 +89,8 @@ BEGIN
       i := i + 1;
       CONTINUE WHEN rb.frequency = 'bimonthly' AND ago % 2 = 1;
       CONTINUE WHEN rb.frequency = 'quarterly' AND ago % 3 <> 0;
-      INSERT INTO household_payments (house_id, bill_id, amount, paid_at, paid_by, note)
+      -- split_between names everyone: new payments must say who shares them.
+      INSERT INTO household_payments (house_id, bill_id, amount, paid_at, paid_by, note, split_between)
       VALUES (
         h,
         rb.id,
@@ -97,7 +98,8 @@ BEGIN
              ELSE round(rb.typical_amount * (0.85 + ((ago * 7 + i) % 5) * 0.07), 2) END,
         least(month_start + (2 + i * 3), current_date),
         m[1 + ((ago + i) % n)],
-        'demo-data'
+        'demo-data',
+        m
       );
     END LOOP;
   END LOOP;

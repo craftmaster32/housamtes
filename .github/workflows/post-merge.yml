@@ -108,6 +108,15 @@ jobs:
             changed=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
           else
             changed=$(git diff --name-only HEAD^ HEAD | grep '^supabase/functions/' | cut -d/ -f3 | sort -u)
+            # Shared code (_shared/…) is bundled INTO each function that imports
+            # it, so a change there must redeploy those functions too — otherwise
+            # they keep running the old copy (e.g. new notification wording would
+            # arrive blank).
+            if git diff --name-only HEAD^ HEAD | grep -q '^supabase/functions/_shared/'; then
+              users=$(grep -rl "_shared/" supabase/functions --include='*.ts' \
+                | grep -v '^supabase/functions/_shared/' | cut -d/ -f3 | sort -u)
+              changed=$(printf '%s\n%s\n' "$changed" "$users" | grep -v '^$' | sort -u)
+            fi
           fi
           for fn in $changed; do
             # Folders starting with "_" (e.g. _shared) hold code imported by the

@@ -284,6 +284,89 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       return { title: '🎉 Money drama resolved!', body: `${t} sorted. ${who} saves the day 🙌` };
     }
 
+    case 'settlement_payment': {
+      const from = str(p, 'fromName');
+      const to = str(p, 'toName');
+      const money = str(p, 'money');
+      if (es) return { title: '🤝 Pago registrado', body: `${from} le pagó ${money} a ${to}.` };
+      if (he) return { title: '🤝 נרשם תשלום', body: `${from} שילם/ה ${money} ל${to}.` };
+      return { title: '🤝 Payment recorded', body: `${from} paid ${to} ${money}.` };
+    }
+
+    case 'settlement_edited': {
+      const from = str(p, 'fromName');
+      const to = str(p, 'toName');
+      const money = str(p, 'money');
+      if (es) return { title: '✏️ Pago corregido', body: `${from} → ${to}: ahora ${money}.` };
+      if (he) return { title: '✏️ התשלום עודכן', body: `${from} ← ${to}: עכשיו ${money}.` };
+      return { title: '✏️ Payment updated', body: `${from} → ${to} is now ${money}.` };
+    }
+
+    case 'settlement_deleted': {
+      const from = str(p, 'fromName');
+      const to = str(p, 'toName');
+      const money = str(p, 'money');
+      if (es)
+        return {
+          title: '↩️ Pago eliminado',
+          body: `${from} → ${to} ${money} se eliminó. El saldo volvió atrás.`,
+        };
+      if (he)
+        return { title: '↩️ התשלום נמחק', body: `${from} ← ${to} ${money} נמחק. היתרה חזרה.` };
+      return {
+        title: '↩️ Payment removed',
+        body: `${from} → ${to} ${money} was removed. The balance is back.`,
+      };
+    }
+
+    case 'settled_up_to': {
+      const who = str(p, 'name');
+      const d = shortDate(lang, str(p, 'date'));
+      if (es)
+        return { title: '🤝 Cuentas saldadas', body: `${who} saldó las cuentas hasta el ${d}.` };
+      if (he) return { title: '🤝 החשבון נסגר', body: `${who} סגר/ה חשבון עד ${d}.` };
+      return { title: '🤝 Settled up', body: `${who} settled up everything until ${d}.` };
+    }
+
+    case 'new_member_old_bills': {
+      const who = str(p, 'name');
+      const n = str(p, 'count');
+      if (es)
+        return {
+          title: '👋 Nuevo compañero',
+          body: `${who} se unió. Hay ${n} gastos de antes: revisad si ${who} debería participar en alguno.`,
+        };
+      if (he)
+        return {
+          title: '👋 שותף/ה חדש/ה',
+          body: `${who} הצטרף/ה. יש ${n} הוצאות מלפני כן — בדקו אם ${who} צריך/ה להשתתף באחת מהן.`,
+        };
+      return {
+        title: '👋 New housemate',
+        body: `${who} just joined. There are ${n} expenses from before — check if ${who} should be part of any of them.`,
+      };
+    }
+
+    case 'settled_period_changed': {
+      const who = str(p, 'name');
+      const t = str(p, 'billTitle');
+      const d = shortDate(lang, str(p, 'date'));
+      if (es)
+        return {
+          title: '✏️ Cambio en un periodo ya saldado',
+          body: `${who} cambió "${t}" (antes del ${d}, ya saldado). Los saldos se actualizaron.`,
+        };
+      if (he)
+        return {
+          title: '✏️ שינוי בתקופה שכבר נסגרה',
+          body: `${who} שינה/תה את "${t}" (לפני ${d}, כבר נסגר). היתרות עודכנו.`,
+        };
+      return {
+        title: '✏️ Change in a settled period',
+        body: `${who} changed "${t}" (before ${d}, already settled). Balances were updated.`,
+      };
+    }
+
     case 'bill_deleted': {
       const t = str(p, 'billTitle');
       if (es)

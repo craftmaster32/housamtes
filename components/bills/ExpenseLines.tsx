@@ -1,11 +1,9 @@
 import { useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, Animated as RNAnimated } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { View, StyleSheet, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { Alert } from '@lib/alert';
 import { navigateToBase } from '@stores/navigationStore';
 import { useBillsStore } from '@stores/billsStore';
@@ -17,6 +15,7 @@ import { doodleKind, type DoodleKind } from '@components/bills/art/doodleKind';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors } from '@constants/colors';
@@ -24,12 +23,10 @@ import { formatFull } from '@constants/currencies';
 import { font } from '@constants/typography';
 import { DotLeader } from '@components/shared/DotLeader';
 import { Stamp } from '@components/shared/Stamp';
+import { SwipeToDelete } from '@components/bills/SwipeToDelete';
 import type { BillRow, RecurringPaymentRow } from '@hooks/useOneOffBillHistory';
 import { mf, ms } from '@utils/responsive';
 
-// Width of the swipe-to-delete panel, kept in sync between the reveal animation
-// and its style so the red panel slides in flush with the line's edge.
-const SWIPE_DELETE_WIDTH = ms(84);
 const DASHES = Array.from({ length: 30 });
 
 /** A day heading on the receipt: "– – – Today – – –". */
@@ -51,7 +48,7 @@ export function DayHeader({ title }: { title: string }): React.JSX.Element {
   );
 }
 
-interface LineProps {
+export interface LineProps {
   kind: DoodleKind;
   title: string;
   meta: string;
@@ -64,7 +61,7 @@ interface LineProps {
 
 // One printed line: a small drawing of the category in its colour, the name,
 // a dotted leader and the price.
-function ReceiptLine({
+export function ReceiptLine({
   kind,
   title,
   meta,
@@ -110,8 +107,11 @@ function ReceiptLine({
 /** A one-off expense line. Owners/admins can swipe an unsettled one to delete. */
 export function BillLine({
   bill,
+  inSettledPeriod = false,
 }: {
   bill: Extract<BillRow, { kind: 'bill' }>['bill'];
+  /** Covered by a fully settled period ("settle up to a date"). */
+  inSettledPeriod?: boolean;
 }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -120,10 +120,13 @@ export function BillLine({
   const role = useAuthStore((s) => s.role);
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const deleteBill = useBillsStore((s) => s.deleteBill);
+  const settledGuard = useSettledPeriodGuard();
   // Same rule as the detail screen's delete button: only owners/admins can
   // remove a bill, and settled bills stay locked as permanent history. A valid
   // house context is required too, so deletion never fires without one.
   const canDelete = (role === 'owner' || role === 'admin') && !bill.settled && !!houseId;
+  // Marked settled on its own, or covered by "settle up to a date".
+  const isSettled = bill.settled || inSettledPeriod;
   const payer = memberName(bill.paidBy).split(' ')[0];
   const catLabel = bill.category ? localizeCategoryName(bill.category, t) : '';
   const look = useCategoryLook()(bill.category);
@@ -134,27 +137,43 @@ export function BillLine({
   const handleDelete = useCallback((): void => {
     if (deletingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    // Deleting a bill can't be undone and shifts everyone's balances, so
-    // confirm before removing — unlike the throwaway grocery rows.
-    Alert.alert(t('bills.delete_bill_confirm_title'), t('bills.delete_bill_confirm_msg'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: (): void => {
-          if (deletingRef.current) return;
-          deletingRef.current = true;
-          deleteBill(bill.id, houseId)
-            .catch(() => {
-              Alert.alert(t('bills.failed_delete'));
-            })
-            .finally(() => {
-              deletingRef.current = false;
-            });
-        },
-      },
-    ]);
-  }, [bill.id, houseId, deleteBill, t]);
+    const remove = (inSettledPeriod: boolean): void => {
+      if (deletingRef.current) return;
+      deletingRef.current = true;
+      deleteBill(bill.id, houseId, { skipNotify: inSettledPeriod })
+        .then(() => {
+          if (inSettledPeriod) settledGuard.notifyChange(bill.title);
+        })
+        .catch(() => {
+          Alert.alert(t('bills.failed_delete'));
+        })
+        .finally(() => {
+          deletingRef.current = false;
+        });
+    };
+    // Make sure we know whether this bill is in a settled month (loading the
+    // settle-ups first if needed). If it is, that warning is the confirmation.
+    deletingRef.current = true;
+    settledGuard
+      .confirmChange(bill.date)
+      .then((check) => {
+        deletingRef.current = false;
+        if (!check.proceed) return;
+        if (check.settled) {
+          remove(true);
+          return;
+        }
+        // Deleting a bill can't be undone and shifts everyone's balances, so
+        // confirm before removing — unlike the throwaway grocery rows.
+        Alert.alert(t('bills.delete_bill_confirm_title'), t('bills.delete_bill_confirm_msg'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('common.delete'), style: 'destructive', onPress: (): void => remove(false) },
+        ]);
+      })
+      .catch(() => {
+        deletingRef.current = false;
+      });
+  }, [bill.id, bill.date, bill.title, houseId, deleteBill, settledGuard, t]);
 
   const line = (
     <Pressable
@@ -168,10 +187,8 @@ export function BillLine({
         title={bill.title}
         meta={catLabel ? `${catLabel} · ${payer}` : t('bills.paid_by_name', { name: payer })}
         amount={formatFull(bill.amount, currencyCode)}
-        struck={bill.settled}
-        stamp={
-          bill.settled ? <Stamp color={c.success}>{t('bills.settled_badge')}</Stamp> : undefined
-        }
+        struck={isSettled}
+        stamp={isSettled ? <Stamp color={c.success}>{t('bills.settled_badge')}</Stamp> : undefined}
       />
     </Pressable>
   );
@@ -180,37 +197,12 @@ export function BillLine({
   // non-owner/admins can't delete, so they just render the plain line.
   if (!canDelete) return line;
   return (
-    <Swipeable
-      renderRightActions={(_progress, dragX): React.JSX.Element => {
-        // Slide the panel in 1:1 with the drag so it stays glued to the line's
-        // edge instead of sitting revealed as a floating box underneath.
-        const translateX = dragX.interpolate({
-          inputRange: [-SWIPE_DELETE_WIDTH, 0],
-          outputRange: [0, SWIPE_DELETE_WIDTH],
-          extrapolate: 'clamp',
-        });
-        return (
-          <RNAnimated.View style={[styles.swipeLane, { transform: [{ translateX }] }]}>
-            <Pressable
-              style={[styles.swipeDelete, { backgroundColor: c.danger }]}
-              onPress={handleDelete}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('bills.delete_bill_name', { name: bill.title })}
-              accessibilityState={{ disabled: false }}
-            >
-              <Ionicons name="trash" size={20} color="#fff" />
-              <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
-            </Pressable>
-          </RNAnimated.View>
-        );
-      }}
-      overshootRight={false}
-      rightThreshold={40}
-      friction={2}
+    <SwipeToDelete
+      onDelete={handleDelete}
+      label={t('bills.delete_bill_name', { name: bill.title })}
     >
       {line}
-    </Swipeable>
+    </SwipeToDelete>
   );
 }
 
@@ -221,6 +213,8 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
   const paidBy = t('bills.paid_by_name', { name: memberName(row.paidBy).split(' ')[0] });
+  // Every month it pays for is inside a fully settled period.
+  const isSettled = row.inSettledPeriod;
   return (
     <Pressable
       style={({ pressed }) => [{ backgroundColor: c.receipt }, pressed && styles.pressed]}
@@ -238,7 +232,14 @@ export function RecurringPaymentLine({ row }: { row: RecurringPaymentRow }): Rea
             : paidBy
         }
         amount={formatFull(row.amount, currencyCode)}
-        stamp={<Stamp color={c.primary}>{t('bills.recurring_tag')}</Stamp>}
+        struck={isSettled}
+        stamp={
+          isSettled ? (
+            <Stamp color={c.success}>{t('bills.settled_badge')}</Stamp>
+          ) : (
+            <Stamp color={c.primary}>{t('bills.recurring_tag')}</Stamp>
+          )
+        }
       />
     </Pressable>
   );
@@ -265,7 +266,4 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), marginTop: ms(2) },
   meta: { flexShrink: 1, fontSize: mf(13.5), ...font.medium },
   pressed: { opacity: 0.75 },
-  swipeLane: { width: SWIPE_DELETE_WIDTH },
-  swipeDelete: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: ms(3) },
-  swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#fff' },
 });

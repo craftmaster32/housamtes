@@ -15,6 +15,7 @@ import { formatFull } from '@constants/currencies';
 import { font, heading } from '@constants/typography';
 import { Money } from '@components/shared/Money';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
+import { PaperTag } from '@components/bills/recurring/PaperTag';
 import { mf, ms } from '@utils/responsive';
 
 export interface Settlement {
@@ -33,6 +34,12 @@ interface BalancePaperProps {
   avatarById: Map<string, string | undefined>;
   showSettle: boolean;
   onToggleSettle: () => void;
+  /** Settle-up actions (e.g. "Settle up to a date") under the plan. */
+  footer?: React.ReactNode;
+  /** Tap "Settle" on a line you're part of (like Splitwise). */
+  onSettle?: (s: Settlement) => void;
+  /** Already paid between this pair in the open period ("₪50 paid"). */
+  paidSoFar?: (s: Settlement) => number;
 }
 
 function Avatar({
@@ -73,6 +80,9 @@ export function BalancePaper({
   avatarById,
   showSettle,
   onToggleSettle,
+  footer,
+  onSettle,
+  paidSoFar,
 }: BalancePaperProps): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -161,34 +171,63 @@ export function BalancePaper({
               const fromName = fromIsMe ? t('bills.you_label') : memberName(s.from).split(' ')[0];
               const toName = toIsMe ? t('bills.you_label') : memberName(s.to).split(' ')[0];
               const amtColor = toIsMe ? c.success : fromIsMe ? c.danger : c.paperInk;
+              const paid = paidSoFar?.(s) ?? 0;
+              const canSettle = !!onSettle && (fromIsMe || toIsMe);
               return (
-                <View key={idx} style={styles.xfer}>
-                  <Avatar name={fromName} uri={avatarById.get(s.from)} color={c.primary} />
-                  <Text
-                    style={[styles.xferName, handFont, { color: c.paperInk }]}
-                    numberOfLines={1}
-                  >
-                    {fromName}
-                  </Text>
-                  <Ionicons
-                    name={rtl ? 'arrow-back' : 'arrow-forward'}
-                    size={16}
-                    color={c.paperMuted}
-                  />
-                  <Text
-                    style={[styles.xferName, handFont, { color: c.paperInk }]}
-                    numberOfLines={1}
-                  >
-                    {toName}
-                  </Text>
-                  <Text style={[styles.xferAmt, headingFont, { color: amtColor }]}>
-                    {formatFull(s.amount, currencyCode)}
-                  </Text>
+                <View key={idx} style={styles.xferBlock}>
+                  {/* "You → Maya ........ ₪70.12" */}
+                  <View style={styles.xfer}>
+                    <Avatar name={fromName} uri={avatarById.get(s.from)} color={c.primary} />
+                    <Text
+                      style={[styles.xferName, handFont, { color: c.paperInk }]}
+                      numberOfLines={1}
+                    >
+                      {fromName}
+                    </Text>
+                    <Ionicons
+                      name={rtl ? 'arrow-back' : 'arrow-forward'}
+                      size={16}
+                      color={c.paperMuted}
+                    />
+                    <Text
+                      style={[styles.xferName, handFont, { color: c.paperInk }]}
+                      numberOfLines={1}
+                    >
+                      {toName}
+                    </Text>
+                    <Text style={[styles.xferAmt, headingFont, { color: amtColor }]}>
+                      {formatFull(s.amount, currencyCode)}
+                    </Text>
+                  </View>
+                  {/* Underneath, small: what's already paid, and a Settle button. */}
+                  {(paid >= 0.01 || canSettle) && (
+                    <View style={styles.xferSub}>
+                      <Text style={[styles.xferPaid, { color: c.paperMuted }]} numberOfLines={1}>
+                        {paid >= 0.01
+                          ? t('bills.settle_paid_so_far', { money: formatFull(paid, currencyCode) })
+                          : ''}
+                      </Text>
+                      {canSettle && (
+                        // The tile action as a paper tag (DESIGN.md) — pink
+                        // when you owe, cream when you're being paid back.
+                        <PaperTag
+                          label={t('bills.settle_btn')}
+                          urgent={fromIsMe}
+                          onPress={() => onSettle?.(s)}
+                          accessibilityLabel={t('bills.settle_with', {
+                            name: fromIsMe ? toName : fromName,
+                            money: formatFull(s.amount, currencyCode),
+                          })}
+                        />
+                      )}
+                    </View>
+                  )}
                 </View>
               );
             })}
         </View>
       )}
+      {footer}
     </NotebookPaper>
   );
 }
@@ -217,6 +256,16 @@ const styles = StyleSheet.create({
   xfer: { flexDirection: 'row', alignItems: 'center', gap: ms(8), minHeight: ms(36) },
   xferName: { fontSize: mf(23), maxWidth: ms(90) },
   xferAmt: { marginStart: 'auto', fontSize: mf(17), writingDirection: 'ltr' },
+  xferPaid: { fontSize: mf(12), ...font.semibold, writingDirection: 'ltr' },
+  xferBlock: { paddingVertical: ms(2) },
+  xferSub: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingStart: ms(30),
+    marginTop: -ms(2),
+    marginBottom: ms(4),
+  },
   av: {
     width: ms(22),
     height: ms(22),

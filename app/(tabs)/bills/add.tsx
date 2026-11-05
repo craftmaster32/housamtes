@@ -20,6 +20,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { defaultSplitOn, toMemberSpans } from '@utils/membership';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
@@ -31,6 +32,7 @@ import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
 import { defaultExpenseCategory, guessExpenseCategory } from '@utils/expenseCategory';
 import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
@@ -63,6 +65,7 @@ function AddBillScreen(): React.JSX.Element {
   const housemates = useHousematesStore((state) => state.housemates);
   const housematesLoading = useHousematesStore((state) => state.isLoading);
   const addBill = useBillsStore((state) => state.addBill);
+  const settledGuard = useSettledPeriodGuard();
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
@@ -101,6 +104,9 @@ function AddBillScreen(): React.JSX.Element {
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+  // Once someone picks who's in the split by hand, the date stops changing it.
+  const peopleTouched = useRef(false);
+  const confirmingRef = useRef(false);
 
   // If housemates finish loading after this screen is already focused,
   // useFocusEffect won't re-fire — so seed defaults here once they arrive.
@@ -129,6 +135,7 @@ function AddBillScreen(): React.JSX.Element {
     setAmount('');
     setPaidBy(userId || ids[0] || '');
     setSelectedPeople(ids.length > 0 ? ids : []);
+    peopleTouched.current = false;
     setCategory(defaultExpenseCategory(categoriesRef.current.map((c) => c.name)));
     categoryPicked.current = false;
     setDate(todayString());
@@ -196,9 +203,20 @@ function AddBillScreen(): React.JSX.Element {
     setError('');
   }, []);
   const handleSelectedPeopleChange = useCallback((ids: string[]): void => {
+    peopleTouched.current = true;
     setSelectedPeople(ids);
     setError('');
   }, []);
+  // An expense from before someone joined isn't theirs: picking an older date
+  // pre-selects only the people who lived here then (unless edited by hand).
+  const handleDateSelect = useCallback(
+    (value: string): void => {
+      setDate(value);
+      if (peopleTouched.current) return;
+      setSelectedPeople(defaultSplitOn(toMemberSpans(housemates), allIds, value));
+    },
+    [housemates, allIds]
+  );
   const handleSplitTypeChange = useCallback((type: SplitType): void => {
     setSplitType(type);
     setError('');
@@ -212,7 +230,9 @@ function AddBillScreen(): React.JSX.Element {
   const payerName = payer ? payer.name.split(' ')[0] : '';
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (isLoading) return; // guard against a fast double-tap creating a duplicate bill
+    // Guard against a fast double-tap creating a duplicate bill — including a
+    // second tap while the settled-period question is still open.
+    if (isLoading || confirmingRef.current) return;
     let payload: AddBillPayload;
     try {
       payload = parseAndValidateAddBill({
@@ -243,9 +263,21 @@ function AddBillScreen(): React.JSX.Element {
       setError(t('bills.failed_save'));
       return;
     }
+    // A new expense dated in a month that was already settled up reopens it:
+    // ask first, and send the house one "settled period changed" message.
+    confirmingRef.current = true;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(payload.date);
+    } finally {
+      confirmingRef.current = false;
+    }
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setIsLoading(true);
-      await addBill(payload, houseId);
+      await addBill(payload, houseId, { skipNotify: inSettledPeriod });
+      if (inSettledPeriod) settledGuard.notifyChange(payload.title);
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
@@ -266,6 +298,7 @@ function AddBillScreen(): React.JSX.Element {
     category,
     date,
     addBill,
+    settledGuard,
     houseId,
     markSeen,
     resetForm,
@@ -453,7 +486,7 @@ function AddBillScreen(): React.JSX.Element {
       <DatePickerModal
         visible={showDatePicker}
         value={date}
-        onSelect={setDate}
+        onSelect={handleDateSelect}
         onClose={closeDatePicker}
       />
 

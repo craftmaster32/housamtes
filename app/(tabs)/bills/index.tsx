@@ -17,13 +17,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  useBillsStore,
-  calculateAllNetBalances,
-  calculateSimplifiedBalancesForUser,
-  settleDebts,
-} from '@stores/billsStore';
-import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import { useBillsStore, calculateSimplifiedBalancesForUser, settleDebts } from '@stores/billsStore';
+import { useRecurringBillsStore } from '@stores/recurringBillsStore';
+import { useHouseMoney } from '@hooks/useHouseMoney';
+import { SettleActions } from '@components/bills/settle/SettleActions';
+import { SettlementLine } from '@components/bills/settle/SettlementLine';
+import { useSettleUpSheets } from '@hooks/useSettleUpSheets';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -40,7 +40,11 @@ import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useOneOffBillHistory, type BillRow } from '@hooks/useOneOffBillHistory';
+import {
+  useOneOffBillHistory,
+  SETTLE_UPS_CATEGORY,
+  type BillRow,
+} from '@hooks/useOneOffBillHistory';
 import { BillTabs } from '@components/bills/BillTabs';
 import { sentenceCase } from '@components/dashboard/cards/cardStyles';
 import { BalancePaper } from '@components/bills/BalancePaper';
@@ -99,7 +103,8 @@ function BillsScreen(): React.JSX.Element {
   useEffect((): void => {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
-  const [showSettle, setShowSettle] = useState(false);
+  // Open by default: each line has its own Settle button, the main action here.
+  const [showSettle, setShowSettle] = useState(true);
   // The balance card slides in once on first load. Toggling the one-off/recurring
   // filter swaps the whole list tree, which would otherwise remount the card and
   // replay that animation — read as a "jump". Gate it so it only plays once.
@@ -112,18 +117,15 @@ function BillsScreen(): React.JSX.Element {
   // An empty page already has its own Mate, so he only hides when there's a list.
   const mateSpot = useMateScene(MATE_SPOTS, billSections.length > 0);
 
-  const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const settlementCount = useSettlementPaymentsStore((s) => s.payments.length);
+  // Everything that shows in the history: bills, rent-type payments, settle-ups.
+  const historyCount = bills.length + payments.length + settlementCount;
   const housemates = useHousematesStore((s) => s.housemates);
-  const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
 
   const myId = profile?.id ?? '';
-  const activeBills = bills.filter((b) => !b.settled);
 
-  const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
-  for (const { person, balance } of calculateFairness(householdBills, payments, memberIds)) {
-    combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
-  }
+  const { net: combinedNet } = useHouseMoney();
   const sharedBalances = calculateSimplifiedBalancesForUser(combinedNet, myId);
 
   const totalOwed = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
@@ -139,6 +141,8 @@ function BillsScreen(): React.JSX.Element {
   // Fewest-transfer settlement plan for the whole house — powers the "Settle up"
   // strip merged into the balance card.
   const settlements = settleDebts(new Map(combinedNet));
+  // Settle a line, edit/delete a recorded settle-up, or settle up to a date.
+  const settleUp = useSettleUpSheets();
   const avatarById = useMemo(
     (): Map<string, string | undefined> => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
     [housemates]
@@ -169,14 +173,16 @@ function BillsScreen(): React.JSX.Element {
         <DayHeader title={item.title} />
         {item.data.map((row) =>
           row.kind === 'bill' ? (
-            <BillLine key={row.key} bill={row.bill} />
-          ) : (
+            <BillLine key={row.key} bill={row.bill} inSettledPeriod={row.inSettledPeriod} />
+          ) : row.kind === 'payment' ? (
             <RecurringPaymentLine key={row.key} row={row.payment} />
+          ) : (
+            <SettlementLine key={row.key} settlement={row.settlement} onPress={settleUp.openEdit} />
           )
         )}
       </ReceiptRoll>
     ),
-    [sectionCount]
+    [sectionCount, settleUp.openEdit]
   );
 
   if (isLoading) {
@@ -253,6 +259,9 @@ function BillsScreen(): React.JSX.Element {
         avatarById={avatarById}
         showSettle={showSettle}
         onToggleSettle={handleToggleSettle}
+        footer={<SettleActions plan={settlements} onUpTo={settleUp.openUpTo} />}
+        onSettle={settleUp.openSettle}
+        paidSoFar={settleUp.paidSoFar}
       />
       {/* After the paper: hanging on to its torn bottom edge. */}
       {mateSpot === 'cling' && (
@@ -269,7 +278,7 @@ function BillsScreen(): React.JSX.Element {
       )}
 
       {/* One-off: search + category words + list heading */}
-      {filter === 'one-off' && bills.length + payments.length > 0 && (
+      {filter === 'one-off' && historyCount > 0 && (
         <View style={styles.oneOffControls}>
           <View style={[styles.searchBar, { borderColor: c.border }]}>
             <Ionicons name="search" size={18} color={c.textTertiary} />
@@ -308,7 +317,12 @@ function BillsScreen(): React.JSX.Element {
               <CategoryWords
                 items={['all', ...presentCategories].map((key) => ({
                   key,
-                  label: key === 'all' ? t('bills.filter_all') : localizeCategoryName(key, t),
+                  label:
+                    key === 'all'
+                      ? t('bills.filter_all')
+                      : key === SETTLE_UPS_CATEGORY
+                        ? t('bills.settle_ups_filter')
+                        : localizeCategoryName(key, t),
                 }))}
                 selected={category}
                 onSelect={setCategory}
@@ -340,6 +354,7 @@ function BillsScreen(): React.JSX.Element {
         >
           {ListHeader}
         </ScrollView>
+        {settleUp.sheets}
       </SafeAreaView>
     );
   }
@@ -358,7 +373,7 @@ function BillsScreen(): React.JSX.Element {
         ListHeaderComponent={ListHeader}
         ListFooterComponent={mateSpot === 'footer' ? <MateCameo page="bills" always /> : null}
         ListEmptyComponent={
-          bills.length + payments.length > 0 ? (
+          historyCount > 0 ? (
             <EmptyState
               icon="search-outline"
               title={t('bills.no_results')}
@@ -378,6 +393,7 @@ function BillsScreen(): React.JSX.Element {
           )
         }
       />
+      {settleUp.sheets}
     </SafeAreaView>
   );
 }
