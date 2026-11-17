@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,9 +8,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
+  Dimensions,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
@@ -22,6 +25,13 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
 import { SheetHeader } from '@components/bills/recurring/SheetHeader';
 import { type GroceryItem } from '@stores/groceryStore';
+import {
+  CATEGORY_KEYS,
+  categoryForKey,
+  detectCategoryKey,
+  toneColors,
+  type CategoryKey,
+} from '@utils/groceryCategory';
 import { UserAvatar } from '@components/shared/UserAvatar';
 
 import { mf, ms } from '@utils/responsive';
@@ -32,6 +42,8 @@ export interface GroceryItemDetailModalProps {
   myId: string;
   onClose: () => void;
   onSaveComment: (id: string, comment: string) => Promise<void>;
+  /** Moves the item to another aisle — anyone in the house can do this. */
+  onSetCategory: (id: string, category: CategoryKey) => Promise<void>;
   /** Saves a new name / quantity — only offered on items you added. */
   onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
   /** Removes the item; the caller confirms first when it's a housemate's item. */
@@ -44,6 +56,7 @@ export function GroceryItemDetailModal({
   myId,
   onClose,
   onSaveComment,
+  onSetCategory,
   onUpdate,
   onDelete,
 }: GroceryItemDetailModalProps): React.JSX.Element {
@@ -60,13 +73,43 @@ export function GroceryItemDetailModal({
   const [quantity, setQuantity] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [category, setCategory] = useState<CategoryKey>('other');
+  const [showAisles, setShowAisles] = useState(false);
+  // The aisle the item sits in right now (picked by hand, or guessed from its name).
+  const currentCategory: CategoryKey = item
+    ? (item.category ?? detectCategoryKey(item.name))
+    : 'other';
 
   useEffect(() => {
     setComment(item?.comment ?? '');
     setName(item?.name ?? '');
     setQuantity(item?.quantity ?? '');
+    setCategory(item ? (item.category ?? detectCategoryKey(item.name)) : 'other');
+    setShowAisles(false);
     setSaveError(null);
   }, [item]);
+
+  // The dim backdrop fades in place; only the sheet slides up from the bottom.
+  const slide = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  useEffect(() => {
+    if (!visible) return;
+    slide.setValue(Dimensions.get('window').height);
+    Animated.spring(slide, {
+      toValue: 0,
+      useNativeDriver: Platform.OS !== 'web',
+      damping: 22,
+      stiffness: 220,
+      mass: 0.9,
+    }).start();
+  }, [visible, slide]);
+
+  const toggleAisles = useCallback((): void => setShowAisles((v) => !v), []);
+  const pickCategory = useCallback((key: CategoryKey): void => {
+    Haptics.selectionAsync().catch(() => {});
+    setCategory(key);
+    setShowAisles(false);
+    setSaveError(null);
+  }, []);
 
   const handleCommentChange = useCallback((v: string): void => {
     setComment(v);
@@ -74,6 +117,7 @@ export function GroceryItemDetailModal({
   }, []);
 
   const canEdit = !!item && item.addedBy === myId;
+  const categoryChanged = category !== currentCategory;
 
   const handleSave = useCallback(async (): Promise<void> => {
     if (!item || isSaving) return;
@@ -91,14 +135,33 @@ export function GroceryItemDetailModal({
       if (comment.trim() !== (item.comment ?? '')) {
         await onSaveComment(item.id, comment.trim());
       }
+      if (categoryChanged) {
+        await onSetCategory(item.id, category);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onClose();
     } catch {
-      setSaveError(canEdit ? t('grocery.could_not_save') : t('grocery.could_not_save_note'));
+      setSaveError(
+        canEdit || categoryChanged ? t('grocery.could_not_save') : t('grocery.could_not_save_note')
+      );
     } finally {
       setIsSaving(false);
     }
-  }, [item, comment, name, quantity, canEdit, onSaveComment, onUpdate, onClose, isSaving, t]);
+  }, [
+    item,
+    comment,
+    name,
+    quantity,
+    canEdit,
+    category,
+    categoryChanged,
+    onSaveComment,
+    onSetCategory,
+    onUpdate,
+    onClose,
+    isSaving,
+    t,
+  ]);
 
   const handleDelete = useCallback((): void => {
     if (!item) return;
@@ -106,7 +169,12 @@ export function GroceryItemDetailModal({
     onDelete(item.id);
   }, [item, onDelete]);
 
-  const saveLabel = canEdit ? t('grocery.save_changes') : t('grocery.save_note');
+  const saveLabel = canEdit || categoryChanged ? t('grocery.save_changes') : t('grocery.save_note');
+  const isDark = C === darkColors;
+  const picked = categoryForKey(category);
+  const pickedTone = toneColors(picked.tone, isDark);
+  // Private items live in "My list", not in an aisle, so there's nothing to move.
+  const showCategory = !!item && !item.isPersonal;
 
   const addedByName = item
     ? item.addedBy === myId
@@ -126,7 +194,7 @@ export function GroceryItemDetailModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent
     >
@@ -140,7 +208,10 @@ export function GroceryItemDetailModal({
           accessibilityRole="button"
           accessibilityLabel={t('grocery.close_details')}
         />
-        <View style={[s.sheet, { backgroundColor: C.background }]} accessibilityViewIsModal>
+        <Animated.View
+          style={[s.sheet, { backgroundColor: C.background, transform: [{ translateY: slide }] }]}
+          accessibilityViewIsModal
+        >
           {item && (
             <>
               <SheetHeader
@@ -200,6 +271,71 @@ export function GroceryItemDetailModal({
                   </View>
                 </View>
 
+                {showCategory && (
+                  <View style={s.aisleBlock}>
+                    <View style={s.aisleRow}>
+                      <Text style={[s.aisleLabel, { color: C.textSecondary }]}>
+                        {t('grocery.category_label')}
+                      </Text>
+                      <View style={[s.chip, { backgroundColor: pickedTone.bg }]}>
+                        <Ionicons name={picked.icon} size={16} color={pickedTone.fg} />
+                        <Text style={[s.chipText, { color: pickedTone.fg }]}>
+                          {t(picked.labelKey)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={toggleAisles}
+                        style={({ pressed }) => [s.changeBtn, pressed && s.dim]}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: showAisles }}
+                        accessibilityLabel={t('grocery.change_category')}
+                        accessibilityHint={t('grocery.change_category_hint')}
+                      >
+                        <Text style={[s.changeText, { color: C.primary }]}>
+                          {t('grocery.change_category')}
+                        </Text>
+                        <Ionicons
+                          name={showAisles ? 'chevron-up' : 'chevron-down'}
+                          size={16}
+                          color={C.primary}
+                        />
+                      </Pressable>
+                    </View>
+                    {showAisles && (
+                      <View style={s.chipGrid}>
+                        {CATEGORY_KEYS.map((key) => {
+                          const cat = categoryForKey(key);
+                          const tone = toneColors(cat.tone, isDark);
+                          const selected = key === category;
+                          const label = t(cat.labelKey);
+                          return (
+                            <Pressable
+                              key={key}
+                              onPress={() => pickCategory(key)}
+                              style={({ pressed }) => [
+                                s.chip,
+                                s.chipOption,
+                                { backgroundColor: tone.bg },
+                                selected && { borderColor: tone.fg },
+                                pressed && s.dim,
+                              ]}
+                              accessible
+                              accessibilityRole="radio"
+                              accessibilityState={{ selected }}
+                              accessibilityLabel={t('grocery.pick_category', { name: label })}
+                            >
+                              <Ionicons name={cat.icon} size={16} color={tone.fg} />
+                              <Text style={[s.chipText, { color: tone.fg }]}>{label}</Text>
+                              {selected && <Ionicons name="checkmark" size={16} color={tone.fg} />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 {/* The note, on a yellow sticky note. */}
                 <View style={s.note}>
                   <TextInput
@@ -250,7 +386,7 @@ export function GroceryItemDetailModal({
               </ScrollView>
             </>
           )}
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -323,6 +459,32 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
       color: '#3A3221',
       padding: 0,
     },
+    aisleBlock: { gap: ms(10) },
+    aisleRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
+    aisleLabel: { fontSize: mf(14), ...font.medium },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(6),
+      paddingHorizontal: ms(12),
+      borderRadius: 999,
+      minHeight: 36,
+      flexShrink: 1,
+    },
+    chipOption: { minHeight: 44, borderWidth: 2, borderColor: 'transparent' },
+    chipText: { fontSize: mf(14), ...font.semibold, flexShrink: 1 },
+    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8) },
+    changeBtn: {
+      marginStart: 'auto',
+      minHeight: 44,
+      minWidth: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(4),
+      paddingHorizontal: ms(4),
+    },
+    changeText: { fontSize: mf(15), ...font.semibold },
     saveError: { fontSize: mf(13) },
     primary: {
       minHeight: 52,

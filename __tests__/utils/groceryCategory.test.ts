@@ -1,4 +1,12 @@
-import { detectCategory, detectItemIcon, OTHER_CATEGORY, toneColors } from '@utils/groceryCategory';
+import {
+  CATEGORY_KEYS,
+  detectCategory,
+  detectCategoryKey,
+  detectItemIcon,
+  itemCategory,
+  OTHER_CATEGORY,
+  toneColors,
+} from '@utils/groceryCategory';
 import { localizeQuantityForDisplay, unitLabel } from '@utils/groceryUnits';
 
 describe('detectCategory', () => {
@@ -577,5 +585,32 @@ describe('grocery units', () => {
 
   it('leaves non-numeric quantities alone', () => {
     expect(localizeQuantityForDisplay('a few', true)).toBe('a few');
+  });
+});
+
+describe('itemCategory', () => {
+  it('guesses from the name when nobody picked an aisle', () => {
+    expect(itemCategory({ name: 'Oat milk' }).labelKey).toBe('grocery.cat_dairy_fridge');
+  });
+
+  it('uses the aisle picked by hand over the guess', () => {
+    expect(itemCategory({ name: 'Oat milk', category: 'pantry' }).labelKey).toBe(
+      'grocery.cat_pantry'
+    );
+    expect(itemCategory({ name: 'Avocados', category: 'other' })).toBe(OTHER_CATEGORY);
+  });
+
+  it('ignores an unknown stored value', () => {
+    expect(itemCategory({ name: 'Avocados', category: 'nope' }).labelKey).toBe(
+      'grocery.cat_produce'
+    );
+  });
+
+  it('offers every aisle plus Other, and knows the key of a guess', () => {
+    expect(CATEGORY_KEYS).toHaveLength(14);
+    expect(CATEGORY_KEYS[0]).toBe('produce');
+    expect(CATEGORY_KEYS.at(-1)).toBe('other');
+    expect(detectCategoryKey('Avocados')).toBe('produce');
+    expect(detectCategoryKey('zzz')).toBe('other');
   });
 });

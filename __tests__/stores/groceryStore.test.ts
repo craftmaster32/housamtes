@@ -384,6 +384,27 @@ describe('deleteItem', () => {
 
 // ── incrementBought ───────────────────────────────────────────────────────────
 
+describe('setCategory', () => {
+  it('pins the item to the picked aisle', async () => {
+    seedItems({});
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().setCategory('item-1', 'frozen');
+
+    expect(useGroceryStore.getState().items[0].category).toBe('frozen');
+  });
+
+  it('keeps the old aisle and explains when the save fails', async () => {
+    seedItems({});
+    mockFrom.mockReturnValue(fail('permission denied'));
+
+    await expect(useGroceryStore.getState().setCategory('item-1', 'frozen')).rejects.toThrow(
+      'Could not change the category'
+    );
+    expect(useGroceryStore.getState().items[0].category).toBeUndefined();
+  });
+});
+
 describe('incrementBought', () => {
   it('increments counter immediately', async () => {
     seedItems({ quantity: '3', boughtCount: 0 });

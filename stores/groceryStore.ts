@@ -7,6 +7,7 @@ import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
 import { celebrate } from '@lib/celebrate';
+import { isCategoryKey, type CategoryKey } from '@utils/groceryCategory';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -26,6 +27,8 @@ export interface GroceryItem {
   isDraft: boolean;
   comment?: string;
   draftExpiresAt?: string;
+  /** Category picked by hand; when empty the app guesses it from the name. */
+  category?: CategoryKey;
 }
 
 export interface SavedListItem {
@@ -103,6 +106,8 @@ interface GroceryStore {
   ) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
   addComment: (id: string, comment: string) => Promise<void>;
+  /** Pins an item to a category; null goes back to guessing from the name. */
+  setCategory: (id: string, category: CategoryKey | null) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
@@ -265,6 +270,7 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
     isDraft: (r.is_draft as boolean) ?? false,
     comment: (r.comment as string) ?? undefined,
     draftExpiresAt: (r.draft_expires_at as string) ?? undefined,
+    category: isCategoryKey(r.category) ? r.category : undefined,
   };
 }
 
@@ -287,7 +293,8 @@ function groceryItemsEqual(a: GroceryItem, b: GroceryItem): boolean {
     a.isPersonal === b.isPersonal &&
     a.isDraft === b.isDraft &&
     a.comment === b.comment &&
-    a.draftExpiresAt === b.draftExpiresAt
+    a.draftExpiresAt === b.draftExpiresAt &&
+    a.category === b.category
   );
 }
 
@@ -596,6 +603,21 @@ export const useGroceryStore = create<GroceryStore>()(
         } catch (err) {
           captureError(err, { context: 'grocery-comment' });
           throw new Error('Could not save note. Please try again.');
+        }
+      },
+
+      setCategory: async (id, category): Promise<void> => {
+        try {
+          const { error } = await supabase.from('grocery_items').update({ category }).eq('id', id);
+          if (error) throw error;
+          set({
+            items: get().items.map((i) =>
+              i.id === id ? { ...i, category: category ?? undefined } : i
+            ),
+          });
+        } catch (err) {
+          captureError(err, { context: 'grocery-category' });
+          throw new Error('Could not change the category. Please try again.');
         }
       },
 

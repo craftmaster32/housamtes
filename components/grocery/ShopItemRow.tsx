@@ -9,7 +9,7 @@ import { font } from '@constants/typography';
 import { useHandFont } from '@hooks/useHandFont';
 import { PenTick } from '@components/shared/PenTick';
 import { RollingCount } from '@components/shared/RollingCount';
-import { detectCategory } from '@utils/groceryCategory';
+import { itemCategory } from '@utils/groceryCategory';
 import { localizeQuantityForDisplay } from '@utils/groceryUnits';
 import { mf, ms } from '@utils/responsive';
 
@@ -48,7 +48,7 @@ export const ShopItemRow = memo(function ShopItemRow({
   const done = hasCount ? bought >= qtyNum : item.isChecked;
   // "Dairy · the barista one" — aisle first so you can shop in order.
   const subLine = [
-    item.isPersonal ? t('grocery.my_items') : t(detectCategory(item.name).labelKey),
+    item.isPersonal ? t('grocery.my_items') : t(itemCategory(item).labelKey),
     item.comment ? `“${item.comment}”` : null,
   ]
     .filter(Boolean)

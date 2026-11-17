@@ -68,7 +68,7 @@ import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
-import { detectCategory, type CategoryTone } from '@utils/groceryCategory';
+import { itemCategory, type CategoryKey, type CategoryTone } from '@utils/groceryCategory';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { IoniconName } from '@/types/icons';
 
@@ -120,6 +120,7 @@ function GroceryScreen(): React.JSX.Element {
   const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
   const keepDraftPrivate = useGroceryStore((s) => s.keepDraftPrivate);
   const addComment = useGroceryStore((s) => s.addComment);
+  const setCategory = useGroceryStore((s) => s.setCategory);
   const activeRun = useGroceryStore((s) => s.activeRun);
   const endRun = useGroceryStore((s) => s.endRun);
   const savedLists = useGroceryStore((s) => s.savedLists);
@@ -303,7 +304,7 @@ function GroceryScreen(): React.JSX.Element {
     const keyOrder: string[] = [];
     for (let i = 0; i < sharedItems.length; i++) {
       const item = sharedItems[i];
-      const cat = detectCategory(item.name);
+      const cat = itemCategory(item);
       const stableKey = cat.labelKey;
       if (!map.has(stableKey)) {
         map.set(stableKey, {
@@ -736,6 +737,10 @@ function GroceryScreen(): React.JSX.Element {
     (id: string, comment: string): Promise<void> => addComment(id, comment),
     [addComment]
   );
+  const onSetCategory = useCallback(
+    (id: string, category: CategoryKey | null): Promise<void> => setCategory(id, category),
+    [setCategory]
+  );
 
   // ── Mode controls ─────────────────────────────────────────────────────────
   const handleSetShared = useCallback((): void => {
@@ -1135,6 +1140,7 @@ function GroceryScreen(): React.JSX.Element {
         myId={myId}
         onClose={handleCloseModal}
         onSaveComment={onSaveComment}
+        onSetCategory={onSetCategory}
         onUpdate={onUpdate}
         onDelete={onDelete}
       />
