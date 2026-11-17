@@ -34,6 +34,17 @@ interface GroceryPhotoStore {
     userId: string;
   }) => Promise<void>;
   removePhoto: (houseId: string, name: string) => Promise<void>;
+  /**
+   * Keeps the photo with an item that was renamed: the new name gets the same
+   * picture (unless it already has its own). Never throws — a rename must not
+   * fail because of its photo.
+   */
+  carryPhoto: (params: {
+    houseId: string;
+    fromName: string;
+    toName: string;
+    userId: string;
+  }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -45,6 +56,11 @@ function removeObject(path: string): void {
       if (error) captureError(error, { context: 'grocery-photo-cleanup' });
     })
     .catch((err: unknown) => captureError(err, { context: 'grocery-photo-cleanup' }));
+}
+
+/** True when another name still points at this file, so it must not be deleted. */
+function isShared(photos: Record<string, ProductPhoto>, key: string, path: string): boolean {
+  return Object.entries(photos).some(([k, p]) => k !== key && p.path === path);
 }
 
 export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
@@ -119,7 +135,9 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           if (signError || !signed?.signedUrl) throw signError ?? new Error('No signed URL');
 
           const old = get().photos[key];
-          if (old && old.path !== path) removeObject(old.path);
+          if (old && old.path !== path && !isShared(get().photos, key, old.path)) {
+            removeObject(old.path);
+          }
           set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
         } catch (err) {
           captureError(err, { context: 'grocery-photo-upload', houseId });
@@ -138,13 +156,32 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             .eq('house_id', houseId)
             .eq('name_key', key);
           if (error) throw error;
-          removeObject(old.path);
+          if (!isShared(get().photos, key, old.path)) removeObject(old.path);
           const rest = { ...get().photos };
           delete rest[key];
           set({ photos: rest });
         } catch (err) {
           captureError(err, { context: 'grocery-photo-remove', houseId });
           throw new Error('Could not remove the photo. Please try again.');
+        }
+      },
+
+      carryPhoto: async ({ houseId, fromName, toName, userId }): Promise<void> => {
+        const from = productPhotoKey(fromName);
+        const to = productPhotoKey(toName);
+        const photo = get().photos[from];
+        if (!photo || !to || from === to || get().photos[to]) return;
+        try {
+          const { error } = await supabase.from('grocery_product_photos').insert({
+            house_id: houseId,
+            name_key: to,
+            storage_path: photo.path,
+            added_by: userId,
+          });
+          if (error) throw error;
+          set({ photos: { ...get().photos, [to]: photo } });
+        } catch (err) {
+          captureError(err, { context: 'grocery-photo-carry', houseId });
         }
       },
 

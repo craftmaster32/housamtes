@@ -129,3 +129,53 @@ describe('removePhoto', () => {
     expect(useGroceryPhotoStore.getState().photos.milk).toBeDefined();
   });
 });
+
+describe('carryPhoto', () => {
+  it('gives a renamed item the same photo', async () => {
+    useGroceryPhotoStore.setState({ photos: { milk: { path: 'p', url: 'u' } } });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryPhotoStore
+      .getState()
+      .carryPhoto({ houseId: HOUSE, fromName: 'Milk', toName: 'Oat milk', userId: 'u1' });
+
+    expect(useGroceryPhotoStore.getState().photos['oat milk']).toEqual({ path: 'p', url: 'u' });
+    expect(useGroceryPhotoStore.getState().photos.milk).toBeDefined();
+  });
+
+  it('leaves a photo the new name already has', async () => {
+    useGroceryPhotoStore.setState({
+      photos: { milk: { path: 'p', url: 'u' }, 'oat milk': { path: 'q', url: 'v' } },
+    });
+
+    await useGroceryPhotoStore
+      .getState()
+      .carryPhoto({ houseId: HOUSE, fromName: 'milk', toName: 'oat milk', userId: 'u1' });
+
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(useGroceryPhotoStore.getState().photos['oat milk'].path).toBe('q');
+  });
+
+  it('does not throw when saving fails', async () => {
+    useGroceryPhotoStore.setState({ photos: { milk: { path: 'p', url: 'u' } } });
+    mockFrom.mockReturnValue(fail('denied'));
+
+    await expect(
+      useGroceryPhotoStore
+        .getState()
+        .carryPhoto({ houseId: HOUSE, fromName: 'milk', toName: 'oat milk', userId: 'u1' })
+    ).resolves.toBeUndefined();
+  });
+
+  it('keeps the shared file when one of two names removes its photo', async () => {
+    useGroceryPhotoStore.setState({
+      photos: { milk: { path: 'p', url: 'u' }, 'oat milk': { path: 'p', url: 'u' } },
+    });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryPhotoStore.getState().removePhoto(HOUSE, 'milk');
+
+    expect(mockRemove).not.toHaveBeenCalled();
+    expect(useGroceryPhotoStore.getState().photos['oat milk']).toBeDefined();
+  });
+});

@@ -718,9 +718,17 @@ function GroceryScreen(): React.JSX.Element {
     },
     [decBought]
   );
+  const carryProductPhoto = useGroceryPhotoStore((s) => s.carryPhoto);
   const onUpdate = useCallback(
-    (id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity),
-    [updateItem]
+    async (id: string, name: string, quantity: string): Promise<void> => {
+      const oldName = items.find((i) => i.id === id)?.name;
+      await updateItem(id, name, quantity);
+      // A renamed item keeps its photo.
+      if (houseId && oldName) {
+        await carryProductPhoto({ houseId, fromName: oldName, toName: name, userId: myId });
+      }
+    },
+    [updateItem, items, houseId, myId, carryProductPhoto]
   );
   const handleClear = useCallback((): void => {
     if (!houseId) {
