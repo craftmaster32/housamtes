@@ -72,6 +72,10 @@ async function isPathReferencedInDb(path: string): Promise<boolean> {
 }
 
 let loadGeneration = 0;
+// Mutations applied while a load is in-flight (key → photo, or null = removed).
+// Applied on top of the loaded snapshot so a completed load cannot discard
+// photos added or removed after the DB query was sent.
+const mutationOverlay: Record<string, ProductPhoto | null> = {};
 
 export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
   devtools(
@@ -83,6 +87,9 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
       load: async (houseId): Promise<void> => {
         if (!houseId) return;
         const generation = ++loadGeneration;
+        // Clear the overlay so stale mutations from a prior household cannot
+        // bleed into this load. Any mutations that follow will be tracked fresh.
+        for (const k of Object.keys(mutationOverlay)) delete mutationOverlay[k];
         set({ isLoading: true, error: null });
         try {
           const { data, error } = await supabase
@@ -106,6 +113,12 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             });
           }
           if (generation !== loadGeneration) return;
+          // Reconcile mutations that completed after the DB query was dispatched.
+          for (const [k, v] of Object.entries(mutationOverlay)) {
+            if (v === null) delete photos[k];
+            else photos[k] = v;
+          }
+          for (const k of Object.keys(mutationOverlay)) delete mutationOverlay[k];
           set({ photos, isLoading: false });
         } catch (err) {
           captureError(err, { context: 'grocery-photo-load', houseId });
@@ -153,11 +166,14 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           }
 
           const old = get().photos[key];
+          // Update cache and overlay immediately so a concurrent removePhoto cannot
+          // see a stale photo entry and so an in-flight load cannot discard this save.
+          set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
+          mutationOverlay[key] = { path, url: signed.signedUrl };
           if (old && old.path !== path) {
             const stillReferenced = await isPathReferencedInDb(old.path);
             if (!stillReferenced) removeObject(old.path);
           }
-          set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
         } catch (err) {
           captureError(err, { context: 'grocery-photo-upload', houseId });
           throw new Error('Could not save the photo. Please try again.');
@@ -175,11 +191,14 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             .eq('house_id', houseId)
             .eq('name_key', key);
           if (error) throw error;
-          const stillReferenced = await isPathReferencedInDb(old.path);
-          if (!stillReferenced) removeObject(old.path);
+          // Update cache and overlay immediately before the async cleanup check
+          // so a concurrent setPhoto cannot restore a photo after this removal.
           const rest = { ...get().photos };
           delete rest[key];
           set({ photos: rest });
+          mutationOverlay[key] = null;
+          const stillReferenced = await isPathReferencedInDb(old.path);
+          if (!stillReferenced) removeObject(old.path);
         } catch (err) {
           captureError(err, { context: 'grocery-photo-remove', houseId });
           throw new Error('Could not remove the photo. Please try again.');
@@ -200,6 +219,7 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           });
           if (error) throw error;
           set({ photos: { ...get().photos, [to]: photo } });
+          mutationOverlay[to] = photo;
         } catch (err) {
           captureError(err, { context: 'grocery-photo-carry', houseId });
         }
