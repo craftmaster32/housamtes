@@ -58,9 +58,17 @@ function removeObject(path: string): void {
     .catch((err: unknown) => captureError(err, { context: 'grocery-photo-cleanup' }));
 }
 
-/** True when another name still points at this file, so it must not be deleted. */
-function isShared(photos: Record<string, ProductPhoto>, key: string, path: string): boolean {
-  return Object.entries(photos).some(([k, p]) => k !== key && p.path === path);
+/**
+ * Query the DB to check whether any row still references this storage path.
+ * Fail-safe: returns true (do not delete) when the query itself fails.
+ */
+async function isPathReferencedInDb(path: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('grocery_product_photos')
+    .select('*', { count: 'exact', head: true })
+    .eq('storage_path', path);
+  if (error) return true;
+  return (count ?? 0) > 0;
 }
 
 let loadGeneration = 0;
@@ -145,8 +153,9 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           }
 
           const old = get().photos[key];
-          if (old && old.path !== path && !isShared(get().photos, key, old.path)) {
-            removeObject(old.path);
+          if (old && old.path !== path) {
+            const stillReferenced = await isPathReferencedInDb(old.path);
+            if (!stillReferenced) removeObject(old.path);
           }
           set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
         } catch (err) {
@@ -166,7 +175,8 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             .eq('house_id', houseId)
             .eq('name_key', key);
           if (error) throw error;
-          if (!isShared(get().photos, key, old.path)) removeObject(old.path);
+          const stillReferenced = await isPathReferencedInDb(old.path);
+          if (!stillReferenced) removeObject(old.path);
           const rest = { ...get().photos };
           delete rest[key];
           set({ photos: rest });
