@@ -26,6 +26,7 @@ export function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create>
     tick: { position: 'absolute', left: 0, top: -ms(9) },
     boxSpacer: { width: ms(22) },
     main: { flex: 1, minWidth: 0, gap: ms(2) },
+    photo: { width: ms(40), height: ms(40), borderRadius: ms(8), backgroundColor: C.kraftRule },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexWrap: 'wrap' },
     name: { fontSize: mf(16.5), ...font.semibold, color: C.kraftInk, flexShrink: 1 },
     nameDone: { color: C.kraftMuted, textDecorationLine: 'line-through' },

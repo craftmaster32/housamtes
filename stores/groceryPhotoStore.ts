@@ -1,0 +1,155 @@
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+
+// Product photos share the private house-photos bucket. Paths follow its
+// storage policy: "<house_id>/<13+ digit timestamp>_<name>".
+const BUCKET = 'house-photos';
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const PHOTO_WIDTH = 640;
+
+export interface ProductPhoto {
+  path: string;
+  url: string;
+}
+
+/** The key a photo is remembered under: "  Oat  Milk " and "oat milk" match. */
+export function productPhotoKey(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+interface GroceryPhotoStore {
+  /** Photos by productPhotoKey(name). */
+  photos: Record<string, ProductPhoto>;
+  isLoading: boolean;
+  error: string | null;
+  load: (houseId: string) => Promise<void>;
+  /** Shrinks the picked image, uploads it and remembers it for this item name. */
+  setPhoto: (params: {
+    houseId: string;
+    name: string;
+    localUri: string;
+    userId: string;
+  }) => Promise<void>;
+  removePhoto: (houseId: string, name: string) => Promise<void>;
+  clearError: () => void;
+}
+
+function removeObject(path: string): void {
+  supabase.storage
+    .from(BUCKET)
+    .remove([path])
+    .then(({ error }) => {
+      if (error) captureError(error, { context: 'grocery-photo-cleanup' });
+    })
+    .catch((err: unknown) => captureError(err, { context: 'grocery-photo-cleanup' }));
+}
+
+export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
+  devtools(
+    (set, get) => ({
+      photos: {},
+      isLoading: false,
+      error: null,
+
+      load: async (houseId): Promise<void> => {
+        if (!houseId) return;
+        set({ isLoading: true, error: null });
+        try {
+          const { data, error } = await supabase
+            .from('grocery_product_photos')
+            .select('name_key, storage_path')
+            .eq('house_id', houseId);
+          if (error) throw error;
+          const rows = (data ?? []) as Array<{ name_key: string; storage_path: string }>;
+          const photos: Record<string, ProductPhoto> = {};
+          if (rows.length > 0) {
+            const { data: signed, error: signError } = await supabase.storage
+              .from(BUCKET)
+              .createSignedUrls(
+                rows.map((r) => r.storage_path),
+                SIGNED_URL_TTL_SECONDS
+              );
+            if (signError) throw signError;
+            rows.forEach((r, i) => {
+              const url = signed?.[i]?.signedUrl;
+              if (url) photos[r.name_key] = { path: r.storage_path, url };
+            });
+          }
+          set({ photos, isLoading: false });
+        } catch (err) {
+          captureError(err, { context: 'grocery-photo-load', houseId });
+          set({ isLoading: false, error: 'Could not load product photos.' });
+        }
+      },
+
+      setPhoto: async ({ houseId, name, localUri, userId }): Promise<void> => {
+        const key = productPhotoKey(name);
+        if (!key) throw new Error('Give the item a name first.');
+        try {
+          const small = await ImageManipulator.manipulateAsync(
+            localUri,
+            [{ resize: { width: PHOTO_WIDTH } }],
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          const blob = await (await fetch(small.uri)).blob();
+          const rand = Math.random().toString(36).slice(2, 8);
+          const path = `${houseId}/${Date.now()}_grocery_${rand}.jpg`;
+          const { error: uploadError } = await supabase.storage
+            .from(BUCKET)
+            .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+          if (uploadError) throw uploadError;
+
+          const { error: rowError } = await supabase
+            .from('grocery_product_photos')
+            .upsert(
+              { house_id: houseId, name_key: key, storage_path: path, added_by: userId },
+              { onConflict: 'house_id,name_key' }
+            );
+          if (rowError) {
+            removeObject(path);
+            throw rowError;
+          }
+
+          const { data: signed, error: signError } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+          if (signError || !signed?.signedUrl) throw signError ?? new Error('No signed URL');
+
+          const old = get().photos[key];
+          if (old && old.path !== path) removeObject(old.path);
+          set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
+        } catch (err) {
+          captureError(err, { context: 'grocery-photo-upload', houseId });
+          throw new Error('Could not save the photo. Please try again.');
+        }
+      },
+
+      removePhoto: async (houseId, name): Promise<void> => {
+        const key = productPhotoKey(name);
+        const old = get().photos[key];
+        if (!old) return;
+        try {
+          const { error } = await supabase
+            .from('grocery_product_photos')
+            .delete()
+            .eq('house_id', houseId)
+            .eq('name_key', key);
+          if (error) throw error;
+          removeObject(old.path);
+          const rest = { ...get().photos };
+          delete rest[key];
+          set({ photos: rest });
+        } catch (err) {
+          captureError(err, { context: 'grocery-photo-remove', houseId });
+          throw new Error('Could not remove the photo. Please try again.');
+        }
+      },
+
+      clearError: (): void => set({ error: null }),
+    }),
+    { name: 'grocery-photo-store' }
+  )
+);

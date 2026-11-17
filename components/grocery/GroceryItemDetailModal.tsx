@@ -29,10 +29,10 @@ import {
   CATEGORY_KEYS,
   categoryForKey,
   detectCategoryKey,
-  toneColors,
   type CategoryKey,
 } from '@utils/groceryCategory';
 import { UserAvatar } from '@components/shared/UserAvatar';
+import { ItemPhotoRow } from '@components/grocery/ItemPhotoRow';
 
 import { mf, ms } from '@utils/responsive';
 
@@ -48,6 +48,11 @@ export interface GroceryItemDetailModalProps {
   onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
   /** Removes the item; the caller confirms first when it's a housemate's item. */
   onDelete: (id: string) => void;
+  /** Saved photo for this item's name, if the house has one. */
+  photoUrl?: string;
+  /** Uploads a picked photo and remembers it for every item with this name. */
+  onSetPhoto: (name: string, localUri: string) => Promise<void>;
+  onRemovePhoto: (name: string) => Promise<void>;
 }
 
 export function GroceryItemDetailModal({
@@ -59,6 +64,9 @@ export function GroceryItemDetailModal({
   onSetCategory,
   onUpdate,
   onDelete,
+  photoUrl,
+  onSetPhoto,
+  onRemovePhoto,
 }: GroceryItemDetailModalProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const C = useThemedColors();
@@ -170,9 +178,7 @@ export function GroceryItemDetailModal({
   }, [item, onDelete]);
 
   const saveLabel = canEdit || categoryChanged ? t('grocery.save_changes') : t('grocery.save_note');
-  const isDark = C === darkColors;
   const picked = categoryForKey(category);
-  const pickedTone = toneColors(picked.tone, isDark);
   // Private items live in "My list", not in an aisle, so there's nothing to move.
   const showCategory = !!item && !item.isPersonal;
 
@@ -271,15 +277,23 @@ export function GroceryItemDetailModal({
                   </View>
                 </View>
 
+                <ItemPhotoRow
+                  key={item.id}
+                  name={item.name}
+                  photoUrl={photoUrl}
+                  onSetPhoto={onSetPhoto}
+                  onRemovePhoto={onRemovePhoto}
+                />
+
                 {showCategory && (
                   <View style={s.aisleBlock}>
                     <View style={s.aisleRow}>
                       <Text style={[s.aisleLabel, { color: C.textSecondary }]}>
                         {t('grocery.category_label')}
                       </Text>
-                      <View style={[s.chip, { backgroundColor: pickedTone.bg }]}>
-                        <Ionicons name={picked.icon} size={16} color={pickedTone.fg} />
-                        <Text style={[s.chipText, { color: pickedTone.fg }]}>
+                      <View style={[s.chip, { backgroundColor: C.surfaceSecondary }]}>
+                        <Ionicons name={picked.icon} size={16} color={C.textPrimary} />
+                        <Text style={[s.chipText, { color: C.textPrimary }]}>
                           {t(picked.labelKey)}
                         </Text>
                       </View>
@@ -306,8 +320,8 @@ export function GroceryItemDetailModal({
                       <View style={s.chipGrid}>
                         {CATEGORY_KEYS.map((key) => {
                           const cat = categoryForKey(key);
-                          const tone = toneColors(cat.tone, isDark);
                           const selected = key === category;
+                          const ink = selected ? C.primary : C.textPrimary;
                           const label = t(cat.labelKey);
                           return (
                             <Pressable
@@ -316,8 +330,8 @@ export function GroceryItemDetailModal({
                               style={({ pressed }) => [
                                 s.chip,
                                 s.chipOption,
-                                { backgroundColor: tone.bg },
-                                selected && { borderColor: tone.fg },
+                                { backgroundColor: C.surface, borderColor: C.border },
+                                selected && { borderColor: C.primary },
                                 pressed && s.dim,
                               ]}
                               accessible
@@ -325,9 +339,11 @@ export function GroceryItemDetailModal({
                               accessibilityState={{ selected }}
                               accessibilityLabel={t('grocery.pick_category', { name: label })}
                             >
-                              <Ionicons name={cat.icon} size={16} color={tone.fg} />
-                              <Text style={[s.chipText, { color: tone.fg }]}>{label}</Text>
-                              {selected && <Ionicons name="checkmark" size={16} color={tone.fg} />}
+                              <Ionicons name={cat.icon} size={16} color={C.textSecondary} />
+                              <Text style={[s.chipText, { color: ink }]}>{label}</Text>
+                              {selected && (
+                                <Ionicons name="checkmark" size={16} color={C.primary} />
+                              )}
                             </Pressable>
                           );
                         })}
@@ -471,7 +487,7 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
       minHeight: 36,
       flexShrink: 1,
     },
-    chipOption: { minHeight: 44, borderWidth: 2, borderColor: 'transparent' },
+    chipOption: { minHeight: 44, borderWidth: 1.5 },
     chipText: { fontSize: mf(14), ...font.semibold, flexShrink: 1 },
     chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8) },
     changeBtn: {

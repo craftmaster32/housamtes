@@ -29,6 +29,7 @@ import {
   type SavedListItem,
 } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
+import { useGroceryPhotoStore, productPhotoKey } from '@stores/groceryPhotoStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -121,6 +122,10 @@ function GroceryScreen(): React.JSX.Element {
   const keepDraftPrivate = useGroceryStore((s) => s.keepDraftPrivate);
   const addComment = useGroceryStore((s) => s.addComment);
   const setCategory = useGroceryStore((s) => s.setCategory);
+  const productPhotos = useGroceryPhotoStore((s) => s.photos);
+  const loadProductPhotos = useGroceryPhotoStore((s) => s.load);
+  const setProductPhoto = useGroceryPhotoStore((s) => s.setPhoto);
+  const removeProductPhoto = useGroceryPhotoStore((s) => s.removePhoto);
   const activeRun = useGroceryStore((s) => s.activeRun);
   const endRun = useGroceryStore((s) => s.endRun);
   const savedLists = useGroceryStore((s) => s.savedLists);
@@ -210,6 +215,11 @@ function GroceryScreen(): React.JSX.Element {
       fetchSavedLists(houseId);
     }
   }, [houseId, fetchSavedLists]);
+
+  // Product photos the house saved, by item name.
+  useEffect((): void => {
+    if (houseId) loadProductPhotos(houseId).catch(() => {});
+  }, [houseId, loadProductPhotos]);
 
   // Fetch upcoming personal reminders on mount
   useEffect((): void => {
@@ -737,6 +747,15 @@ function GroceryScreen(): React.JSX.Element {
     (id: string, comment: string): Promise<void> => addComment(id, comment),
     [addComment]
   );
+  const onSetPhoto = useCallback(
+    (name: string, localUri: string): Promise<void> =>
+      setProductPhoto({ houseId: houseId ?? '', name, localUri, userId: myId }),
+    [setProductPhoto, houseId, myId]
+  );
+  const onRemovePhoto = useCallback(
+    (name: string): Promise<void> => removeProductPhoto(houseId ?? '', name),
+    [removeProductPhoto, houseId]
+  );
   const onSetCategory = useCallback(
     (id: string, category: CategoryKey | null): Promise<void> => setCategory(id, category),
     [setCategory]
@@ -840,6 +859,7 @@ function GroceryScreen(): React.JSX.Element {
             onIncrement={onInc}
             onDecrement={onDec}
             onLongPress={handleLongPress}
+            photoUrl={productPhotos[productPhotoKey(item.name)]?.url}
           />
           {nudge?.id === item.id && (
             <Fold open={nudgeOpen} appear={nudgeAppear} onClosed={handleNudgeClosed}>
@@ -869,6 +889,7 @@ function GroceryScreen(): React.JSX.Element {
       handleKeepStale,
       handleRemoveStale,
       handleNudgeClosed,
+      productPhotos,
     ]
   );
 
@@ -1141,6 +1162,9 @@ function GroceryScreen(): React.JSX.Element {
         onClose={handleCloseModal}
         onSaveComment={onSaveComment}
         onSetCategory={onSetCategory}
+        photoUrl={selectedItem ? productPhotos[productPhotoKey(selectedItem.name)]?.url : undefined}
+        onSetPhoto={onSetPhoto}
+        onRemovePhoto={onRemovePhoto}
         onUpdate={onUpdate}
         onDelete={onDelete}
       />
