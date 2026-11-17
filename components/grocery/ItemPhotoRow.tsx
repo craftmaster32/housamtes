@@ -42,15 +42,12 @@ export function ItemPhotoRow({
       if (photoBusy) return;
       setPhotoError(null);
       try {
-        const perm =
-          source === 'camera'
-            ? await ImagePicker.requestCameraPermissionsAsync()
-            : await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-          setPhotoError(
-            source === 'camera' ? t('grocery.shop.camera_denied') : t('grocery.shop.library_denied')
-          );
-          return;
+        if (source === 'camera') {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) {
+            setPhotoError(t('grocery.shop.camera_denied'));
+            return;
+          }
         }
         const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8 };
         const result =
