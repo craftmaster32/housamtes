@@ -72,6 +72,10 @@ async function isPathReferencedInDb(path: string): Promise<boolean> {
 }
 
 let loadGeneration = 0;
+// The houseId passed to the most-recent load() call.  Mutations use this to
+// avoid writing household A's photo into household B's cache when the active
+// household changes while a network call is in-flight.
+let loadHouseId = '';
 // Mutations applied while a load is in-flight (key → photo, or null = removed).
 // Applied on top of the loaded snapshot so a completed load cannot discard
 // photos added or removed after the DB query was sent.
@@ -87,6 +91,7 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
       load: async (houseId): Promise<void> => {
         if (!houseId) return;
         const generation = ++loadGeneration;
+        loadHouseId = houseId;
         // Clear the overlay so stale mutations from a prior household cannot
         // bleed into this load. Any mutations that follow will be tracked fresh.
         for (const k of Object.keys(mutationOverlay)) delete mutationOverlay[k];
@@ -165,11 +170,19 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             throw rowError;
           }
 
-          const old = get().photos[key];
-          // Update cache and overlay immediately so a concurrent removePhoto cannot
-          // see a stale photo entry and so an in-flight load cannot discard this save.
-          set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
-          mutationOverlay[key] = { path, url: signed.signedUrl };
+          // Only update cache/overlay when the active household has not changed
+          // since this mutation was started, so a stale completion cannot write
+          // household A's photo into household B's cache.
+          const isCurrentHousehold = houseId === loadHouseId;
+          // Read the previous cached entry only from the current household so we
+          // never clean up a different household's storage path.
+          const old = isCurrentHousehold ? get().photos[key] : undefined;
+          if (isCurrentHousehold) {
+            // Update cache and overlay immediately so a concurrent removePhoto cannot
+            // see a stale photo entry and so an in-flight load cannot discard this save.
+            set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
+            mutationOverlay[key] = { path, url: signed.signedUrl };
+          }
           if (old && old.path !== path) {
             const stillReferenced = await isPathReferencedInDb(old.path);
             if (!stillReferenced) removeObject(old.path);
@@ -191,12 +204,15 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             .eq('house_id', houseId)
             .eq('name_key', key);
           if (error) throw error;
-          // Update cache and overlay immediately before the async cleanup check
-          // so a concurrent setPhoto cannot restore a photo after this removal.
-          const rest = { ...get().photos };
-          delete rest[key];
-          set({ photos: rest });
-          mutationOverlay[key] = null;
+          // Update cache and overlay immediately before the async cleanup check,
+          // but only when still in the same household so a stale completion
+          // cannot overwrite a different household's cache.
+          if (houseId === loadHouseId) {
+            const rest = { ...get().photos };
+            delete rest[key];
+            set({ photos: rest });
+            mutationOverlay[key] = null;
+          }
           const stillReferenced = await isPathReferencedInDb(old.path);
           if (!stillReferenced) removeObject(old.path);
         } catch (err) {
