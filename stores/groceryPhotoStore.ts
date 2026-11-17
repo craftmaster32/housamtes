@@ -63,6 +63,8 @@ function isShared(photos: Record<string, ProductPhoto>, key: string, path: strin
   return Object.entries(photos).some(([k, p]) => k !== key && p.path === path);
 }
 
+let loadGeneration = 0;
+
 export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
   devtools(
     (set, get) => ({
@@ -72,6 +74,7 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
 
       load: async (houseId): Promise<void> => {
         if (!houseId) return;
+        const generation = ++loadGeneration;
         set({ isLoading: true, error: null });
         try {
           const { data, error } = await supabase
@@ -94,10 +97,12 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
               if (url) photos[r.name_key] = { path: r.storage_path, url };
             });
           }
+          if (generation !== loadGeneration) return;
           set({ photos, isLoading: false });
         } catch (err) {
           captureError(err, { context: 'grocery-photo-load', houseId });
-          set({ isLoading: false, error: 'Could not load product photos.' });
+          if (generation !== loadGeneration) return;
+          set({ photos: {}, isLoading: false, error: 'Could not load product photos.' });
         }
       },
 
