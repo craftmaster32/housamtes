@@ -123,6 +123,16 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
           if (uploadError) throw uploadError;
 
+          // Obtain signed URL before the upsert so a signing failure cannot
+          // leave the DB pointing at a path the cache doesn't track.
+          const { data: signed, error: signError } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+          if (signError || !signed?.signedUrl) {
+            removeObject(path);
+            throw signError ?? new Error('No signed URL');
+          }
+
           const { error: rowError } = await supabase
             .from('grocery_product_photos')
             .upsert(
@@ -133,11 +143,6 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             removeObject(path);
             throw rowError;
           }
-
-          const { data: signed, error: signError } = await supabase.storage
-            .from(BUCKET)
-            .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-          if (signError || !signed?.signedUrl) throw signError ?? new Error('No signed URL');
 
           const old = get().photos[key];
           if (old && old.path !== path && !isShared(get().photos, key, old.path)) {
