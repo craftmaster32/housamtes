@@ -168,12 +168,16 @@ describe('carryPhoto', () => {
   });
 
   it('keeps the shared file when another name still references its path in the database', async () => {
+    // Initialize loadHouseId so removePhoto's cache update is not skipped.
+    mockFrom.mockReturnValueOnce(ok([]));
+    await useGroceryPhotoStore.getState().load(HOUSE);
+
     // Only milk is in the local cache; the other reference to path 'p' lives in
     // the DB only, so a cache-only check would wrongly conclude the file is unused.
     useGroceryPhotoStore.setState({
       photos: {
         milk: { path: 'p', url: 'u' },
-        bread: { path: 'q', url: 'v' },
+        butter: { path: 'r', url: 'w' },
       },
     });
     // 1st call: delete returns the removed row's path; 2nd: reference check returns count=1.
@@ -185,6 +189,6 @@ describe('carryPhoto', () => {
 
     expect(mockRemove).not.toHaveBeenCalled();
     expect(useGroceryPhotoStore.getState().photos.milk).toBeUndefined();
-    expect(useGroceryPhotoStore.getState().photos.bread).toEqual({ path: 'q', url: 'v' });
+    expect(useGroceryPhotoStore.getState().photos.butter).toEqual({ path: 'r', url: 'w' });
   });
 });
