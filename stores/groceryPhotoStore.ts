@@ -205,7 +205,12 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           // concurrent save for the same key has already committed.
           const isCurrentHousehold = houseId === loadHouseId;
           if (isCurrentHousehold && saveGeneration[key] === thisSaveGen) {
-            set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
+            const updatedPhotos = Object.assign(
+              Object.create(null) as Record<string, ProductPhoto>,
+              get().photos
+            );
+            updatedPhotos[key] = { path, url: signed.signedUrl };
+            set({ photos: updatedPhotos });
             mutationOverlay[key] = { path, url: signed.signedUrl };
           }
           // Cleanup is independent of the household guard: the old path was
@@ -241,7 +246,10 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           // but only when still in the same household so a stale completion
           // cannot overwrite a different household's cache.
           if (houseId === loadHouseId) {
-            const rest = { ...get().photos };
+            const rest = Object.assign(
+              Object.create(null) as Record<string, ProductPhoto>,
+              get().photos
+            );
             delete rest[key];
             set({ photos: rest });
             mutationOverlay[key] = null;
@@ -277,7 +285,12 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           // Only update cache/overlay when the active household has not changed,
           // so a stale carry cannot publish another household's photo.
           if (houseId === loadHouseId) {
-            set({ photos: { ...get().photos, [to]: photo } });
+            const updatedPhotos = Object.assign(
+              Object.create(null) as Record<string, ProductPhoto>,
+              get().photos
+            );
+            updatedPhotos[to] = photo;
+            set({ photos: updatedPhotos });
             mutationOverlay[to] = photo;
           }
         } catch (err) {
