@@ -1,5 +1,5 @@
 import { useGroceryPhotoStore, productPhotoKey } from '../../stores/groceryPhotoStore';
-import { ok, fail } from '../__helpers__/supabaseMock';
+import { ok, fail, dbResult } from '../__helpers__/supabaseMock';
 
 const mockFrom = jest.fn();
 const mockUpload = jest.fn();
@@ -171,7 +171,10 @@ describe('carryPhoto', () => {
     useGroceryPhotoStore.setState({
       photos: { milk: { path: 'p', url: 'u' }, 'oat milk': { path: 'p', url: 'u' } },
     });
-    mockFrom.mockReturnValue(ok(null));
+    // 1st call deletes the "milk" row; 2nd asks the database who still uses the file.
+    mockFrom
+      .mockReturnValueOnce(ok(null))
+      .mockReturnValueOnce(dbResult({ data: null, error: null, count: 1 } as never));
 
     await useGroceryPhotoStore.getState().removePhoto(HOUSE, 'milk');
 
