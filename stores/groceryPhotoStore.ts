@@ -157,7 +157,7 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
       setPhoto: async ({ houseId, name, localUri, userId }): Promise<void> => {
         const key = productPhotoKey(name);
         if (!key) throw new Error('Give the item a name first.');
-        if (key.length > NAME_KEY_MAX_LENGTH) throw new Error('Item name is too long.');
+        if ([...key].length > NAME_KEY_MAX_LENGTH) throw new Error('Item name is too long.');
         // Capture before any network calls so cleanup works even if the
         // household switches while the upload is in-flight.
         const oldPathForCleanup = get().photos[key]?.path ?? null;
@@ -263,7 +263,7 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
           !to ||
           from === to ||
           get().photos[to] ||
-          to.length > NAME_KEY_MAX_LENGTH
+          [...to].length > NAME_KEY_MAX_LENGTH
         )
           return;
         try {
