@@ -177,7 +177,7 @@ describe('carryPhoto', () => {
     useGroceryPhotoStore.setState({
       photos: {
         milk: { path: 'p', url: 'u' },
-        butter: { path: 'r', url: 'w' },
+        bread: { path: 'q', url: 'v' },
       },
     });
     // 1st call: delete returns the removed row's path; 2nd: reference check returns count=1.
@@ -187,8 +187,10 @@ describe('carryPhoto', () => {
 
     await useGroceryPhotoStore.getState().removePhoto(HOUSE, 'milk');
 
+    // load + delete + reference-check: proves the DB query ran, not just a cache-only check.
+    expect(mockFrom).toHaveBeenCalledTimes(3);
     expect(mockRemove).not.toHaveBeenCalled();
     expect(useGroceryPhotoStore.getState().photos.milk).toBeUndefined();
-    expect(useGroceryPhotoStore.getState().photos.butter).toEqual({ path: 'r', url: 'w' });
+    expect(useGroceryPhotoStore.getState().photos.bread).toEqual({ path: 'q', url: 'v' });
   });
 });
