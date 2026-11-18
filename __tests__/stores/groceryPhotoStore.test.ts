@@ -167,18 +167,24 @@ describe('carryPhoto', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('keeps the shared file when one of two names removes its photo', async () => {
+  it('keeps the shared file when another name still references its path in the database', async () => {
+    // Only milk is in the local cache; the other reference to path 'p' lives in
+    // the DB only, so a cache-only check would wrongly conclude the file is unused.
     useGroceryPhotoStore.setState({
-      photos: { milk: { path: 'p', url: 'u' }, 'oat milk': { path: 'p', url: 'u' } },
+      photos: {
+        milk: { path: 'p', url: 'u' },
+        bread: { path: 'q', url: 'v' },
+      },
     });
-    // 1st call deletes the "milk" row; 2nd asks the database who still uses the file.
+    // 1st call: delete returns the removed row's path; 2nd: reference check returns count=1.
     mockFrom
-      .mockReturnValueOnce(ok(null))
+      .mockReturnValueOnce(ok([{ storage_path: 'p' }]))
       .mockReturnValueOnce(dbResult({ data: null, error: null, count: 1 } as never));
 
     await useGroceryPhotoStore.getState().removePhoto(HOUSE, 'milk');
 
     expect(mockRemove).not.toHaveBeenCalled();
-    expect(useGroceryPhotoStore.getState().photos['oat milk']).toBeDefined();
+    expect(useGroceryPhotoStore.getState().photos.milk).toBeUndefined();
+    expect(useGroceryPhotoStore.getState().photos.bread).toEqual({ path: 'q', url: 'v' });
   });
 });

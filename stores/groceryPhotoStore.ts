@@ -9,6 +9,9 @@ import { captureError } from '@lib/errorTracking';
 const BUCKET = 'house-photos';
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const PHOTO_WIDTH = 640;
+// Matches the grocery_product_photos.name_key column limit. Lowercasing can
+// expand a string (e.g. İ → 2 chars), so we check the normalised key.
+const NAME_KEY_MAX_LENGTH = 200;
 
 export interface ProductPhoto {
   path: string;
@@ -79,7 +82,13 @@ let loadHouseId = '';
 // Mutations applied while a load is in-flight (key → photo, or null = removed).
 // Applied on top of the loaded snapshot so a completed load cannot discard
 // photos added or removed after the DB query was sent.
-const mutationOverlay: Record<string, ProductPhoto | null> = {};
+// Null-prototype prevents __proto__ from corrupting Object.prototype.
+const mutationOverlay: Record<string, ProductPhoto | null> = Object.create(
+  null
+) as Record<string, ProductPhoto | null>;
+// Per-key save generation: prevents a stale concurrent save from overwriting a
+// newer one's result in the cache.
+const saveGeneration: Record<string, number> = Object.create(null) as Record<string, number>;
 
 export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
   devtools(
@@ -91,11 +100,18 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
       load: async (houseId): Promise<void> => {
         if (!houseId) return;
         const generation = ++loadGeneration;
+        const isNewHousehold = houseId !== loadHouseId;
         loadHouseId = houseId;
         // Clear the overlay so stale mutations from a prior household cannot
         // bleed into this load. Any mutations that follow will be tracked fresh.
         for (const k of Object.keys(mutationOverlay)) delete mutationOverlay[k];
-        set({ isLoading: true, error: null });
+        // Clear the cache immediately when switching households so in-flight
+        // saves cannot read a stale household's entries as a replacement target.
+        if (isNewHousehold) {
+          set({ photos: {}, isLoading: true, error: null });
+        } else {
+          set({ isLoading: true, error: null });
+        }
         try {
           const { data, error } = await supabase
             .from('grocery_product_photos')
@@ -103,7 +119,10 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             .eq('house_id', houseId);
           if (error) throw error;
           const rows = (data ?? []) as Array<{ name_key: string; storage_path: string }>;
-          const photos: Record<string, ProductPhoto> = {};
+          const photos: Record<string, ProductPhoto> = Object.create(null) as Record<
+            string,
+            ProductPhoto
+          >;
           if (rows.length > 0) {
             const { data: signed, error: signError } = await supabase.storage
               .from(BUCKET)
@@ -128,13 +147,23 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
         } catch (err) {
           captureError(err, { context: 'grocery-photo-load', houseId });
           if (generation !== loadGeneration) return;
-          set({ photos: {}, isLoading: false, error: 'Could not load product photos.' });
+          // Preserve the current cache on a refresh failure so successful saves
+          // remain visible. The photos are already empty when this is the first
+          // load for a new household (cleared synchronously above).
+          set({ isLoading: false, error: 'Could not load product photos.' });
         }
       },
 
       setPhoto: async ({ houseId, name, localUri, userId }): Promise<void> => {
         const key = productPhotoKey(name);
         if (!key) throw new Error('Give the item a name first.');
+        if (key.length > NAME_KEY_MAX_LENGTH) throw new Error('Item name is too long.');
+        // Capture before any network calls so cleanup works even if the
+        // household switches while the upload is in-flight.
+        const oldPathForCleanup = get().photos[key]?.path ?? null;
+        // Track per-key save order so a slower older save cannot overwrite a
+        // faster newer one in the cache.
+        const thisSaveGen = (saveGeneration[key] = (saveGeneration[key] ?? 0) + 1);
         try {
           const small = await ImageManipulator.manipulateAsync(
             localUri,
@@ -172,20 +201,19 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
 
           // Only update cache/overlay when the active household has not changed
           // since this mutation was started, so a stale completion cannot write
-          // household A's photo into household B's cache.
+          // household A's photo into household B's cache. Also skip if a newer
+          // concurrent save for the same key has already committed.
           const isCurrentHousehold = houseId === loadHouseId;
-          // Read the previous cached entry only from the current household so we
-          // never clean up a different household's storage path.
-          const old = isCurrentHousehold ? get().photos[key] : undefined;
-          if (isCurrentHousehold) {
-            // Update cache and overlay immediately so a concurrent removePhoto cannot
-            // see a stale photo entry and so an in-flight load cannot discard this save.
+          if (isCurrentHousehold && saveGeneration[key] === thisSaveGen) {
             set({ photos: { ...get().photos, [key]: { path, url: signed.signedUrl } } });
             mutationOverlay[key] = { path, url: signed.signedUrl };
           }
-          if (old && old.path !== path) {
-            const stillReferenced = await isPathReferencedInDb(old.path);
-            if (!stillReferenced) removeObject(old.path);
+          // Cleanup is independent of the household guard: the old path was
+          // captured synchronously before any network calls, so it belongs to
+          // this household's prior entry.
+          if (oldPathForCleanup && oldPathForCleanup !== path) {
+            const stillReferenced = await isPathReferencedInDb(oldPathForCleanup);
+            if (!stillReferenced) removeObject(oldPathForCleanup);
           }
         } catch (err) {
           captureError(err, { context: 'grocery-photo-upload', houseId });
@@ -198,12 +226,17 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
         const old = get().photos[key];
         if (!old) return;
         try {
-          const { error } = await supabase
+          const { data: deletedRows, error } = await supabase
             .from('grocery_product_photos')
             .delete()
             .eq('house_id', houseId)
-            .eq('name_key', key);
+            .eq('name_key', key)
+            .select('storage_path');
           if (error) throw error;
+          // Use the path the DB actually deleted so cleanup targets the right
+          // file even if another client replaced the entry since our last load.
+          const deletedPath =
+            (deletedRows as Array<{ storage_path: string }> | null)?.[0]?.storage_path ?? old.path;
           // Update cache and overlay immediately before the async cleanup check,
           // but only when still in the same household so a stale completion
           // cannot overwrite a different household's cache.
@@ -213,8 +246,8 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             set({ photos: rest });
             mutationOverlay[key] = null;
           }
-          const stillReferenced = await isPathReferencedInDb(old.path);
-          if (!stillReferenced) removeObject(old.path);
+          const stillReferenced = await isPathReferencedInDb(deletedPath);
+          if (!stillReferenced) removeObject(deletedPath);
         } catch (err) {
           captureError(err, { context: 'grocery-photo-remove', houseId });
           throw new Error('Could not remove the photo. Please try again.');
@@ -225,7 +258,14 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
         const from = productPhotoKey(fromName);
         const to = productPhotoKey(toName);
         const photo = get().photos[from];
-        if (!photo || !to || from === to || get().photos[to]) return;
+        if (
+          !photo ||
+          !to ||
+          from === to ||
+          get().photos[to] ||
+          to.length > NAME_KEY_MAX_LENGTH
+        )
+          return;
         try {
           const { error } = await supabase.from('grocery_product_photos').insert({
             house_id: houseId,
@@ -234,8 +274,12 @@ export const useGroceryPhotoStore = create<GroceryPhotoStore>()(
             added_by: userId,
           });
           if (error) throw error;
-          set({ photos: { ...get().photos, [to]: photo } });
-          mutationOverlay[to] = photo;
+          // Only update cache/overlay when the active household has not changed,
+          // so a stale carry cannot publish another household's photo.
+          if (houseId === loadHouseId) {
+            set({ photos: { ...get().photos, [to]: photo } });
+            mutationOverlay[to] = photo;
+          }
         } catch (err) {
           captureError(err, { context: 'grocery-photo-carry', houseId });
         }
