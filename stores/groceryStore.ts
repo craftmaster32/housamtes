@@ -116,7 +116,7 @@ interface GroceryStore {
   clearChecked: (houseId: string) => Promise<void>;
   publishDraftItems: (userId: string, houseId: string) => Promise<void>;
   keepDraftPrivate: (userId: string, houseId: string) => Promise<void>;
-  startRun: (shopperId: string, shopperName: string) => Promise<void>;
+  startRun: (shopperId: string, shopperName: string, houseId: string) => Promise<void>;
   endRun: () => Promise<void>;
   fetchSavedLists: (houseId: string) => Promise<void>;
   createSavedList: (
@@ -876,11 +876,23 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      startRun: async (shopperId: string, shopperName: string): Promise<void> => {
+      startRun: async (shopperId: string, shopperName: string, houseId: string): Promise<void> => {
         const startedAt = new Date().toISOString();
         const run: ShoppingRun = { shopperId, shopperName, startedAt };
         set({ activeRun: run, runBroadcastVisible: false });
         AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run)).catch(() => {});
+        // The live broadcast below only reaches housemates who have the app open,
+        // so also send a push — that's what reaches a phone in someone's pocket.
+        if (houseId) {
+          void notifyHousemates({
+            houseId,
+            excludeUserId: shopperId,
+            copyKey: 'grocery_run_started',
+            copyParams: { name: shopperName },
+            notificationType: 'grocery_shared',
+            data: { screen: 'grocery' },
+          }).catch((err) => captureError(err, { context: 'notify-shopping-run', houseId }));
+        }
         if (_channel) {
           _channel
             .send({

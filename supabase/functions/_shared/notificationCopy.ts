@@ -560,6 +560,24 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       };
     }
 
+    case 'grocery_run_started': {
+      const name = str(p, 'name') || (es ? 'Un compañero' : he ? 'שותף/ה' : 'A housemate');
+      if (es)
+        return {
+          title: '🛒 ¡Alguien va al súper!',
+          body: `${name} va de compras ahora. Añade lo que necesites a la lista 📝`,
+        };
+      if (he)
+        return {
+          title: '🛒 מישהו יוצא לקניות!',
+          body: `${name} בדרך לסופר עכשיו. הוסיפו לרשימה מה שחסר 📝`,
+        };
+      return {
+        title: '🛒 Someone’s heading to the store!',
+        body: `${name} is going shopping now. Add anything you need to the list 📝`,
+      };
+    }
+
     case 'grocery_list_saved': {
       const name = str(p, 'name');
       const list = str(p, 'listName');
