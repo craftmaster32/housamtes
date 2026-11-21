@@ -26,11 +26,11 @@ jest.mock('@lib/alert', () => ({ Alert: { alert: jest.fn() } }));
 jest.mock('react-i18next', () => ({
   useTranslation: (): {
     t: (key: string, params?: Record<string, unknown>) => string;
-    i18n: { language: string };
+    i18n: { language: string; dir: () => 'ltr' | 'rtl' };
   } => ({
     t: (key: string, params?: Record<string, unknown>): string =>
       params ? `${key} ${JSON.stringify(params)}` : key,
-    i18n: { language: 'en' },
+    i18n: { language: 'en', dir: (): 'ltr' => 'ltr' },
   }),
 }));
 jest.mock('@stores/authStore', () => ({
