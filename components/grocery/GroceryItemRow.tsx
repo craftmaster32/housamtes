@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef } from 'react';
-import { View, Pressable, Animated } from 'react-native';
+import { View, Pressable, Animated, Image, type ImageStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +35,8 @@ export interface GroceryItemRowProps {
   onDecrement: (id: string) => void;
   /** Long-press opens the details sheet (note, edit, remove). */
   onLongPress: (item: GroceryItem) => void;
+  /** Saved photo of this product, shown as a small picture next to the name. */
+  photoUrl?: string;
 }
 
 export const GroceryItemRow = memo(function GroceryItemRow({
@@ -47,6 +49,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
   onIncrement,
   onDecrement,
   onLongPress,
+  photoUrl,
 }: GroceryItemRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -133,6 +136,14 @@ export const GroceryItemRow = memo(function GroceryItemRow({
           <View style={s.box}>
             <PenTick checked={item.isChecked} size={ms(25)} color={PEN} style={s.tick} />
           </View>
+        )}
+
+        {!!photoUrl && (
+          <Image
+            source={{ uri: photoUrl }}
+            style={[s.photo, item.isChecked && s.faded] as ImageStyle[]}
+            accessibilityIgnoresInvertColors
+          />
         )}
 
         <View style={s.main}>

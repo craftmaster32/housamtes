@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@stores/authStore';
+import { checkOldBillsForNewMember } from '@lib/newMemberOldBills';
 import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
@@ -202,6 +203,14 @@ export function useHouseSetup(): HouseSetup {
           }
         }
       }
+
+      // Older expenses aren't split with a newcomer. In a brand-new house the
+      // rest of the house is asked (one message) whether to add them to any.
+      void checkOldBillsForNewMember(
+        pendingHouse.id,
+        user.id,
+        useAuthStore.getState().profile?.name ?? ''
+      );
 
       setShowConfirm(false);
       setHouseId(pendingHouse.id);

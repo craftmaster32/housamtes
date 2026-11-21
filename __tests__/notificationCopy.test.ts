@@ -73,6 +73,14 @@ describe('instantPushCopy — coverage across event types', () => {
     expect(es!.body).toContain('compañero');
   });
 
+  it('names the shopper in the "going to the store" push in every language', () => {
+    for (const lang of ['en', 'es', 'he'] as const) {
+      const copy = instantPushCopy('grocery_run_started', lang, { name: 'Ilay' });
+      expect(copy!.title.length).toBeGreaterThan(0);
+      expect(copy!.body).toContain('Ilay');
+    }
+  });
+
   it('handles singular vs plural grocery counts per language', () => {
     expect(instantPushCopy('grocery_draft', 'es', { count: 1 })!.body).toContain('1 artículo');
     expect(instantPushCopy('grocery_draft', 'es', { count: 3 })!.body).toContain('3 artículos');

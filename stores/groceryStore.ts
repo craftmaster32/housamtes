@@ -7,6 +7,7 @@ import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
 import { celebrate } from '@lib/celebrate';
+import { isCategoryKey, type CategoryKey } from '@utils/groceryCategory';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -26,6 +27,8 @@ export interface GroceryItem {
   isDraft: boolean;
   comment?: string;
   draftExpiresAt?: string;
+  /** Category picked by hand; when empty the app guesses it from the name. */
+  category?: CategoryKey;
 }
 
 export interface SavedListItem {
@@ -103,6 +106,8 @@ interface GroceryStore {
   ) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
   addComment: (id: string, comment: string) => Promise<void>;
+  /** Pins an item to a category; null goes back to guessing from the name. */
+  setCategory: (id: string, category: CategoryKey | null) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
@@ -111,7 +116,7 @@ interface GroceryStore {
   clearChecked: (houseId: string) => Promise<void>;
   publishDraftItems: (userId: string, houseId: string) => Promise<void>;
   keepDraftPrivate: (userId: string, houseId: string) => Promise<void>;
-  startRun: (shopperId: string, shopperName: string) => Promise<void>;
+  startRun: (shopperId: string, shopperName: string, houseId: string) => Promise<void>;
   endRun: () => Promise<void>;
   fetchSavedLists: (houseId: string) => Promise<void>;
   createSavedList: (
@@ -265,6 +270,7 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
     isDraft: (r.is_draft as boolean) ?? false,
     comment: (r.comment as string) ?? undefined,
     draftExpiresAt: (r.draft_expires_at as string) ?? undefined,
+    category: isCategoryKey(r.category) ? r.category : undefined,
   };
 }
 
@@ -287,7 +293,8 @@ function groceryItemsEqual(a: GroceryItem, b: GroceryItem): boolean {
     a.isPersonal === b.isPersonal &&
     a.isDraft === b.isDraft &&
     a.comment === b.comment &&
-    a.draftExpiresAt === b.draftExpiresAt
+    a.draftExpiresAt === b.draftExpiresAt &&
+    a.category === b.category
   );
 }
 
@@ -599,6 +606,21 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
+      setCategory: async (id, category): Promise<void> => {
+        try {
+          const { error } = await supabase.from('grocery_items').update({ category }).eq('id', id);
+          if (error) throw error;
+          set({
+            items: get().items.map((i) =>
+              i.id === id ? { ...i, category: category ?? undefined } : i
+            ),
+          });
+        } catch (err) {
+          captureError(err, { context: 'grocery-category' });
+          throw new Error('Could not change the category. Please try again.');
+        }
+      },
+
       updateItem: async (id, name, quantity): Promise<void> => {
         // A counted item is "bought" only once every unit is in the basket, so a
         // new quantity re-derives the tick from the bought count — otherwise a
@@ -854,11 +876,23 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      startRun: async (shopperId: string, shopperName: string): Promise<void> => {
+      startRun: async (shopperId: string, shopperName: string, houseId: string): Promise<void> => {
         const startedAt = new Date().toISOString();
         const run: ShoppingRun = { shopperId, shopperName, startedAt };
         set({ activeRun: run, runBroadcastVisible: false });
         AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run)).catch(() => {});
+        // The live broadcast below only reaches housemates who have the app open,
+        // so also send a push — that's what reaches a phone in someone's pocket.
+        if (houseId) {
+          void notifyHousemates({
+            houseId,
+            excludeUserId: shopperId,
+            copyKey: 'grocery_run_started',
+            copyParams: { name: shopperName },
+            notificationType: 'grocery_shared',
+            data: { screen: 'grocery' },
+          }).catch((err) => captureError(err, { context: 'notify-shopping-run', houseId }));
+        }
         if (_channel) {
           _channel
             .send({

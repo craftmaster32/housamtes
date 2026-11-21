@@ -5,13 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { navigateToBase } from '@stores/navigationStore';
 import { useAuthStore } from '@stores/authStore';
-import {
-  useBillsStore,
-  calculateAllNetBalances,
-  calculateSimplifiedBalancesForUser,
-} from '@stores/billsStore';
-import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
-import { useHousematesStore } from '@stores/housematesStore';
+import { calculateSimplifiedBalancesForUser } from '@stores/billsStore';
+import { useHouseMoney } from '@hooks/useHouseMoney';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors } from '@constants/colors';
 import { font, heading } from '@constants/typography';
@@ -27,23 +22,11 @@ export function OwedCard(): React.JSX.Element {
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
-  const householdBills = useRecurringBillsStore((s) => s.bills);
-  const payments = useRecurringBillsStore((s) => s.payments);
-  const householdMembers = useHousematesStore((s) => s.housemates);
   const myId = profile?.id ?? '';
 
-  const activeBills = bills.filter((b) => !b.settled);
-  const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
-  for (const { person, balance } of calculateFairness(
-    householdBills,
-    payments,
-    householdMembers.map((h) => h.id)
-  )) {
-    combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
-  }
-  const balances = calculateSimplifiedBalancesForUser(combinedNet, myId);
+  const { net } = useHouseMoney();
+  const balances = calculateSimplifiedBalancesForUser(net, myId);
   const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netAmount = totalOwed - totalOwe;

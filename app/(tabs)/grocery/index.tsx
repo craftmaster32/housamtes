@@ -29,6 +29,7 @@ import {
   type SavedListItem,
 } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
+import { useGroceryPhotoStore, productPhotoKey } from '@stores/groceryPhotoStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -68,7 +69,7 @@ import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
-import { detectCategory, type CategoryTone } from '@utils/groceryCategory';
+import { itemCategory, type CategoryKey, type CategoryTone } from '@utils/groceryCategory';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { IoniconName } from '@/types/icons';
 
@@ -120,6 +121,11 @@ function GroceryScreen(): React.JSX.Element {
   const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
   const keepDraftPrivate = useGroceryStore((s) => s.keepDraftPrivate);
   const addComment = useGroceryStore((s) => s.addComment);
+  const setCategory = useGroceryStore((s) => s.setCategory);
+  const productPhotos = useGroceryPhotoStore((s) => s.photos);
+  const loadProductPhotos = useGroceryPhotoStore((s) => s.load);
+  const setProductPhoto = useGroceryPhotoStore((s) => s.setPhoto);
+  const removeProductPhoto = useGroceryPhotoStore((s) => s.removePhoto);
   const activeRun = useGroceryStore((s) => s.activeRun);
   const endRun = useGroceryStore((s) => s.endRun);
   const savedLists = useGroceryStore((s) => s.savedLists);
@@ -209,6 +215,11 @@ function GroceryScreen(): React.JSX.Element {
       fetchSavedLists(houseId);
     }
   }, [houseId, fetchSavedLists]);
+
+  // Product photos the house saved, by item name.
+  useEffect((): void => {
+    if (houseId) loadProductPhotos(houseId).catch(() => {});
+  }, [houseId, loadProductPhotos]);
 
   // Fetch upcoming personal reminders on mount
   useEffect((): void => {
@@ -303,7 +314,7 @@ function GroceryScreen(): React.JSX.Element {
     const keyOrder: string[] = [];
     for (let i = 0; i < sharedItems.length; i++) {
       const item = sharedItems[i];
-      const cat = detectCategory(item.name);
+      const cat = itemCategory(item);
       const stableKey = cat.labelKey;
       if (!map.has(stableKey)) {
         map.set(stableKey, {
@@ -707,9 +718,17 @@ function GroceryScreen(): React.JSX.Element {
     },
     [decBought]
   );
+  const carryProductPhoto = useGroceryPhotoStore((s) => s.carryPhoto);
   const onUpdate = useCallback(
-    (id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity),
-    [updateItem]
+    async (id: string, name: string, quantity: string): Promise<void> => {
+      const oldName = items.find((i) => i.id === id)?.name;
+      await updateItem(id, name, quantity);
+      // A renamed item keeps its photo.
+      if (houseId && oldName) {
+        await carryProductPhoto({ houseId, fromName: oldName, toName: name, userId: myId });
+      }
+    },
+    [updateItem, items, houseId, myId, carryProductPhoto]
   );
   const handleClear = useCallback((): void => {
     if (!houseId) {
@@ -735,6 +754,19 @@ function GroceryScreen(): React.JSX.Element {
   const onSaveComment = useCallback(
     (id: string, comment: string): Promise<void> => addComment(id, comment),
     [addComment]
+  );
+  const onSetPhoto = useCallback(
+    (name: string, localUri: string): Promise<void> =>
+      setProductPhoto({ houseId: houseId ?? '', name, localUri, userId: myId }),
+    [setProductPhoto, houseId, myId]
+  );
+  const onRemovePhoto = useCallback(
+    (name: string): Promise<void> => removeProductPhoto(houseId ?? '', name),
+    [removeProductPhoto, houseId]
+  );
+  const onSetCategory = useCallback(
+    (id: string, category: CategoryKey | null): Promise<void> => setCategory(id, category),
+    [setCategory]
   );
 
   // ── Mode controls ─────────────────────────────────────────────────────────
@@ -835,6 +867,7 @@ function GroceryScreen(): React.JSX.Element {
             onIncrement={onInc}
             onDecrement={onDec}
             onLongPress={handleLongPress}
+            photoUrl={productPhotos[productPhotoKey(item.name)]?.url}
           />
           {nudge?.id === item.id && (
             <Fold open={nudgeOpen} appear={nudgeAppear} onClosed={handleNudgeClosed}>
@@ -864,6 +897,7 @@ function GroceryScreen(): React.JSX.Element {
       handleKeepStale,
       handleRemoveStale,
       handleNudgeClosed,
+      productPhotos,
     ]
   );
 
@@ -1135,6 +1169,10 @@ function GroceryScreen(): React.JSX.Element {
         myId={myId}
         onClose={handleCloseModal}
         onSaveComment={onSaveComment}
+        onSetCategory={onSetCategory}
+        photoUrl={selectedItem ? productPhotos[productPhotoKey(selectedItem.name)]?.url : undefined}
+        onSetPhoto={onSetPhoto}
+        onRemovePhoto={onRemovePhoto}
         onUpdate={onUpdate}
         onDelete={onDelete}
       />

@@ -181,16 +181,36 @@ describe('startRun broadcast visibility', () => {
 
   it('shows the live pill only after the server acks the broadcast', async () => {
     mockChannel.send.mockResolvedValue('ok');
-    await useGroceryStore.getState().startRun('user-1', 'Lior');
+    await useGroceryStore.getState().startRun('user-1', 'Lior', 'house-1');
     await Promise.resolve();
     expect(useGroceryStore.getState().runBroadcastVisible).toBe(true);
   });
 
   it('keeps the live pill hidden when the broadcast times out', async () => {
     mockChannel.send.mockResolvedValue('timed out');
-    await useGroceryStore.getState().startRun('user-1', 'Lior');
+    await useGroceryStore.getState().startRun('user-1', 'Lior', 'house-1');
     await Promise.resolve();
     expect(useGroceryStore.getState().runBroadcastVisible).toBe(false);
+  });
+
+  it('sends housemates a push notification when a run starts', async () => {
+    mockChannel.send.mockResolvedValue('ok');
+    await useGroceryStore.getState().startRun('user-1', 'Ilay', 'house-1');
+    expect(notifyHousemates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        houseId: 'house-1',
+        excludeUserId: 'user-1',
+        copyKey: 'grocery_run_started',
+        copyParams: { name: 'Ilay' },
+        notificationType: 'grocery_shared',
+      })
+    );
+  });
+
+  it('still notifies housemates when the live broadcast fails', async () => {
+    mockChannel.send.mockResolvedValue('timed out');
+    await useGroceryStore.getState().startRun('user-1', 'Ilay', 'house-1');
+    expect(notifyHousemates).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -383,6 +403,27 @@ describe('deleteItem', () => {
 });
 
 // ── incrementBought ───────────────────────────────────────────────────────────
+
+describe('setCategory', () => {
+  it('pins the item to the picked aisle', async () => {
+    seedItems({});
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().setCategory('item-1', 'frozen');
+
+    expect(useGroceryStore.getState().items[0].category).toBe('frozen');
+  });
+
+  it('keeps the old aisle and explains when the save fails', async () => {
+    seedItems({});
+    mockFrom.mockReturnValue(fail('permission denied'));
+
+    await expect(useGroceryStore.getState().setCategory('item-1', 'frozen')).rejects.toThrow(
+      'Could not change the category'
+    );
+    expect(useGroceryStore.getState().items[0].category).toBeUndefined();
+  });
+});
 
 describe('incrementBought', () => {
   it('increments counter immediately', async () => {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -18,8 +18,12 @@ import { formatDateDDMMYYYY } from '@utils/dates';
 import { getErrorMessage } from '@utils/errors';
 import { FREQUENCY_MONTHS, monthStart } from '@utils/recurringCoverage';
 import { mf, ms } from '@utils/responsive';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { useHousematesStore } from '@stores/housematesStore';
+import { defaultSplitOn, toMemberSpans } from '@utils/membership';
 import { BillIconPicker } from './BillIconPicker';
 import { ChoiceChips, type ChoiceOption } from './ChoiceChips';
+import { firstCoveredDay } from '@utils/settleUp';
 import { useRecurringPalette } from './palette';
 
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
@@ -41,6 +45,20 @@ export function RecurringBillForm({
   const addBill = useRecurringBillsStore((s) => s.addBill);
   const updateBill = useRecurringBillsStore((s) => s.updateBill);
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
+  const settledGuard = useSettledPeriodGuard();
+  const payments = useRecurringBillsStore((s) => s.payments);
+  const confirmingRef = useRef(false);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const firstPaymentSplit = useCallback(
+    (date: string): string[] => {
+      return defaultSplitOn(
+        toMemberSpans(housemates),
+        people.map((x) => x.id),
+        date
+      );
+    },
+    [housemates, people]
+  );
   const houseId = useAuthStore((s) => s.houseId);
   const [name, setName] = useState(bill?.name ?? '');
   const [assignedTo, setAssignedTo] = useState(bill?.assignedTo ?? people[0]?.id ?? '');
@@ -59,16 +77,39 @@ export function RecurringBillForm({
   const canSave = !saving && !!houseId && !!name.trim() && !!assignedTo && amount > 0;
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (saving) return;
+    if (saving || confirmingRef.current) return;
     if (!name.trim()) return setError(t('bills.household_name_required'));
     if (!(amount > 0)) return setError(t('bills.household_invalid_amount'));
     if (!assignedTo) return setError(t('bills.household_assignee_required'));
     if (!houseId) return setError(t('bills.household_missing'));
     const fields = { name: name.trim(), assignedTo, frequency, typicalAmount: amount, icon };
+    // Changes that reach back into months already settled up:
+    // - a new bill's first payment dated in a settled month, or
+    // - a new payer on an existing bill, which moves the credit for every old
+    //   payment that doesn't name who paid it (those count as the payer's).
+    const reassigned = !!bill && assignedTo !== bill.assignedTo;
+    const affectedDates = bill
+      ? reassigned
+        ? payments
+            .filter((pay) => pay.billId === bill.id && !pay.paidBy)
+            .map((pay) => firstCoveredDay(pay, bill))
+        : []
+      : // The first payment covers the month it was paid in.
+        [lastPaidDate ? monthStart(lastPaidDate) : null];
+    confirmingRef.current = true;
+    let check;
+    try {
+      check = await settledGuard.confirmChange(...affectedDates);
+    } finally {
+      confirmingRef.current = false;
+    }
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setSaving(true);
       if (bill) {
         await updateBill(bill.id, fields);
+        if (inSettledPeriod) settledGuard.notifyChange(fields.name);
       } else {
         let billId = createdId;
         if (billId) {
@@ -89,9 +130,13 @@ export function RecurringBillForm({
               coverageStart: monthStart(lastPaidDate),
               coverageMonths: FREQUENCY_MONTHS[frequency],
               paidBy: assignedTo,
+              // Always save who shares it — the people living here on that
+              // date — so it can never be re-divided when someone joins or leaves.
+              splitBetween: firstPaymentSplit(lastPaidDate),
             },
             houseId
           );
+          if (inSettledPeriod) settledGuard.notifyChange(fields.name);
         }
       }
       onClose();
@@ -114,6 +159,9 @@ export function RecurringBillForm({
     lastPaidDate,
     createdId,
     logPayment,
+    payments,
+    firstPaymentSplit,
+    settledGuard,
     onClose,
     t,
   ]);

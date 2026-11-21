@@ -15,6 +15,7 @@ import {
   type RecurringBill,
 } from '@stores/recurringBillsStore';
 import { Alert } from '@lib/alert';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 
 jest.mock('@lib/supabase', () => ({ supabase: {} }));
 jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
@@ -114,6 +115,8 @@ beforeAll(() => {
 afterAll(() => jest.useRealTimers());
 
 beforeEach(() => {
+  // Settle-up payments already loaded (no settled months), as in the running app.
+  useSettlementPaymentsStore.setState({ payments: [], isLoading: false, error: null });
   jest.clearAllMocks();
   useRecurringBillsStore.setState({
     // ועד בית listed first on purpose — ארנונה is overdue and must sort above it.

@@ -96,6 +96,35 @@ export function detectCategory(name: string): GroceryCategory {
   return RULES.find((r) => r.re.test(name))?.cat ?? OTHER_CATEGORY;
 }
 
+/** A category someone picked by hand: an aisle key, or "other". */
+export type CategoryKey = Aisle | 'other';
+
+/** Every category in shop order — what the item popup offers to pick from. */
+export const CATEGORY_KEYS: CategoryKey[] = [
+  ...(Object.keys(AISLES) as Aisle[]).sort((a, b) => AISLES[a].order - AISLES[b].order),
+  'other',
+];
+
+export function isCategoryKey(value: unknown): value is CategoryKey {
+  return typeof value === 'string' && (CATEGORY_KEYS as string[]).includes(value);
+}
+
+export function categoryForKey(key: CategoryKey): GroceryCategory {
+  return key === 'other' ? OTHER_CATEGORY : AISLES[key];
+}
+
+/** The key of the category the app would guess for a name. */
+export function detectCategoryKey(name: string): CategoryKey {
+  const cat = detectCategory(name);
+  const hit = (Object.keys(AISLES) as Aisle[]).find((k) => AISLES[k] === cat);
+  return hit ?? 'other';
+}
+
+/** An item's category: the one picked by hand if any, otherwise the guess from its name. */
+export function itemCategory(item: { name: string; category?: string | null }): GroceryCategory {
+  return isCategoryKey(item.category) ? categoryForKey(item.category) : detectCategory(item.name);
+}
+
 // A few items are common enough to get their own picture instead of the
 // aisle's icon. Checked in order; the first match wins.
 const ITEM_ICONS: Array<{ re: RegExp; icon: IoniconName }> = [

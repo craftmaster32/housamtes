@@ -6,6 +6,7 @@ import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import type { IoniconName } from '@/types/icons';
 import { getDueStatus, todayISO } from '@utils/recurringCoverage';
+import { asMemberSpans, membersOn, type MemberSpan } from '@utils/membership';
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
 
@@ -386,10 +387,12 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         if (!paymentChangesSchema.safeParse(data).success) {
           throw new Error('Please check the payment details and try again.');
         }
-        // Empty array (not null) is the "split among everyone" sentinel — the column is
-        // NOT NULL, and the load path treats an empty array the same as "all housemates".
-        const splitBetween =
-          data.splitBetween && data.splitBetween.length > 0 ? data.splitBetween : [];
+        // Every payment must say who shares it (the database refuses one that
+        // doesn't), so it can never be re-divided when someone joins or leaves.
+        if (!data.splitBetween || data.splitBetween.length === 0) {
+          throw new Error('Please choose who shares this payment.');
+        }
+        const splitBetween = data.splitBetween;
         const { data: inserted, error } = await supabase
           .from('household_payments')
           .insert({
@@ -416,12 +419,11 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         if (!parsed.success) {
           throw new Error('Please check the payment details and try again.');
         }
-        // Empty array (not null) is the "split among everyone" sentinel — matches the
-        // NOT NULL column and how logPayment / load treat it.
-        const splitBetween =
-          parsed.data.splitBetween && parsed.data.splitBetween.length > 0
-            ? parsed.data.splitBetween
-            : [];
+        // Same rule as logPayment: always say who shares it.
+        if (!parsed.data.splitBetween || parsed.data.splitBetween.length === 0) {
+          throw new Error('Please choose who shares this payment.');
+        }
+        const splitBetween = parsed.data.splitBetween;
         let updated;
         try {
           const res = await supabase
@@ -541,7 +543,8 @@ export interface FairnessEntry {
  *
  * Every logged payment is credited to whoever paid it (`paidBy`, or the bill's assignee
  * for payments logged before the payer was recorded), and its cost is shared equally among the people in `splitBetween`. When a payment has
- * no explicit split, it is shared among all current housemates (`memberIds`). Each
+ * no explicit split, it is shared among everyone who lived there on the day it was
+ * paid (`members` with join/leave dates; plain ids count as always there). Each
  * person's balance = what they paid − their share of everything, so positive means they
  * are owed money and negative means they owe. Balances always sum to ~0, so they feed
  * straight into Settle Up.
@@ -549,8 +552,9 @@ export interface FairnessEntry {
 export function calculateFairness(
   bills: RecurringBill[],
   payments: HouseholdPayment[],
-  memberIds: string[] = []
+  members: (string | MemberSpan)[] = []
 ): FairnessEntry[] {
+  const spans = asMemberSpans(members);
   const paid = new Map<string, number>();
   const owed = new Map<string, number>();
   const people = new Set<string>();
@@ -562,11 +566,14 @@ export function calculateFairness(
     people.add(payer);
     paid.set(payer, (paid.get(payer) ?? 0) + p.amount);
 
+    // "Everyone" means everyone who lived there on the day it was paid.
+    const presentThen =
+      p.splitBetween && p.splitBetween.length > 0 ? [] : membersOn(spans, p.paidAt);
     const split =
       p.splitBetween && p.splitBetween.length > 0
         ? p.splitBetween
-        : memberIds.length > 0
-          ? memberIds
+        : presentThen.length > 0
+          ? presentThen
           : [payer];
     const share = p.amount / split.length;
     for (const m of split) {

@@ -22,6 +22,8 @@ import { BuzzerPanel } from '@components/bills/BuzzerPanel';
 import { InviteTicket } from '@components/bills/InviteTicket';
 import { SettingsDialog, DialogButton } from '@components/settings/SettingsDialog';
 import { asWord } from '@utils/asWord';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { useSettlementPaymentsStore } from '@stores/settlementPaymentsStore';
 import { mf, ms } from '@utils/responsive';
 
 function HousematesScreen(): React.JSX.Element {
@@ -44,6 +46,8 @@ function HousematesScreen(): React.JSX.Element {
   const billsLoading = useBillsStore((s) => s.isLoading);
   const loadBills = useBillsStore((s) => s.load);
   const settleBill = useBillsStore((s) => s.settleBill);
+  const settledGuard = useSettledPeriodGuard();
+  const settlementPayments = useSettlementPaymentsStore((s) => s.payments);
   const removeMember = useHousematesStore((s) => s.removeMember);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
@@ -92,6 +96,26 @@ function HousematesScreen(): React.JSX.Element {
   const handleSettle = useCallback(
     async (billId: string): Promise<void> => {
       if (!houseId) return;
+      const bill = bills.find((b) => b.id === billId);
+      if (!bill) return;
+      // Already covered by "settle up to a date": marking it settled as well
+      // would take the same money off twice.
+      if (settledGuard.isSettled(bill.date)) {
+        Alert.alert(t('bills.settled_change_title'), t('bills.mark_settled_already_covered'));
+        return;
+      }
+      // Settle-up payments with someone in this bill may already cover it.
+      const people = new Set([bill.paidBy, ...bill.splitBetween]);
+      const overlapping = settlementPayments.some((p) => people.has(p.from) && people.has(p.to));
+      if (overlapping) {
+        const ok = await new Promise<boolean>((resolve) => {
+          Alert.alert(t('bills.mark_settled_check_title'), t('bills.mark_settled_check_body'), [
+            { text: t('common.cancel'), style: 'cancel', onPress: (): void => resolve(false) },
+            { text: t('bills.mark_settled_check_confirm'), onPress: (): void => resolve(true) },
+          ]);
+        });
+        if (!ok) return;
+      }
       setSettlingId(billId);
       try {
         await settleBill(billId, myId, profile?.name ?? '', houseId);
@@ -101,7 +125,7 @@ function HousematesScreen(): React.JSX.Element {
         setSettlingId(null);
       }
     },
-    [houseId, myId, profile?.name, settleBill, t]
+    [houseId, bills, settledGuard, settlementPayments, myId, profile?.name, settleBill, t]
   );
 
   const C = useThemedColors();

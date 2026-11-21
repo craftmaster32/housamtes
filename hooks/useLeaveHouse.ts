@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { navigateToBase } from '@stores/navigationStore';
 import { useAuthStore } from '@stores/authStore';
-import { useBillsStore, calculateBalances } from '@stores/billsStore';
+import { useHouseMoney } from '@hooks/useHouseMoney';
 import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -37,7 +37,7 @@ export function useLeaveHouse(): LeaveHouseState {
   const houseId = useAuthStore((s) => s.houseId);
   const myRole = useAuthStore((s) => s.role);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
-  const bills = useBillsStore((s) => s.bills);
+  const { net } = useHouseMoney();
   const housemates = useHousematesStore((s) => s.housemates);
   const addProposal = useVotingStore((s) => s.addProposal);
   const currency = useSettingsStore((s) => s.currency);
@@ -57,11 +57,9 @@ export function useLeaveHouse(): LeaveHouseState {
   const mustPickSuccessor = myRole === 'owner' && successors.length > 0;
 
   const startLeave = useCallback((): void => {
-    const balances = calculateBalances(
-      bills.filter((b) => !b.settled),
-      myId
-    );
-    const owed = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+    // Same balance as the Bills screen: one-off bills, recurring bills and
+    // settle-up payments. Negative = I still owe the house money.
+    const owed = Math.max(0, -(net.get(myId) ?? 0));
     if (owed > 0.01) {
       setDebtAmount(owed);
       setShowDebtModal(true);
@@ -69,7 +67,7 @@ export function useLeaveHouse(): LeaveHouseState {
       setSuccessorId(null);
       setShowLeaveConfirm(true);
     }
-  }, [bills, myId]);
+  }, [net, myId]);
 
   const confirmLeave = useCallback(async (): Promise<void> => {
     if (mustPickSuccessor && !successorId) return;

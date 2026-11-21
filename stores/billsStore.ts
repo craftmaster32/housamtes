@@ -48,7 +48,9 @@ interface BillsStore {
       notes?: string;
       receiptUrl?: string | null;
     },
-    houseId: string
+    houseId: string,
+    /** skipNotify: the caller sends its own single message (e.g. settled-period change). */
+    opts?: { skipNotify?: boolean }
   ) => Promise<void>;
   editBill: (
     id: string,
@@ -63,7 +65,9 @@ interface BillsStore {
       splitAmounts?: Record<string, number> | null;
       splitType?: BillSplitType | null;
     },
-    houseId: string
+    houseId: string,
+    /** skipNotify: the caller sends its own single message (e.g. settled-period change). */
+    opts?: { skipNotify?: boolean }
   ) => Promise<void>;
   settleBill: (
     id: string,
@@ -71,7 +75,7 @@ interface BillsStore {
     settledByName: string,
     houseId: string
   ) => Promise<void>;
-  deleteBill: (id: string, houseId: string) => Promise<void>;
+  deleteBill: (id: string, houseId: string, opts?: { skipNotify?: boolean }) => Promise<void>;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -159,7 +163,7 @@ export const useBillsStore = create<BillsStore>()(
           _channelHouseId = null;
         }
       },
-      addBill: async (data, houseId): Promise<void> => {
+      addBill: async (data, houseId, opts): Promise<void> => {
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user.id ?? '';
         const { data: inserted, error } = await supabase
@@ -201,7 +205,7 @@ export const useBillsStore = create<BillsStore>()(
           receiptUrl: inserted.receipt_url ?? null,
         };
         set({ bills: [bill, ...get().bills] });
-        if (userId) {
+        if (userId && !opts?.skipNotify) {
           notifyHousemates({
             houseId,
             excludeUserId: userId,
@@ -215,7 +219,7 @@ export const useBillsStore = create<BillsStore>()(
           });
         }
       },
-      editBill: async (id, updates, houseId): Promise<void> => {
+      editBill: async (id, updates, houseId, opts): Promise<void> => {
         const before = get().bills.find((b) => b.id === id);
         // Split fields (paidBy / splitBetween / splitAmounts) are optional so
         // callers that only touch the basic fields can omit them; only the
@@ -264,7 +268,7 @@ export const useBillsStore = create<BillsStore>()(
         try {
           const amountChanged = before !== undefined && before.amount !== updates.amount;
           const dateChanged = before !== undefined && before.date !== updates.date;
-          if (before && (amountChanged || dateChanged)) {
+          if (!opts?.skipNotify && before && (amountChanged || dateChanged)) {
             const { data: sessionData } = await supabase.auth.getSession();
             const userId = sessionData.session?.user.id ?? '';
             if (userId) {
@@ -329,7 +333,7 @@ export const useBillsStore = create<BillsStore>()(
           });
         }
       },
-      deleteBill: async (id, houseId): Promise<void> => {
+      deleteBill: async (id, houseId, opts): Promise<void> => {
         const bill = get().bills.find((b) => b.id === id);
         if (bill?.settled) {
           throw new Error('Settled bills cannot be deleted — settlement history is permanent.');
@@ -342,7 +346,7 @@ export const useBillsStore = create<BillsStore>()(
           throw new Error('Could not delete the bill. Please try again.');
         }
         set({ bills: get().bills.filter((b) => b.id !== id) });
-        if (bill) {
+        if (bill && !opts?.skipNotify) {
           if (userId) {
             notifyHousemates({
               houseId,

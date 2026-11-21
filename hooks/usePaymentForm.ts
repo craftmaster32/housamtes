@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useRecurringBillsStore,
@@ -7,6 +7,10 @@ import {
   type RecurringBill,
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettledPeriodGuard } from '@hooks/useSettledPeriodGuard';
+import { useHousematesStore } from '@stores/housematesStore';
+import { defaultSplitOn, toMemberSpans } from '@utils/membership';
+import { firstCoveredDay } from '@utils/settleUp';
 import {
   FREQUENCY_MONTHS,
   monthStart,
@@ -63,8 +67,10 @@ export function usePaymentForm({
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
   const updatePayment = useRecurringBillsStore((s) => s.updatePayment);
   const deletePayment = useRecurringBillsStore((s) => s.deletePayment);
+  const settledGuard = useSettledPeriodGuard();
   const houseId = useAuthStore((s) => s.houseId);
 
+  const housemates = useHousematesStore((s) => s.housemates);
   const initial = useMemo(() => {
     const today = todayISO();
     const known = payment ? paymentPeriod(payment) : null;
@@ -79,7 +85,12 @@ export function usePaymentForm({
       paidAt: payment?.paidAt ?? today,
       paidBy: payment?.paidBy ?? bill.assignedTo ?? '',
       note: payment?.note ?? '',
-      splitWith: payment?.splitBetween?.length ? payment.splitBetween : memberIds,
+      // An older payment saved without names: start from who lived here that day.
+      splitWith: payment?.splitBetween?.length
+        ? payment.splitBetween
+        : payment
+          ? defaultSplitOn(toMemberSpans(housemates), memberIds, payment.paidAt)
+          : memberIds,
     };
     // Only recomputed when the sheet opens — later store updates mustn't reset typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,7 +99,9 @@ export function usePaymentForm({
   const [period, setPeriodState] = useState(initial.period);
   const [periodKnown, setPeriodKnown] = useState(initial.periodKnown);
   const [amount, setAmount] = useState(initial.amount);
-  const [paidAt, setPaidAt] = useState(initial.paidAt);
+  const [paidAt, setPaidAtState] = useState(initial.paidAt);
+  const splitTouched = useRef(false);
+  const confirmingRef = useRef(false);
   const [paidBy, setPaidBy] = useState(initial.paidBy);
   const [note, setNote] = useState(initial.note);
   const [splitWith, setSplitWith] = useState(initial.splitWith);
@@ -100,12 +113,24 @@ export function usePaymentForm({
     setPeriodState(initial.period);
     setPeriodKnown(initial.periodKnown);
     setAmount(initial.amount);
-    setPaidAt(initial.paidAt);
+    setPaidAtState(initial.paidAt);
     setPaidBy(initial.paidBy);
     setNote(initial.note);
     setSplitWith(initial.splitWith);
+    splitTouched.current = false;
     setError('');
   }, [visible, initial]);
+
+  // A new payment dated before someone joined isn't theirs: changing the date
+  // pre-selects only the people who lived here then (unless edited by hand).
+  const setPaidAt = useCallback(
+    (value: string): void => {
+      setPaidAtState(value);
+      if (payment || splitTouched.current) return;
+      setSplitWith(defaultSplitOn(toMemberSpans(housemates), memberIds, value));
+    },
+    [payment, housemates, memberIds]
+  );
 
   const setPeriod = useCallback((p: CoveragePeriod): void => {
     setPeriodState(p);
@@ -113,6 +138,7 @@ export function usePaymentForm({
   }, []);
 
   const toggleSplit = useCallback((id: string): void => {
+    splitTouched.current = true;
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
 
@@ -120,7 +146,8 @@ export function usePaymentForm({
   const canSave = !saving && !!houseId && parsed > 0 && splitWith.length > 0;
 
   const save = useCallback(async (): Promise<void> => {
-    if (saving) return;
+    // A second tap while the settled-month question is open mustn't save twice.
+    if (saving || confirmingRef.current) return;
     const value = parseAmount(amount);
     if (!(value > 0)) {
       setError(t('bills.enter_valid_amount'));
@@ -144,6 +171,22 @@ export function usePaymentForm({
       coverageMonths: periodKnown ? period.months : undefined,
       paidBy: paidBy || undefined,
     };
+    // A payment dated in a period that was already settled up changes old
+    // balances: ask first, and tell the house once it's saved.
+    confirmingRef.current = true;
+    // Checked by the months a payment pays for (before and after the change).
+    const before = payment ? firstCoveredDay(payment, bill) : null;
+    const after = periodKnown
+      ? period.start
+      : firstCoveredDay({ ...fields, id: '', billId: bill.id }, bill);
+    let check;
+    try {
+      check = await settledGuard.confirmChange(before, after);
+    } finally {
+      confirmingRef.current = false;
+    }
+    if (!check.proceed) return;
+    const inSettledPeriod = check.settled;
     try {
       setSaving(true);
       setError('');
@@ -152,6 +195,7 @@ export function usePaymentForm({
       } else {
         await logPayment({ billId: bill.id, ...fields }, houseId);
       }
+      if (inSettledPeriod) settledGuard.notifyChange(bill.name);
       onDone();
     } catch {
       setError(t('bills.failed_save'));
@@ -171,7 +215,8 @@ export function usePaymentForm({
     payment,
     updatePayment,
     logPayment,
-    bill.id,
+    bill,
+    settledGuard,
     onDone,
     t,
   ]);
@@ -182,6 +227,10 @@ export function usePaymentForm({
       setSaving(true);
       setError('');
       await deletePayment(payment.id);
+      // The delete was confirmed in the sheet (with the settled-period warning
+      // when it applies) — tell the house once.
+      if (settledGuard.isSettled(firstCoveredDay(payment, bill)))
+        settledGuard.notifyChange(bill.name);
       onDone();
     } catch (err) {
       setError(
@@ -192,7 +241,7 @@ export function usePaymentForm({
     } finally {
       setSaving(false);
     }
-  }, [payment, saving, deletePayment, onDone, t]);
+  }, [payment, saving, deletePayment, settledGuard, bill, onDone, t]);
 
   return {
     period,

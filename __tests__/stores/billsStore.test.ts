@@ -430,6 +430,18 @@ describe('billsStore — deleteBill', () => {
 
     expect(useBillsStore.getState().bills).toHaveLength(0);
   });
+
+  it('sends no message of its own when the caller sends one (settled-period change)', async () => {
+    useBillsStore.setState({ bills: [bill({ id: 'b1' })] });
+    mockFrom.mockReturnValue(ok());
+    const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
+    (notifyHousemates as jest.Mock).mockClear();
+
+    await useBillsStore.getState().deleteBill('b1', 'house1', { skipNotify: true });
+
+    expect(useBillsStore.getState().bills).toHaveLength(0);
+    expect(notifyHousemates).not.toHaveBeenCalled();
+  });
 });
 
 describe('billsStore — editBill', () => {
@@ -744,5 +756,22 @@ describe('billsStore — addBill (receipt)', () => {
 
     expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ receipt_url: null }));
     expect(useBillsStore.getState().bills[0].receiptUrl).toBeNull();
+  });
+
+  it('sends one "new bill" message normally, and none when the caller sends its own', async () => {
+    const insertSpy = jest.fn(() => ({
+      select: (): { single: () => Promise<unknown> } => ({
+        single: (): Promise<unknown> => Promise.resolve({ data: insertedRow(null), error: null }),
+      }),
+    }));
+    mockFrom.mockReturnValue({ insert: insertSpy });
+    const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
+
+    await useBillsStore.getState().addBill(basePayload, 'house-1');
+    expect(notifyHousemates).toHaveBeenCalledTimes(1);
+
+    (notifyHousemates as jest.Mock).mockClear();
+    await useBillsStore.getState().addBill(basePayload, 'house-1', { skipNotify: true });
+    expect(notifyHousemates).not.toHaveBeenCalled();
   });
 });

@@ -94,12 +94,12 @@ function ShopScreen(): React.JSX.Element {
   // exactly once, and reads activeRun fresh to avoid a stale closure.
   const startAttemptedRef = useRef(false);
   useEffect((): void => {
-    if (isLoading || startAttemptedRef.current || !myId || !myName) return;
+    if (isLoading || startAttemptedRef.current || !myId || !myName || !houseId) return;
     startAttemptedRef.current = true;
     if (!useGroceryStore.getState().activeRun) {
-      startRun(myId, myName).catch(() => {});
+      startRun(myId, myName, houseId).catch(() => {});
     }
-  }, [isLoading, myId, myName, startRun]);
+  }, [isLoading, myId, myName, houseId, startRun]);
 
   const shoppingItems = useMemo(
     () => items.filter((i) => !i.isPersonal || i.addedBy === myId),
