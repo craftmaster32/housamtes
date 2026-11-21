@@ -141,7 +141,14 @@ export function RecurringBillCard({
           style: 'cancel',
           onPress: (): void => swipeRef.current?.close(),
         },
-        { text: t('common.delete'), style: 'destructive', onPress: handleDelete },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: (): void => {
+            swipeRef.current?.close();
+            void handleDelete();
+          },
+        },
       ],
       { onDismiss: (): void => swipeRef.current?.close() }
     );
@@ -207,6 +214,7 @@ export function RecurringBillCard({
 
   return (
     <Swipeable
+      key={i18n.dir()}
       ref={swipeRef}
       renderRightActions={renderDeleteAction}
       overshootRight={false}
