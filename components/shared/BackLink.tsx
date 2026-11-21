@@ -1,53 +1,9 @@
-import { StyleSheet, Pressable } from 'react-native';
-import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import { goBack } from '@stores/navigationStore';
-import { useColors } from '@hooks/useColors';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
-import { font } from '@constants/typography';
-import { mf, ms } from '@utils/responsive';
-
-interface BackLinkProps {
-  // What the button says it goes to — name the real destination (e.g. Home).
+export interface BackLinkProps {
+  // What the button used to say it goes to — kept so existing screens compile.
   label: string;
 }
 
-// A labelled back control (chevron + destination name) that walks one step back
-// through the navigation we built (goBack). Drop it at the top-left of a screen
-// that otherwise has no back affordance. The label should name where back
-// actually lands, so on a main section it reads "Home".
-export function BackLink({ label }: BackLinkProps): React.JSX.Element {
-  const c = useColors();
-  const { t } = useTranslation();
-  const rtl = isRTL(useLanguageStore((s) => s.language));
-
-  return (
-    <Pressable
-      onPress={() => goBack()}
-      // The row auto-reverses in RTL (I18nManager on native, CSS direction on
-      // web), so keep a plain row and only flip the chevron glyph below.
-      style={styles.btn}
-      hitSlop={12}
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={label === t('common.back') ? label : `${t('common.back')} — ${label}`}
-    >
-      <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color={c.primary} />
-      <Text style={[styles.text, { color: c.primary }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(2),
-    alignSelf: 'flex-start',
-    minHeight: ms(40),
-    paddingEnd: ms(8),
-  },
-  text: { fontSize: mf(15), ...font.semibold },
-});
+// The on-screen "‹ Back" button has been removed app-wide: people go back with
+// the edge swipe (iOS) / system back gesture, which is unchanged. Screens still
+// place <BackLink /> in their headers, so it simply renders nothing now.
+export const BackLink: React.FC<BackLinkProps> = () => null;
