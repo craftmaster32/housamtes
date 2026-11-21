@@ -83,9 +83,10 @@ let loadHouseId = '';
 // Applied on top of the loaded snapshot so a completed load cannot discard
 // photos added or removed after the DB query was sent.
 // Null-prototype prevents __proto__ from corrupting Object.prototype.
-const mutationOverlay: Record<string, ProductPhoto | null> = Object.create(
-  null
-) as Record<string, ProductPhoto | null>;
+const mutationOverlay: Record<string, ProductPhoto | null> = Object.create(null) as Record<
+  string,
+  ProductPhoto | null
+>;
 // Per-key save generation: prevents a stale concurrent save from overwriting a
 // newer one's result in the cache.
 const saveGeneration: Record<string, number> = Object.create(null) as Record<string, number>;

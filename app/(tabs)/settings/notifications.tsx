@@ -15,7 +15,6 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
 import { useWebPushToggle } from '@hooks/useWebPushToggle';
-import { BackLink } from '@components/shared/BackLink';
 import { InkTickBox } from '@components/shared/InkTickBox';
 import { SettingsLine } from '@components/settings/SettingsLine';
 import { ChoiceWords, type ChoiceWord } from '@components/settings/ChoiceWords';
@@ -224,9 +223,6 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
-      <View style={styles.backRow}>
-        <BackLink label={t('nav.settings')} />
-      </View>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, heading, { color: c.textPrimary }]} accessibilityRole="header">
           {t('settings.menu_notifications')}
@@ -298,7 +294,6 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  backRow: { paddingHorizontal: ms(20), paddingTop: ms(8) },
   scroll: { paddingHorizontal: ms(20), paddingBottom: ms(80) },
   title: {
     fontSize: mf(36),

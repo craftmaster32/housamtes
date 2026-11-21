@@ -7,7 +7,6 @@ import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors } from '@constants/colors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { BackLink } from '@components/shared/BackLink';
 import { InkTickBox } from '@components/shared/InkTickBox';
 import { SettingsLine } from '@components/settings/SettingsLine';
 import { mf, ms } from '@utils/responsive';
@@ -41,9 +40,6 @@ export default function CalendarSettingsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.background }]} edges={['top']}>
-      <View style={styles.backRow}>
-        <BackLink label={t('nav.settings')} />
-      </View>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, heading, { color: c.textPrimary }]} accessibilityRole="header">
           {t('settings.menu_calendar')}
@@ -113,7 +109,6 @@ export default function CalendarSettingsScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  backRow: { paddingHorizontal: ms(20), paddingTop: ms(8) },
   scroll: { paddingHorizontal: ms(20), paddingBottom: ms(80) },
   title: {
     fontSize: mf(36),
